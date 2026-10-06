@@ -1,0 +1,336 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import React, { useState, useEffect } from 'react';
+import { Navbar } from './components/Navbar';
+import { LandingPage } from './components/LandingPage';
+import { AnalyzingView } from './components/AnalyzingView';
+import { DashboardOverview } from './components/DashboardOverview';
+import { ExecutiveSummaryView } from './components/ExecutiveSummaryView';
+import { SeoAuditView } from './components/SeoAuditView';
+import { KeywordsView } from './components/KeywordsView';
+import { CompetitorsView } from './components/CompetitorsView';
+import { OpportunitiesView } from './components/OpportunitiesView';
+import { ContentGeneratorView } from './components/ContentGeneratorView';
+import { ActionPlanView } from './components/ActionPlanView';
+import { EvolutionView } from './components/EvolutionView';
+import { MonthlyReportView } from './components/MonthlyReportView';
+import { AdminView } from './components/AdminView';
+import { AiAssistantModal } from './components/AiAssistantModal';
+import { NewBusinessModal } from './components/NewBusinessModal';
+import { storageService } from './services/storageService';
+import {
+  ActiveTab,
+  Business,
+  ExecutiveIssue,
+  SeoAuditItem,
+  KeywordItem,
+  Competitor,
+  Opportunity,
+  ActionTask,
+  MonthlyEvolution,
+  TaskStatus,
+  ContentGenerationRequest,
+} from './types';
+import { Sparkles } from 'lucide-react';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
+  const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
+  const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
+
+  // Pending scan URL
+  const [analyzingUrl, setAnalyzingUrl] = useState<string>('');
+
+  // AI Assistant Drawer state
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantInitialPrompt, setAssistantInitialPrompt] = useState<string>('');
+
+  // Content Generator pre-fill params
+  const [contentGenParams, setContentGenParams] = useState<Partial<ContentGenerationRequest> | undefined>();
+
+  // New Business Modal
+  const [newBizModalOpen, setNewBizModalOpen] = useState(false);
+
+  // Active business entity
+  const activeBusiness =
+    businesses.find((b) => b.id === activeBusinessId) || businesses[0];
+
+  // Specific data for the active business
+  const issues = storageService.getIssues(activeBusiness.id);
+  const seoItems = storageService.getSeoAudit();
+  const keywords = storageService.getKeywords(activeBusiness.id);
+  const competitors = storageService.getCompetitors(activeBusiness.id);
+  const opportunities = storageService.getOpportunities(activeBusiness.id);
+  const [actionTasks, setActionTasks] = useState<ActionTask[]>(() =>
+    storageService.getActionTasks(activeBusiness.id)
+  );
+  const evolution = storageService.getEvolution(activeBusiness.id);
+
+  // Keep action tasks synced when activeBusiness changes
+  useEffect(() => {
+    setActionTasks(storageService.getActionTasks(activeBusiness.id));
+  }, [activeBusiness.id]);
+
+  // Handlers
+  const handleSelectBusiness = (bizId: string) => {
+    setActiveBusinessId(bizId);
+    storageService.setActiveBusinessId(bizId);
+  };
+
+  const handleStartAnalysis = (url: string, name?: string, category?: string, city?: string) => {
+    setAnalyzingUrl(url);
+    setActiveTab('analyzing');
+  };
+
+  const handleAnalysisComplete = () => {
+    // If analyzingUrl matches one of our presets, select it; otherwise register new
+    const existing = businesses.find((b) => b.url.toLowerCase().includes(analyzingUrl.toLowerCase()));
+    if (existing) {
+      handleSelectBusiness(existing.id);
+    } else {
+      let deducedName = 'Negocio Analizado';
+      try {
+        const u = new URL(analyzingUrl.startsWith('http') ? analyzingUrl : `https://${analyzingUrl}`);
+        const host = u.hostname.replace('www.', '').split('.')[0];
+        deducedName = host.charAt(0).toUpperCase() + host.slice(1);
+      } catch {
+        deducedName = 'Mi Negocio';
+      }
+
+      const created = storageService.addBusiness({
+        url: analyzingUrl,
+        name: deducedName,
+        category: 'Comercio / Servicios',
+        city: 'Buenos Aires',
+        country: 'Argentina',
+      });
+      setBusinesses(storageService.getBusinesses());
+      handleSelectBusiness(created.id);
+    }
+
+    setActiveTab('dashboard');
+  };
+
+  const handleSelectPreset = (presetId: string) => {
+    handleSelectBusiness(presetId);
+    setActiveTab('dashboard');
+  };
+
+  const handleAddNewBusiness = (biz: { name: string; url: string; category: string; city: string; country: string }) => {
+    const created = storageService.addBusiness(biz);
+    setBusinesses(storageService.getBusinesses());
+    handleSelectBusiness(created.id);
+    setAnalyzingUrl(biz.url);
+    setActiveTab('analyzing');
+  };
+
+  const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
+    const updated = storageService.updateTaskStatus(activeBusiness.id, taskId, newStatus);
+    setActionTasks(updated);
+  };
+
+  const handleSelectOpportunityForAI = (opp: Opportunity) => {
+    setContentGenParams({
+      contentType: opp.contentParams.contentType,
+      topic: opp.contentParams.topic,
+      keyword: opp.contentParams.keyword,
+      city: opp.contentParams.city,
+      businessType: opp.contentParams.businessType,
+      goal: opp.contentParams.goal,
+    });
+    setActiveTab('content-generator');
+  };
+
+  const handleOpenAssistantWithPrompt = (prompt: string) => {
+    setAssistantInitialPrompt(prompt);
+    setAssistantOpen(true);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500 selection:text-white">
+      {/* Navbar (displayed on all screens; has link to landing) */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        activeBusiness={activeBusiness}
+        businesses={businesses}
+        onSelectBusiness={handleSelectBusiness}
+        onOpenNewBusinessModal={() => setNewBizModalOpen(true)}
+        onOpenAssistant={() => {
+          setAssistantInitialPrompt('');
+          setAssistantOpen(true);
+        }}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1">
+        {activeTab === 'landing' && (
+          <LandingPage
+            onAnalyze={handleStartAnalysis}
+            onSelectPreset={handleSelectPreset}
+          />
+        )}
+
+        {activeTab === 'analyzing' && (
+          <AnalyzingView
+            url={analyzingUrl || activeBusiness.url}
+            onComplete={handleAnalysisComplete}
+          />
+        )}
+
+        {/* Views within the Business Dashboard */}
+        {activeTab !== 'landing' && activeTab !== 'analyzing' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+            {activeTab === 'dashboard' && (
+              <DashboardOverview
+                business={activeBusiness}
+                issues={issues}
+                setActiveTab={setActiveTab}
+                onOpenAssistant={() => {
+                  setAssistantInitialPrompt('¿Qué debería mejorar primero en mi negocio?');
+                  setAssistantOpen(true);
+                }}
+                onGenerateOpportunity={(oppId) => {
+                  const opp = opportunities.find((o) => o.id === oppId) || opportunities[0];
+                  handleSelectOpportunityForAI(opp);
+                }}
+              />
+            )}
+
+            {activeTab === 'executive-summary' && (
+              <ExecutiveSummaryView
+                business={activeBusiness}
+                issues={issues}
+                setActiveTab={setActiveTab}
+                onOpenAssistant={() => {
+                  setAssistantInitialPrompt('Explicame el problema más importante que tiene mi negocio.');
+                  setAssistantOpen(true);
+                }}
+              />
+            )}
+
+            {activeTab === 'seo' && (
+              <SeoAuditView
+                business={activeBusiness}
+                items={seoItems}
+                setActiveTab={setActiveTab}
+                onOpenAssistant={() => {
+                  setAssistantInitialPrompt('¿Por qué es importante tener las imágenes con texto ALT y cómo afecta mis reservas?');
+                  setAssistantOpen(true);
+                }}
+              />
+            )}
+
+            {activeTab === 'keywords' && (
+              <KeywordsView
+                business={activeBusiness}
+                keywords={keywords}
+                setActiveTab={setActiveTab}
+                onOpenAssistant={() => {
+                  setAssistantInitialPrompt('¿Cuáles son las mejores palabras clave para posicionar mi negocio en mi ciudad?');
+                  setAssistantOpen(true);
+                }}
+              />
+            )}
+
+            {activeTab === 'competitors' && (
+              <CompetitorsView
+                business={activeBusiness}
+                competitors={competitors}
+                setActiveTab={setActiveTab}
+                onOpenAssistant={() => {
+                  setAssistantInitialPrompt('¿Por qué mi competencia aparece antes que yo en Google y cómo los supero?');
+                  setAssistantOpen(true);
+                }}
+              />
+            )}
+
+            {activeTab === 'opportunities' && (
+              <OpportunitiesView
+                business={activeBusiness}
+                opportunities={opportunities}
+                setActiveTab={setActiveTab}
+                onSelectOpportunityForAI={handleSelectOpportunityForAI}
+              />
+            )}
+
+            {activeTab === 'content-generator' && (
+              <ContentGeneratorView
+                business={activeBusiness}
+                initialParams={contentGenParams}
+                setActiveTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === 'action-plan' && (
+              <ActionPlanView
+                business={activeBusiness}
+                tasks={actionTasks}
+                onUpdateStatus={handleUpdateTaskStatus}
+                setActiveTab={setActiveTab}
+                onOpenAssistantWithPrompt={handleOpenAssistantWithPrompt}
+              />
+            )}
+
+            {activeTab === 'evolution' && (
+              <EvolutionView
+                business={activeBusiness}
+                evolution={evolution}
+                setActiveTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === 'monthly-report' && (
+              <MonthlyReportView
+                business={activeBusiness}
+                evolution={evolution}
+                issues={issues}
+              />
+            )}
+
+            {activeTab === 'admin' && (
+              <AdminView
+                businesses={businesses}
+                setActiveTab={setActiveTab}
+              />
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* Floating AI Assistant Trigger Button (Bottom Right) */}
+      {activeTab !== 'landing' && (
+        <button
+          onClick={() => {
+            setAssistantInitialPrompt('');
+            setAssistantOpen(true);
+          }}
+          className="no-print fixed bottom-6 right-6 z-40 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-xl hover:shadow-indigo-300 transition-all flex items-center gap-2 font-bold text-xs uppercase tracking-wider cursor-pointer group hover:scale-105 active:scale-95"
+          aria-label="Abrir asistente de negocio"
+        >
+          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+          <span className="hidden sm:inline">Preguntar al Asistente IA</span>
+          <span className="sm:hidden">IA</span>
+        </button>
+      )}
+
+      {/* Visibility AI Assistant Chat Drawer */}
+      <AiAssistantModal
+        business={activeBusiness}
+        isOpen={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        initialPrompt={assistantInitialPrompt}
+      />
+
+      {/* Add New Business Modal */}
+      <NewBusinessModal
+        isOpen={newBizModalOpen}
+        onClose={() => setNewBizModalOpen(false)}
+        onAdd={handleAddNewBusiness}
+      />
+    </div>
+  );
+}

@@ -1,0 +1,6 @@
+{
+  "name": "VISIBILITY AI",
+  "description": "Plataforma SaaS para analizar la presencia digital de empresas y negocios y ayudarlos a mejorar su visibilidad en Internet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
