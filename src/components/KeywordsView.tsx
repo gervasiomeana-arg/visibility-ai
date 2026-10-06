@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   KeyRound,
   ArrowUpRight,
@@ -31,6 +31,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const [newKeywordInput, setNewKeywordInput] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
 
+  useEffect(() => {
+    setKeywords(initialKeywords);
+  }, [initialKeywords, business.id]);
+
   const filteredKeywords = keywords.filter((kw) => {
     if (intentFilter !== 'all' && kw.intent !== intentFilter) return false;
     if (searchTerm && !kw.keyword.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -45,10 +49,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       id: `kw-${Date.now()}`,
       businessId: business.id,
       keyword: newKeywordInput.trim(),
-      position: Math.floor(Math.random() * 30) + 5,
-      searchVolume: Math.floor(Math.random() * 2000) + 300,
+      position: 0,
+      searchVolume: 0,
       difficulty: 'Media',
-      evolution: Math.floor(Math.random() * 5) - 1,
+      evolution: 0,
       intent: 'Comercial',
       url: business.url,
     };
@@ -92,7 +96,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400"></span>
             <span>
-              <strong>DATOS DEMO:</strong> Volúmenes y posiciones simuladas representativas para {business.city}. Preparado para conexión con APIs de rankings (Ahrefs, Semrush o Google Search Console).
+              <strong>DATOS DEMO:</strong> Las filas precargadas son ejemplos. Las palabras agregadas manualmente quedan pendientes de medición hasta conectar una fuente real.
             </span>
           </div>
           <button
@@ -150,8 +154,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredKeywords.map((kw) => {
-                const isTop10 = kw.position <= 10;
-                const isGoodRank = kw.position <= 20;
+                const hasMeasurement = kw.position > 0;
+                const isTop10 = hasMeasurement && kw.position <= 10;
+                const isGoodRank = hasMeasurement && kw.position <= 20;
 
                 return (
                   <tr key={kw.id} className="hover:bg-slate-50/70 transition-colors">
@@ -175,13 +180,15 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                             : 'bg-slate-100 text-slate-700'
                         }`}
                       >
-                        #{kw.position}
+                        {hasMeasurement ? `#${kw.position}` : 'Pendiente'}
                       </span>
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-medium text-slate-700">
-                      {kw.searchVolume.toLocaleString('es-AR')}
-                      <span className="text-[11px] text-slate-400 block font-normal">búsquedas/mes</span>
+                      {kw.searchVolume > 0 ? kw.searchVolume.toLocaleString('es-AR') : 'Pendiente'}
+                      <span className="text-[11px] text-slate-400 block font-normal">
+                        {kw.searchVolume > 0 ? 'búsquedas/mes · DEMO' : 'sin fuente conectada'}
+                      </span>
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
@@ -269,7 +276,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                   type="submit"
                   className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer"
                 >
-                  Comenzar rastreo
+                  Agregar a seguimiento
                 </button>
               </div>
             </form>
