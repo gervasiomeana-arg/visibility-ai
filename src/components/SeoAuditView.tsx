@@ -51,6 +51,8 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
   const okCount = items.filter((i) => i.status === 'ok').length;
   const warningCount = items.filter((i) => i.status === 'warning').length;
   const errorCount = items.filter((i) => i.status === 'error').length;
+  const realCount = items.filter((i) => i.source === 'real').length;
+  const isRealAudit = items.length > 0 && realCount === items.length;
 
   return (
     <div className="space-y-6 pb-12">
@@ -66,17 +68,21 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
               Auditoría Técnica y Contenido SEO
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Vista demostrativa de factores SEO que luego serán verificados con fuentes reales para <strong>{business.name}</strong>.
+              {isRealAudit
+                ? <>Resultados técnicos obtenidos directamente desde la web de <strong>{business.name}</strong>.</>
+                : <>Vista demostrativa de factores SEO para <strong>{business.name}</strong>.</>}
             </p>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 max-w-xs text-xs text-amber-900 shrink-0">
+          <div className={`border rounded-xl p-3 max-w-xs text-xs shrink-0 ${isRealAudit ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
             <div className="flex items-center gap-1.5 font-bold mb-0.5">
-              <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-              <span>DATOS DE SIMULACIÓN (DEMO)</span>
+              {isRealAudit ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> : <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
+              <span>{isRealAudit ? 'DATOS REALES · AUDITORÍA TÉCNICA' : 'DATOS DE SIMULACIÓN (DEMO)'}</span>
             </div>
-            <p className="text-[11px] text-amber-800 leading-tight">
-              Arquitectura desacoplada lista para conectar con Google Search Console y PageSpeed API.
+            <p className={`text-[11px] leading-tight ${isRealAudit ? 'text-emerald-800' : 'text-amber-800'}`}>
+              {isRealAudit
+                ? 'Title, meta description, encabezados, canonical, indexación, ALT, robots.txt, sitemap y respuesta HTTP fueron verificados en el sitio.'
+                : 'Todavía no hay una auditoría técnica real guardada para este negocio.'}
             </p>
           </div>
         </div>
@@ -85,15 +91,15 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
         <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Correctos</span>
-            <span className="text-lg font-bold text-emerald-600">{okCount} / 14</span>
+            <span className="text-lg font-bold text-emerald-600">{okCount} / {items.length}</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Mejorables</span>
-            <span className="text-lg font-bold text-amber-600">{warningCount} / 14</span>
+            <span className="text-lg font-bold text-amber-600">{warningCount} / {items.length}</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Atención Crítica</span>
-            <span className="text-lg font-bold text-rose-600">{errorCount} / 14</span>
+            <span className="text-lg font-bold text-rose-600">{errorCount} / {items.length}</span>
           </div>
         </div>
 
@@ -176,7 +182,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
 
                 {item.metricValue && (
                   <p className="text-xs font-semibold text-slate-700 mt-1">
-                    Valor DEMO: <span className="text-indigo-600 font-bold">{item.metricValue}</span>
+                    {item.source === 'real' ? 'Valor verificado:' : 'Valor DEMO:'} <span className="text-indigo-600 font-bold">{item.metricValue}</span>
                   </p>
                 )}
 
