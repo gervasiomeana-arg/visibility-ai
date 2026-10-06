@@ -49,6 +49,17 @@ export interface SeoAuditItem {
   solution: string;
   impact: 'Alto' | 'Medio' | 'Bajo';
   metricValue?: string;
+  source?: 'real' | 'demo';
+  checkedAt?: string;
+}
+
+export interface SeoAuditResult {
+  requestedUrl: string;
+  finalUrl: string;
+  fetchedAt: string;
+  httpStatus: number;
+  responseTimeMs: number;
+  items: SeoAuditItem[];
 }
 
 export interface KeywordItem {
