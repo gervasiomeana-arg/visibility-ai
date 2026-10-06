@@ -66,7 +66,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
               Auditoría Técnica y Contenido SEO
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Evaluación de los 14 factores clave que determinan si Google premia o penaliza la página web de <strong>{business.name}</strong>.
+              Vista demostrativa de factores SEO que luego serán verificados con fuentes reales para <strong>{business.name}</strong>.
             </p>
           </div>
 
@@ -176,7 +176,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
 
                 {item.metricValue && (
                   <p className="text-xs font-semibold text-slate-700 mt-1">
-                    Valor medido: <span className="text-indigo-600 font-bold">{item.metricValue}</span>
+                    Valor DEMO: <span className="text-indigo-600 font-bold">{item.metricValue}</span>
                   </p>
                 )}
 
