@@ -15,6 +15,7 @@ import { SeoAuditItem, Business, ActiveTab } from '../types';
 interface SeoAuditViewProps {
   business: Business;
   items: SeoAuditItem[];
+  auditMeta?: any | null;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistant: () => void;
 }
@@ -22,6 +23,7 @@ interface SeoAuditViewProps {
 export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
   business,
   items,
+  auditMeta,
   setActiveTab,
   onOpenAssistant,
 }) => {
@@ -135,6 +137,33 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
           </div>
         </div>
       </div>
+
+      {isRealAudit && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">URL verificada</span>
+            <p className="mt-1 text-xs font-semibold text-slate-800 break-all">{auditMeta?.finalUrl || business.url}</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Última auditoría</span>
+            <p className="mt-1 text-xs font-semibold text-slate-800">
+              {auditMeta?.fetchedAt ? new Date(auditMeta.fetchedAt).toLocaleString('es-AR') : 'Sin fecha registrada'}
+            </p>
+          </div>
+          <div className={`rounded-2xl border p-4 ${auditMeta?.pageSpeedError ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
+            <span className={`text-[10px] uppercase tracking-wider font-bold ${auditMeta?.pageSpeedError ? 'text-amber-700' : 'text-emerald-700'}`}>
+              Google PageSpeed
+            </span>
+            <p className={`mt-1 text-xs font-semibold ${auditMeta?.pageSpeedError ? 'text-amber-900' : 'text-emerald-900'}`}>
+              {auditMeta?.pageSpeedError
+                ? `No disponible: ${auditMeta.pageSpeedError}`
+                : auditMeta?.pageSpeed?.performanceScore !== null && auditMeta?.pageSpeed?.performanceScore !== undefined
+                ? `Medición móvil real: ${auditMeta.pageSpeed.performanceScore}/100`
+                : 'Sin medición disponible'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Grid of SEO items */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
