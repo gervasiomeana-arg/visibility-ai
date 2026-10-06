@@ -34,7 +34,10 @@ export const storageService = {
   getBusinesses(): Business[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.BUSINESSES);
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
     } catch {
       // Fallback
     }
@@ -68,12 +71,13 @@ export const storageService = {
   addBusiness(newBiz: Omit<Business, 'id' | 'createdAt' | 'scores' | 'totalOpportunities' | 'problemsCount'>): Business {
     const businesses = this.getBusinesses();
     const id = `biz-${Date.now()}`;
-    // Generate realistic simulated scores
-    const overall = Math.floor(Math.random() * 20) + 60; // 60-80
-    const google = Math.floor(Math.random() * 20) + 75;  // 75-95
-    const seo = Math.floor(Math.random() * 25) + 55;     // 55-80
-    const web = Math.floor(Math.random() * 20) + 65;     // 65-85
-    const aiVisibility = Math.floor(Math.random() * 30) + 40; // 40-70
+    // Phase 1: deterministic DEMO scores only.
+    // Real scoring will replace this in Phase 2 once measured signals are available.
+    const overall = 65;
+    const google = 70;
+    const seo = 62;
+    const web = 68;
+    const aiVisibility = 55;
 
     const created: Business = {
       ...newBiz,
@@ -86,7 +90,7 @@ export const storageService = {
         web,
         aiVisibility,
       },
-      totalOpportunities: Math.floor(Math.random() * 15) + 12,
+      totalOpportunities: 12,
       problemsCount: {
         high: 3,
         medium: 6,
@@ -114,7 +118,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_EXECUTIVE_ISSUES[businessId] || INITIAL_EXECUTIVE_ISSUES['biz-hotel-mdp'];
+    return INITIAL_EXECUTIVE_ISSUES[businessId] || [];
   },
 
   getSeoAudit(): SeoAuditItem[] {
@@ -131,7 +135,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_KEYWORDS[businessId] || INITIAL_KEYWORDS['biz-hotel-mdp'];
+    return INITIAL_KEYWORDS[businessId] || [];
   },
 
   getCompetitors(businessId: string): Competitor[] {
@@ -144,7 +148,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_COMPETITORS[businessId] || INITIAL_COMPETITORS['biz-hotel-mdp'];
+    return INITIAL_COMPETITORS[businessId] || [];
   },
 
   getOpportunities(businessId: string): Opportunity[] {
@@ -157,7 +161,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_OPPORTUNITIES[businessId] || INITIAL_OPPORTUNITIES['biz-hotel-mdp'];
+    return INITIAL_OPPORTUNITIES[businessId] || [];
   },
 
   getActionTasks(businessId: string): ActionTask[] {
@@ -170,7 +174,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_ACTION_TASKS[businessId] || INITIAL_ACTION_TASKS['biz-hotel-mdp'];
+    return INITIAL_ACTION_TASKS[businessId] || [];
   },
 
   updateTaskStatus(businessId: string, taskId: string, newStatus: TaskStatus): ActionTask[] {
@@ -188,6 +192,20 @@ export const storageService = {
   },
 
   getEvolution(businessId: string): MonthlyEvolution {
-    return INITIAL_EVOLUTION[businessId] || INITIAL_EVOLUTION['biz-hotel-mdp'];
+    return INITIAL_EVOLUTION[businessId] || {
+      months: [],
+      visibility: [],
+      googlePositions: [],
+      estimatedVisits: [],
+      consultations: [],
+      fixedProblems: [],
+      monthComparison: {
+        visibilityChangePercent: 0,
+        improvedPositionsCount: 0,
+        solvedProblemsCount: 0,
+        newOpportunitiesCount: 0,
+        consultationsTotal: 0,
+      },
+    };
   },
 };

@@ -12,7 +12,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
+
+const MAX_PROMPT_LENGTH = 4000;
+const MAX_FIELD_LENGTH = 2000;
 
 // Initialize GoogleGenAI client (will use process.env.GEMINI_API_KEY if present)
 const apiKey = process.env.GEMINI_API_KEY;
@@ -25,8 +28,11 @@ if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
 app.post('/api/assistant/chat', async (req, res) => {
   try {
     const { prompt, businessContext } = req.body;
-    if (!prompt) {
+    if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Prompt is required' });
+    }
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      return res.status(413).json({ error: 'Prompt is too long' });
     }
 
     if (!aiClient) {
@@ -65,6 +71,11 @@ app.post('/api/content/generate', async (req, res) => {
     const { contentType, topic, keyword, city, businessType, goal, tone } = req.body;
     if (!topic && !keyword) {
       return res.status(400).json({ error: 'Topic or keyword is required' });
+    }
+
+    const fields = [contentType, topic, keyword, city, businessType, goal, tone];
+    if (fields.some((value) => typeof value === 'string' && value.length > MAX_FIELD_LENGTH)) {
+      return res.status(413).json({ error: 'One or more fields are too long' });
     }
 
     if (!aiClient) {

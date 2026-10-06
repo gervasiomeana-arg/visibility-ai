@@ -73,7 +73,8 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   };
 
   const currentConfig = metricConfigs[selectedMetric];
-  const maxVal = Math.max(...currentConfig.values) * 1.15;
+  const hasHistory = months.length > 0 && currentConfig.values.length > 0;
+  const maxVal = hasHistory ? Math.max(...currentConfig.values, 1) * 1.15 : 1;
 
   return (
     <div className="space-y-6 pb-12">
@@ -89,7 +90,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               Crecimiento y Progreso Histórico
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Seguimiento del impacto de las mejoras en la presencia online de <strong>{business.name}</strong> a lo largo de los últimos 6 meses.
+              Vista DEMO de cómo se mostrará el seguimiento histórico de <strong>{business.name}</strong> a lo largo de los últimos 6 meses.
             </p>
           </div>
 
@@ -113,7 +114,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <ArrowUpRight className="w-4 h-4 text-emerald-600" />
             </div>
-            <span className="text-[10px] text-slate-500">vs. mes anterior</span>
+            <span className="text-[10px] text-slate-500">DEMO</span>
           </div>
 
           <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-left">
@@ -126,7 +127,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <ArrowUpRight className="w-4 h-4 text-emerald-600" />
             </div>
-            <span className="text-[10px] text-slate-500">en búsquedas clave</span>
+            <span className="text-[10px] text-slate-500">DEMO</span>
           </div>
 
           <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 text-left">
@@ -139,7 +140,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <CheckCircle2 className="w-4 h-4 text-amber-600" />
             </div>
-            <span className="text-[10px] text-slate-500">este mes</span>
+            <span className="text-[10px] text-slate-500">DEMO</span>
           </div>
 
           <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-100 text-left">
@@ -151,7 +152,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
                 {monthComparison.newOpportunitiesCount}
               </span>
             </div>
-            <span className="text-[10px] text-slate-500">detectadas</span>
+            <span className="text-[10px] text-slate-500">DEMO</span>
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-left col-span-2 sm:col-span-1">
@@ -164,10 +165,19 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <ArrowUpRight className="w-4 h-4 text-emerald-600" />
             </div>
-            <span className="text-[10px] text-slate-500">directas por WhatsApp</span>
+            <span className="text-[10px] text-slate-500">DEMO</span>
           </div>
         </div>
       </div>
+
+      {!hasHistory && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
+          <h2 className="text-base font-bold text-slate-900">Sin historial todavía</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Este negocio todavía no tiene mediciones históricas. La evolución aparecerá cuando existan análisis reales guardados en el tiempo.
+          </p>
+        </div>
+      )}
 
       {/* Metric Selector Buttons */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
@@ -190,7 +200,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       </div>
 
       {/* Main Chart Card */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+      {hasHistory && <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900 font-heading">
@@ -203,7 +213,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>Últimos 6 meses</span>
+            <span>6 meses de ejemplo</span>
           </div>
         </div>
 
@@ -256,7 +266,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
             Tendencia de crecimiento sostenido ↑
           </span>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

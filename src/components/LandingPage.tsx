@@ -30,8 +30,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
       setErrorMsg('Por favor ingresá la dirección web de tu negocio.');
       return;
     }
+
+    const normalized = urlInput.trim().startsWith('http://') || urlInput.trim().startsWith('https://')
+      ? urlInput.trim()
+      : `https://${urlInput.trim()}`;
+
+    try {
+      const parsed = new URL(normalized);
+      if (!parsed.hostname.includes('.') || parsed.protocol !== 'https:') {
+        throw new Error('invalid');
+      }
+    } catch {
+      setErrorMsg('Ingresá una URL válida con dominio, por ejemplo https://mihotel.com.');
+      return;
+    }
+
     setErrorMsg('');
-    onAnalyze(urlInput.trim());
+    onAnalyze(normalized);
   };
 
   const presets = [
@@ -85,7 +100,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
 
           {/* Subtitle */}
           <p className="mt-5 text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed">
-            Analizamos tu web, Google y tu presencia digital para mostrarte qué mejorar y dónde están tus oportunidades.
+            Visibility AI reunirá datos de tu web y fuentes conectadas para mostrarte qué mejorar y dónde están tus oportunidades. Esta versión todavía funciona como DEMO.
           </p>
 
           {/* Search Box Form */}
@@ -212,10 +227,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
                 2
               </div>
               <h3 className="text-lg font-bold text-white font-heading">
-                Visibility AI analiza tu presencia.
+                Visibility AI prepara tu diagnóstico.
               </h3>
               <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Revisamos cómo apareces en Google Search, Google Maps, velocidad móvil y los nuevos motores de Inteligencia Artificial (ChatGPT, Gemini).
+                En esta versión mostramos el recorrido del producto. Las conexiones reales con Google, PageSpeed y otras fuentes se incorporan por etapas.
               </p>
             </div>
 
@@ -295,14 +310,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
               <div className="p-3 rounded-xl bg-rose-50/70 border border-rose-100">
                 <p className="text-xs font-bold text-rose-900">🔴 Problema Importante</p>
                 <p className="text-xs text-rose-700 mt-0.5">
-                  La web tarda 4 segundos en celular. Se pierden hasta 60 reservas al mes.
+                  Ejemplo DEMO: la velocidad móvil podría convertirse en una prioridad cuando exista una medición real.
                 </p>
               </div>
 
               <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-100">
                 <p className="text-xs font-bold text-amber-900">🟡 Oportunidad Comercial</p>
                 <p className="text-xs text-amber-700 mt-0.5">
-                  1.200 personas buscan "hotel familiar" en tu ciudad. Tu web no tiene esa página.
+                  Ejemplo DEMO: una keyword local puede revelar una oportunidad de contenido cuando contemos con datos reales.
                 </p>
               </div>
 

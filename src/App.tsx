@@ -20,6 +20,7 @@ import { MonthlyReportView } from './components/MonthlyReportView';
 import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
+import { DemoNotice } from './components/DemoNotice';
 import { storageService } from './services/storageService';
 import {
   ActiveTab,
@@ -86,8 +87,17 @@ export default function App() {
   };
 
   const handleAnalysisComplete = () => {
-    // If analyzingUrl matches one of our presets, select it; otherwise register new
-    const existing = businesses.find((b) => b.url.toLowerCase().includes(analyzingUrl.toLowerCase()));
+    // Match existing businesses by normalized hostname to avoid duplicates.
+    const getHostname = (value: string) => {
+      try {
+        const normalized = value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
+        return new URL(normalized).hostname.replace(/^www\./, '').toLowerCase();
+      } catch {
+        return value.toLowerCase();
+      }
+    };
+    const analyzedHost = getHostname(analyzingUrl);
+    const existing = businesses.find((b) => getHostname(b.url) === analyzedHost);
     if (existing) {
       handleSelectBusiness(existing.id);
     } else {
@@ -103,8 +113,8 @@ export default function App() {
       const created = storageService.addBusiness({
         url: analyzingUrl,
         name: deducedName,
-        category: 'Comercio / Servicios',
-        city: 'Buenos Aires',
+        category: 'Pendiente de definir',
+        city: 'Pendiente de definir',
         country: 'Argentina',
       });
       setBusinesses(storageService.getBusinesses());
@@ -184,6 +194,7 @@ export default function App() {
         {/* Views within the Business Dashboard */}
         {activeTab !== 'landing' && activeTab !== 'analyzing' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+            <DemoNotice />
             {activeTab === 'dashboard' && (
               <DashboardOverview
                 business={activeBusiness}
@@ -295,6 +306,7 @@ export default function App() {
               <AdminView
                 businesses={businesses}
                 setActiveTab={setActiveTab}
+                onSelectBusiness={handleSelectBusiness}
               />
             )}
           </div>

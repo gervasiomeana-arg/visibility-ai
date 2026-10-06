@@ -44,7 +44,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>DIAGNÓSTICO DIGITAL ACTIVO</span>
+            <span>DIAGNÓSTICO DEMO</span>
             <span className="text-slate-300">·</span>
             <span className="text-slate-500">{business.category}</span>
           </div>
@@ -80,7 +80,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               VISIBILIDAD DIGITAL
             </span>
             <p className="text-[11px] text-emerald-400 font-medium mt-1">
-              {scores.overall >= 70 ? 'Presencia sólida con oportunidades' : 'Requiere optimización'}
+              {scores.overall >= 70 ? 'Puntaje demostrativo' : 'Puntaje demostrativo'}
             </p>
           </div>
           <div className="relative flex items-center justify-center">
@@ -126,7 +126,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                82% Eficaz
+                DEMO
               </span>
               <button
                 onClick={() => setActiveTab('seo')}
@@ -153,7 +153,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded">
-                68% Mejorable
+                DEMO
               </span>
               <button
                 onClick={() => setActiveTab('keywords')}
@@ -180,7 +180,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                79% Bueno
+                DEMO
               </span>
               <button
                 onClick={() => setActiveTab('seo')}
@@ -207,7 +207,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded">
-                55% Gran Oportunidad
+                DEMO
               </span>
               <button
                 onClick={() => setActiveTab('opportunities')}
@@ -229,10 +229,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <span>RESUMEN EJECUTIVO COMERCIAL</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold font-heading">
-              Encontramos {business.totalOpportunities} oportunidades para mejorar tu presencia digital.
+              Mostramos {business.totalOpportunities} oportunidades de ejemplo para validar cómo se verá el diagnóstico.
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
-              Separamos los hallazgos en problemas urgentes que provocan pérdidas de clientes, mejoras recomendadas y fortalezas de tu negocio.
+              En esta fase los hallazgos son ejemplos de producto. Las próximas integraciones convertirán estas tarjetas en resultados verificables.
             </p>
           </div>
 
@@ -253,7 +253,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           >
             <div>
               <span className="text-xs font-semibold text-rose-300 block">🔴 Problemas importantes</span>
-              <span className="text-[11px] text-slate-400">Pérdida directa de reservas</span>
+              <span className="text-[11px] text-slate-400">Ejemplos de alto impacto</span>
             </div>
             <span className="text-lg font-black text-rose-400">{highIssues.length}</span>
           </button>
@@ -264,7 +264,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           >
             <div>
               <span className="text-xs font-semibold text-amber-300 block">🟡 Mejoras recomendadas</span>
-              <span className="text-[11px] text-slate-400">Para superar a competidores</span>
+              <span className="text-[11px] text-slate-400">Ejemplos de mejora</span>
             </div>
             <span className="text-lg font-black text-amber-400">{mediumIssues.length}</span>
           </button>
@@ -275,7 +275,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           >
             <div>
               <span className="text-xs font-semibold text-emerald-300 block">🟢 Elementos correctos</span>
-              <span className="text-[11px] text-slate-400">Fortalezas ya validadas</span>
+              <span className="text-[11px] text-slate-400">Ejemplos positivos</span>
             </div>
             <span className="text-lg font-black text-emerald-400">{okIssues.length}</span>
           </button>
@@ -333,7 +333,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <div className="flex items-center gap-2">
                 <Lightbulb className="w-5 h-5 text-amber-500" />
                 <h3 className="text-base font-bold text-slate-900 font-heading">
-                  Oportunidades Comerciales Detectadas
+                  Oportunidades Comerciales DEMO
                 </h3>
               </div>
               <button
@@ -347,18 +347,18 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200">
               <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                OPORTUNIDAD DESTACADA DEL MES
+                EJEMPLO DE OPORTUNIDAD
               </div>
               <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
-                “Muchas personas buscan hoteles familiares en Mar del Plata y tu web no tiene una página específica sobre este servicio.”
+                “Ejemplo: una búsqueda local relevante podría justificar crear una página específica para ese servicio.”
               </p>
               <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                Acción recomendada: <strong>Crear página: Hotel familiar en Mar del Plata</strong> con detalles de habitaciones comunicadas y pileta climatizada.
+                Acción de ejemplo: <strong>crear una página enfocada en una necesidad local concreta</strong> cuando los datos reales confirmen la oportunidad.
               </p>
 
               <div className="mt-4 flex items-center justify-between gap-3">
                 <span className="text-xs text-slate-500 font-medium">
-                  Demanda: 1.200 búsquedas mensuales
+                  Demanda: pendiente de fuente real
                 </span>
                 <button
                   onClick={() => setActiveTab('content-generator')}
