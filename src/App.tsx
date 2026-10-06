@@ -306,6 +306,7 @@ export default function App() {
               <AdminView
                 businesses={businesses}
                 setActiveTab={setActiveTab}
+                onSelectBusiness={handleSelectBusiness}
               />
             )}
           </div>
