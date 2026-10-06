@@ -22,19 +22,23 @@ export const aiService = {
     const city = businessContext?.city || 'tu ciudad';
 
     if (p.includes('mejorar primero') || p.includes('prioridad') || p.includes('urgente')) {
-      return `Para **${biz}**, lo primero que te recomiendo solucionar esta semana son dos cosas puntuales:
-1. **La velocidad en celulares**: Tu web tarda más de 4 segundos en abrir. Si comprimes las fotos principales a WebP, vas a evitar que más de la mitad de los visitantes se vayan antes de ver tus habitaciones o servicios.
-2. **Reparar los enlaces caídos**: Tienes botones de reserva que dan error 404. Es una fuga directa de clientes listos para contratar.
+      return `Para **${biz}**, todavía no tengo mediciones reales suficientes para afirmar qué problema es el más urgente.
 
-¿Querés que te prepare un instructivo paso a paso para que vos o tu diseñador lo apliquen en 30 minutos?`;
+Mientras estemos en modo DEMO, te recomiendo priorizar solo lo que Visibility AI pueda verificar con una fuente real. Cuando conectemos el análisis técnico, voy a ordenar las acciones por impacto y evidencia.
+
+Por ahora puedo ayudarte a revisar una recomendación concreta sin presentarla como un diagnóstico verificado.`;
     }
 
     if (p.includes('competencia') || p.includes('aparece antes') || p.includes('competidor')) {
-      return `Tu competencia directa en **${city}** aparece antes principalmente por dos razones:
-1. **Tienen páginas específicas para cada búsqueda**: Ellos tienen una página titulada exactamente "Hotel familiar en ${city}" y otra para "Hotel con pileta", mientras que tu web tiene una sola página de inicio que intenta abarcar todo.
-2. **Mayor actividad en Google Maps**: Publican novedades y fotos frescas casi todas las semanas, lo que le indica a Google que el negocio está muy activo.
+      return `Todavía no tengo datos competitivos reales de **${biz}** en **${city}**. En modo DEMO no voy a inventar posiciones, autoridad ni ventajas frente a competidores.
 
-La buena noticia es que tu negocio tiene una reputación excelente. Con solo crear la página de "Hotel familiar", podrías superarlos en esa búsqueda en menos de 4 semanas.`;
+Cuando conectemos una fuente real de keywords y resultados de búsqueda, voy a poder comparar:
+- búsquedas donde aparecés vos y ellos,
+- posiciones relativas,
+- páginas que capturan esas búsquedas,
+- oportunidades concretas para cerrar la brecha.
+
+Si querés, puedo explicarte cómo leer una comparación competitiva cuando esos datos estén disponibles.`;
     }
 
     if (p.includes('contenido') || p.includes('crear')) {
@@ -54,11 +58,9 @@ Podés ir a la pestaña **Contenido IA** de Visibility AI y generarlo en un clic
     }
 
     if (p.includes('problema') || p.includes('explicame') || p.includes('explicar')) {
-      return `El problema principal detectado es que **tu negocio tiene servicios excelentes pero Google no sabe que existen**. 
+      return `En esta etapa, los problemas visibles dentro de Visibility AI pueden ser ejemplos de demostración y no deben interpretarse como hallazgos reales sobre **${biz}**.
 
-Por ejemplo, muchas familias buscan alojamiento en **${city}**, pero al no tener una página escrita con ese título exacto, Google asume que no ofreces ese servicio y le muestra tu competencia. 
-
-No es un fallo de programación complejo; es simplemente ordenar el contenido de tu web con las palabras que la gente escribe en el buscador.`;
+Cuando una auditoría esté respaldada por una fuente real, te voy a explicar cada hallazgo con cuatro cosas: qué detectamos, de dónde sale el dato, por qué importa y qué acción conviene tomar.`;
     }
 
     return `Como asistente de visibilidad para **${biz}** en **${city}**, mi objetivo es ayudarte a conseguir más clientes sin tecnicismos. 
