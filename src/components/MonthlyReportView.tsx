@@ -45,7 +45,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
             Informe Mensual de Visibilidad
           </h1>
           <p className="text-xs sm:text-sm text-slate-600 mt-1">
-            Resumen listo para imprimir o presentar a socios de <strong>{business.name}</strong>.
+            Vista DEMO del informe que podrá imprimirse cuando existan datos verificados para <strong>{business.name}</strong>.
           </p>
         </div>
 
@@ -74,7 +74,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">
-              Informe de Crecimiento Digital
+              Informe de Crecimiento Digital · DEMO
             </h2>
             <p className="text-sm font-semibold text-slate-600 mt-0.5">
               {business.name} · {business.category} · {business.city}
@@ -84,7 +84,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
           <div className="text-left sm:text-right text-xs text-slate-500">
             <span className="text-slate-400 block uppercase font-bold text-[10px]">Período auditado</span>
             <span className="font-bold text-slate-900 text-sm block">Octubre 2026</span>
-            <span>Generado automáticamente</span>
+            <span>Datos de ejemplo · no verificados</span>
           </div>
         </div>
 
@@ -158,7 +158,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
             Conclusión del período para {business.name}:
           </p>
           <p>
-            Durante este mes, la optimización de los títulos en Google y la corrección de enlaces de reserva permitieron subir 17 posiciones en búsquedas locales en <strong>{business.city}</strong>. Esto se tradujo directamente en <strong>{monthComparison.consultationsTotal} contactos directos</strong> de clientes sin pagar comisiones a intermediarios.
+            Este texto es un ejemplo de cómo Visibility AI resumirá un período cuando existan mediciones reales. En la versión actual no se atribuyen mejoras, posiciones ni consultas a acciones que todavía no fueron verificadas con una fuente conectada.
           </p>
         </div>
 
@@ -176,7 +176,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
                   Publicar la página dedicada "Hotel familiar en Mar del Plata"
                 </strong>
                 <span className="text-slate-500 text-xs">
-                  Objetivo: captar hasta 1.200 búsquedas mensuales de alta intención de reserva.
+                  Objetivo de ejemplo: validar la demanda real antes de publicar esta página.
                 </span>
               </div>
             </div>
@@ -188,7 +188,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
                   Optimizar compresión de fotos de habitaciones a formato WebP
                 </strong>
                 <span className="text-slate-500 text-xs">
-                  Objetivo: bajar el tiempo de carga en celulares de 4.1s a 1.4s.
+                  Objetivo de ejemplo: definir una meta después de medir PageSpeed y Core Web Vitals.
                 </span>
               </div>
             </div>
@@ -200,7 +200,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
                   Agregar módulo de Preguntas Frecuentes (FAQ)
                 </strong>
                 <span className="text-slate-500 text-xs">
-                  Objetivo: facilitar que ChatGPT y la IA de Google citen a tu negocio en respuestas directas.
+                  Objetivo de ejemplo: mejorar claridad y cobertura de preguntas frecuentes; el impacto en IA deberá medirse por separado.
                 </span>
               </div>
             </div>
@@ -210,7 +210,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
         {/* Report Footer */}
         <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-2">
           <span>VISIBILITY AI · Plataforma de Visibilidad Digital para Empresas</span>
-          <span>Próxima revisión recomendada: 1 de Noviembre 2026</span>
+          <span>Próxima revisión: pendiente de datos reales</span>
         </div>
       </div>
     </div>
