@@ -50,13 +50,13 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold mb-2">
               <FileCheck2 className="w-3.5 h-3.5 text-indigo-600" />
-              <span>DIAGNÓSTICO COMERCIAL</span>
+              <span>RESUMEN DEMO</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
               Resumen Ejecutivo de Visibilidad
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Encontramos <strong>{business.totalOpportunities} oportunidades</strong> para mejorar la presencia digital de <strong>{business.name}</strong>. Explicado en lenguaje claro para tomar decisiones rápidas.
+              Mostramos <strong>{business.totalOpportunities} oportunidades de ejemplo</strong> para validar cómo se presentará el diagnóstico de <strong>{business.name}</strong> cuando existan fuentes reales.
             </p>
           </div>
 
@@ -132,6 +132,11 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
 
       {/* Issues List */}
       <div className="space-y-4">
+        {filteredIssues.length === 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            No hay ítems para este filtro.
+          </div>
+        )}
         {filteredIssues.map((issue) => {
           const isHigh = issue.severity === 'high';
           const isMedium = issue.severity === 'medium';
