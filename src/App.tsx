@@ -63,6 +63,7 @@ export default function App() {
   // Specific data for the active business
   const issues = storageService.getIssues(activeBusiness.id);
   const seoItems = storageService.getSeoAudit(activeBusiness.id);
+  const seoAuditMeta = storageService.getSeoAuditMeta(activeBusiness.id);
   const keywords = storageService.getKeywords(activeBusiness.id);
   const competitors = storageService.getCompetitors(activeBusiness.id);
   const opportunities = storageService.getOpportunities(activeBusiness.id);
@@ -125,7 +126,15 @@ export default function App() {
       targetBusinessId = created.id;
     }
 
-    storageService.saveSeoAudit(targetBusinessId!, auditResult.items);
+    storageService.saveSeoAudit(targetBusinessId!, auditResult.items, {
+      requestedUrl: auditResult.requestedUrl,
+      finalUrl: auditResult.finalUrl,
+      fetchedAt: auditResult.fetchedAt,
+      httpStatus: auditResult.httpStatus,
+      responseTimeMs: auditResult.responseTimeMs,
+      pageSpeed: auditResult.pageSpeed || null,
+      pageSpeedError: auditResult.pageSpeedError || null,
+    });
     setActiveTab('seo');
   };
 
@@ -233,6 +242,7 @@ export default function App() {
               <SeoAuditView
                 business={activeBusiness}
                 items={seoItems}
+                auditMeta={seoAuditMeta}
                 setActiveTab={setActiveTab}
                 onOpenAssistant={() => {
                   setAssistantInitialPrompt('¿Por qué es importante tener las imágenes con texto ALT y cómo afecta mis reservas?');
