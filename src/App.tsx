@@ -87,8 +87,17 @@ export default function App() {
   };
 
   const handleAnalysisComplete = () => {
-    // If analyzingUrl matches one of our presets, select it; otherwise register new
-    const existing = businesses.find((b) => b.url.toLowerCase().includes(analyzingUrl.toLowerCase()));
+    // Match existing businesses by normalized hostname to avoid duplicates.
+    const getHostname = (value: string) => {
+      try {
+        const normalized = value.startsWith('http://') || value.startsWith('https://') ? value : `https://${value}`;
+        return new URL(normalized).hostname.replace(/^www\./, '').toLowerCase();
+      } catch {
+        return value.toLowerCase();
+      }
+    };
+    const analyzedHost = getHostname(analyzingUrl);
+    const existing = businesses.find((b) => getHostname(b.url) === analyzedHost);
     if (existing) {
       handleSelectBusiness(existing.id);
     } else {
@@ -104,8 +113,8 @@ export default function App() {
       const created = storageService.addBusiness({
         url: analyzingUrl,
         name: deducedName,
-        category: 'Comercio / Servicios',
-        city: 'Buenos Aires',
+        category: 'Pendiente de definir',
+        city: 'Pendiente de definir',
         country: 'Argentina',
       });
       setBusinesses(storageService.getBusinesses());
