@@ -29,6 +29,7 @@ const STORAGE_KEYS = {
   COMPETITORS: 'visibility_ai_competitors',
   OPPORTUNITIES: 'visibility_ai_opportunities',
   SEO_AUDITS: 'visibility_ai_seo_audits',
+  SEO_AUDIT_META: 'visibility_ai_seo_audit_meta',
 };
 
 export const storageService = {
@@ -135,14 +136,32 @@ export const storageService = {
     return INITIAL_SEO_AUDIT;
   },
 
-  saveSeoAudit(businessId: string, items: SeoAuditItem[]): void {
+  saveSeoAudit(businessId: string, items: SeoAuditItem[], meta?: unknown): void {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.SEO_AUDITS);
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = items;
       localStorage.setItem(STORAGE_KEYS.SEO_AUDITS, JSON.stringify(parsed));
+
+      if (meta !== undefined) {
+        const storedMeta = localStorage.getItem(STORAGE_KEYS.SEO_AUDIT_META);
+        const parsedMeta = storedMeta ? JSON.parse(storedMeta) : {};
+        parsedMeta[businessId] = meta;
+        localStorage.setItem(STORAGE_KEYS.SEO_AUDIT_META, JSON.stringify(parsedMeta));
+      }
     } catch {
       // Ignore
+    }
+  },
+
+  getSeoAuditMeta(businessId: string): any | null {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SEO_AUDIT_META);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      return parsed[businessId] || null;
+    } catch {
+      return null;
     }
   },
 
