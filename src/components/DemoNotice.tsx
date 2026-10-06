@@ -8,9 +8,7 @@ export function DemoNotice() {
         <div>
           <p className="text-sm font-bold">Modo DEMO</p>
           <p className="mt-1 text-sm leading-6 text-amber-900">
-            Los puntajes, palabras clave, competidores, oportunidades y evolución que ves en esta etapa son datos de demostración,
-            salvo que la pantalla indique expresamente una fuente real. Visibility AI nunca debe presentar una estimación o un ejemplo
-            como si fuera una medición verificada.
+            Visibility AI ya puede mostrar una auditoría SEO técnica con datos reales cuando la pantalla lo indica. Los puntajes globales, palabras clave, competidores, oportunidades y evolución continúan en DEMO hasta conectar sus fuentes reales.
           </p>
         </div>
       </div>
