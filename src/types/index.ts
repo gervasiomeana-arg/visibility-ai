@@ -60,6 +60,16 @@ export interface SeoAuditResult {
   httpStatus: number;
   responseTimeMs: number;
   items: SeoAuditItem[];
+  pageSpeed?: {
+    performanceScore: number | null;
+    firstContentfulPaint: { displayValue: string | null; numericValue: number | null; score: number | null };
+    largestContentfulPaint: { displayValue: string | null; numericValue: number | null; score: number | null };
+    cumulativeLayoutShift: { displayValue: string | null; numericValue: number | null; score: number | null };
+    totalBlockingTime: { displayValue: string | null; numericValue: number | null; score: number | null };
+    speedIndex: { displayValue: string | null; numericValue: number | null; score: number | null };
+    fetchedAt: string;
+  } | null;
+  pageSpeedError?: string | null;
 }
 
 export interface KeywordItem {
