@@ -10,12 +10,12 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ url, onComplete })
   const [currentStep, setCurrentStep] = useState(0);
 
   const steps = [
-    { title: 'Conectando con la web y comprobando seguridad HTTPS', desc: 'Validando certificado y tiempo de respuesta inicial' },
-    { title: 'Analizando indexación en Google y presencia en Google Maps', desc: 'Comprobando si tus páginas aparecen en las búsquedas locales' },
-    { title: 'Midiendo velocidad móvil (Core Web Vitals)', desc: 'Calculando tiempo de carga en conexiones móviles reales' },
-    { title: 'Rastreando hasta 5 competidores en tu ciudad y rubro', desc: 'Comparando autoridad y posiciones de palabras clave' },
-    { title: 'Evaluando visibilidad en motores de IA (ChatGPT, Gemini)', desc: 'Revisando si las inteligencias artificiales recomiendan tu negocio' },
-    { title: 'Generando diagnóstico comercial y oportunidades', desc: 'Traduciendo datos técnicos a un plan de acción comprensible' },
+    { title: 'Preparando la ficha del negocio', desc: 'Normalizando la dirección web para el entorno de demostración' },
+    { title: 'Cargando estructura de auditoría SEO', desc: 'Mostrando factores que luego se verificarán con fuentes reales' },
+    { title: 'Preparando indicadores de rendimiento', desc: 'Vista previa del módulo que conectará PageSpeed y Core Web Vitals' },
+    { title: 'Preparando comparación competitiva', desc: 'Cargando ejemplos para validar la experiencia de uso' },
+    { title: 'Preparando visibilidad en IA', desc: 'Vista previa del módulo de presencia en motores y asistentes de IA' },
+    { title: 'Armando el dashboard de demostración', desc: 'Organizando ejemplos, prioridades y acciones sin presentarlos como mediciones reales' },
   ];
 
   useEffect(() => {
@@ -55,16 +55,16 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ url, onComplete })
           </div>
 
           <h2 className="text-2xl font-bold text-slate-900 font-heading">
-            Analizando presencia digital...
+            Preparando diagnóstico DEMO...
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Estamos revisando tu negocio desde la perspectiva de tus clientes.
+            Esta etapa prepara una demostración del producto. Las mediciones reales se incorporarán en las siguientes fases.
           </p>
 
           {/* Progress Bar */}
           <div className="mt-8">
             <div className="flex justify-between text-xs font-semibold text-slate-600 mb-2">
-              <span>Diagnóstico en curso</span>
+              <span>Preparación del demo</span>
               <span className="text-indigo-600">{progressPercent}%</span>
             </div>
             <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200">
@@ -115,7 +115,7 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ url, onComplete })
           </div>
 
           <div className="mt-6 text-[11px] text-slate-400 italic">
-            * Muestra de diagnóstico rápido. No cerres esta ventana.
+            * No se están ejecutando todavía mediciones SEO, rankings ni Core Web Vitals reales.
           </div>
         </div>
       </div>
