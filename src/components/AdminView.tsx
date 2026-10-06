@@ -28,7 +28,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
       name: 'Diagnóstico Gratuito',
       price: '$0',
       period: 'por siempre',
-      businessesCount: 124,
+      businessesCount: 0,
       features: ['1 negocio', 'Diagnóstico general 0-100', '3 problemas principales', 'Actualización mensual'],
       status: 'Activo',
     },
@@ -37,7 +37,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
       name: 'Starter Business',
       price: '$49',
       period: 'por mes',
-      businessesCount: 58,
+      businessesCount: 0,
       features: ['1 negocio', 'Auditoría SEO completa 14 factores', '20 palabras clave', 'Generador IA (10 contenidos/mes)'],
       status: 'Activo',
     },
@@ -46,7 +46,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
       name: 'Pro Growth',
       price: '$99',
       period: 'por mes',
-      businessesCount: 86,
+      businessesCount: 0,
       features: ['Hasta 3 negocios', 'Auditoría semanal automática', '5 competidores monitoreados', 'Generador IA ilimitado', 'Asistente IA 24/7'],
       status: 'Activo',
       popular: true,
@@ -56,7 +56,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
       name: 'Agency Multi-Cuenta',
       price: '$249',
       period: 'por mes',
-      businessesCount: 22,
+      businessesCount: 0,
       features: ['Hasta 15 negocios', 'Informes en PDF con marca blanca', 'API Access', 'Soporte prioritario'],
       status: 'Activo',
     },
@@ -81,8 +81,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
           </div>
 
           <div className="text-xs text-slate-400 bg-slate-800 p-3 rounded-xl border border-slate-700">
-            <span className="text-emerald-400 font-bold block mb-0.5">● Sistema SaaS Operativo</span>
-            <span>Versión 1.0 MVP · Arquitectura Multi-Tenant</span>
+            <span className="text-emerald-400 font-bold block mb-0.5">● Consola SaaS DEMO</span>
+            <span>MVP visual · persistencia multi-tenant aún no implementada</span>
           </div>
         </div>
 
@@ -90,19 +90,19 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800">
           <div className="p-3 rounded-xl bg-slate-800/80">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Negocios Registrados</span>
-            <span className="text-2xl font-bold text-white font-heading mt-0.5 block">{businesses.length + 289}</span>
+            <span className="text-2xl font-bold text-white font-heading mt-0.5 block">{businesses.length}</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-800/80">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Auditorías Realizadas</span>
-            <span className="text-2xl font-bold text-white font-heading mt-0.5 block">1.420</span>
+            <span className="text-2xl font-bold text-white font-heading mt-0.5 block">0</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-800/80">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Consumo Tokens IA</span>
-            <span className="text-2xl font-bold text-indigo-400 font-heading mt-0.5 block">48.2k</span>
+            <span className="text-2xl font-bold text-indigo-400 font-heading mt-0.5 block">0</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-800/80">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Suscripciones Activas</span>
-            <span className="text-2xl font-bold text-emerald-400 font-heading mt-0.5 block">166</span>
+            <span className="text-2xl font-bold text-emerald-400 font-heading mt-0.5 block">0</span>
           </div>
         </div>
       </div>
@@ -158,7 +158,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
             <h2 className="text-base font-bold text-slate-900 font-heading">
               Negocios y Clientes Registrados
             </h2>
-            <span className="text-xs text-slate-500">Separación multi-empresa aislada</span>
+            <span className="text-xs text-slate-500">Aislamiento real pendiente de backend</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -182,7 +182,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
                     <td className="py-3.5 px-4 text-slate-600">{biz.city}</td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                        {biz.scores.overall}/100
+                        DEMO {biz.scores.overall}/100
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
@@ -229,7 +229,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
                 </div>
 
                 <p className="text-xs text-indigo-700 font-semibold mb-4">
-                  {p.businessesCount} empresas suscritas
+                  {p.businessesCount} suscripciones reales
                 </p>
 
                 <ul className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-100">
@@ -260,21 +260,21 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-semibold text-slate-500 block">Modelo en Producción</span>
+              <span className="text-xs font-semibold text-slate-500 block">Modelo configurado</span>
               <span className="text-base font-bold text-slate-900 font-mono mt-1 block">gemini-3.8-flash</span>
               <span className="text-[11px] text-slate-400">Google GenAI SDK TypeScript</span>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-semibold text-slate-500 block">Consultas al Asistente</span>
-              <span className="text-base font-bold text-slate-900 mt-1 block">342 chats</span>
-              <span className="text-[11px] text-emerald-600 font-medium">98.4% satisfacción</span>
+              <span className="text-base font-bold text-slate-900 mt-1 block">Sin telemetría</span>
+              <span className="text-[11px] text-emerald-600 font-medium">Medición pendiente</span>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-semibold text-slate-500 block">Contenidos Redactados</span>
-              <span className="text-base font-bold text-slate-900 mt-1 block">189 borradores</span>
-              <span className="text-[11px] text-slate-400">82% aprobados por usuarios</span>
+              <span className="text-base font-bold text-slate-900 mt-1 block">Sin telemetría</span>
+              <span className="text-[11px] text-slate-400">Medición pendiente</span>
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
                 <span className="text-slate-500">Asistente empresarial y redactor inteligente</span>
               </div>
               <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                CONECTADO / LISTO
+                CONFIGURABLE
               </span>
             </div>
           </div>
