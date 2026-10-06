@@ -20,6 +20,7 @@ import { MonthlyReportView } from './components/MonthlyReportView';
 import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
+import { DemoNotice } from './components/DemoNotice';
 import { storageService } from './services/storageService';
 import {
   ActiveTab,
@@ -184,6 +185,7 @@ export default function App() {
         {/* Views within the Business Dashboard */}
         {activeTab !== 'landing' && activeTab !== 'analyzing' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-8">
+            <DemoNotice />
             {activeTab === 'dashboard' && (
               <DashboardOverview
                 business={activeBusiness}
