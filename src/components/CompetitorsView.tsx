@@ -39,14 +39,14 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
               Análisis de Competidores
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Comparativa frente a los 4 competidores directos con mayor presencia digital en <strong>{business.city}</strong>.
+              Vista DEMO de comparación competitiva para <strong>{business.city}</strong>.
             </p>
           </div>
 
           <div className="bg-slate-900 text-white rounded-xl p-3.5 text-xs shrink-0 max-w-xs">
-            <span className="text-amber-300 font-bold block mb-0.5">Visibilidad promedio del sector</span>
+            <span className="text-amber-300 font-bold block mb-0.5">Comparación DEMO</span>
             <span className="text-slate-300">
-              El líder del mercado en tu zona tiene 88 puntos. Tu negocio tiene {business.scores.overall}.
+              Los puntajes de esta pantalla son ejemplos y no representan mediciones del mercado.
             </span>
           </div>
         </div>
@@ -59,10 +59,10 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
             </div>
             <div>
               <h3 className="text-xs sm:text-sm font-bold text-amber-950 font-heading">
-                Tus competidores aparecen en búsquedas donde tu negocio todavía no aparece.
+                Ejemplo de brecha competitiva
               </h3>
               <p className="text-xs text-amber-800 mt-0.5">
-                Detectamos que hoteles cercanos captan consultas para "hotel familiar", "pileta techada" y "escapada de fin de semana".
+                Cuando conectemos datos reales, esta sección mostrará búsquedas donde otros negocios aparecen y el tuyo no.
               </p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
       {/* Competitors Comparison Cards */}
       <div className="space-y-4">
         <h2 className="text-base font-bold text-slate-900 font-heading">
-          Comparativa de hasta 5 negocios líderes (DEMO)
+          Comparativa de negocios de ejemplo (DEMO)
         </h2>
 
         <div className="grid grid-cols-1 gap-4">
