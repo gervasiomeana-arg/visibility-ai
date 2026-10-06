@@ -28,6 +28,7 @@ const STORAGE_KEYS = {
   KEYWORDS: 'visibility_ai_keywords',
   COMPETITORS: 'visibility_ai_competitors',
   OPPORTUNITIES: 'visibility_ai_opportunities',
+  SEO_AUDITS: 'visibility_ai_seo_audits',
 };
 
 export const storageService = {
@@ -121,8 +122,28 @@ export const storageService = {
     return INITIAL_EXECUTIVE_ISSUES[businessId] || [];
   },
 
-  getSeoAudit(): SeoAuditItem[] {
+  getSeoAudit(businessId: string): SeoAuditItem[] {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SEO_AUDITS);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed[businessId])) return parsed[businessId];
+      }
+    } catch {
+      // Fallback
+    }
     return INITIAL_SEO_AUDIT;
+  },
+
+  saveSeoAudit(businessId: string, items: SeoAuditItem[]): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SEO_AUDITS);
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[businessId] = items;
+      localStorage.setItem(STORAGE_KEYS.SEO_AUDITS, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
   },
 
   getKeywords(businessId: string): KeywordItem[] {
