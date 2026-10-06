@@ -58,7 +58,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
               Plan de Acción Priorizado
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Tareas organizadas por orden de impacto comercial para resolver con tu equipo o diseñador.
+              Tareas DEMO organizadas por prioridad para validar la experiencia. Las prioridades reales dependerán de hallazgos verificados.
             </p>
           </div>
 
@@ -73,7 +73,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
               </span>
             </div>
             <div className="w-10 h-10 rounded-full border-2 border-emerald-400 flex items-center justify-center font-bold text-xs text-emerald-400">
-              {Math.round((completedCount / tasks.length) * 100)}%
+              {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%
             </div>
           </div>
         </div>
@@ -141,6 +141,11 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
 
       {/* Task Cards List */}
       <div className="space-y-4">
+        {filteredTasks.length === 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            No hay tareas para este filtro.
+          </div>
+        )}
         {filteredTasks.map((task) => {
           const isUrgent = task.priority === 'URGENTE';
           const isImportant = task.priority === 'IMPORTANTE';
