@@ -73,7 +73,8 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   };
 
   const currentConfig = metricConfigs[selectedMetric];
-  const maxVal = Math.max(...currentConfig.values) * 1.15;
+  const hasHistory = months.length > 0 && currentConfig.values.length > 0;
+  const maxVal = hasHistory ? Math.max(...currentConfig.values, 1) * 1.15 : 1;
 
   return (
     <div className="space-y-6 pb-12">
@@ -169,6 +170,15 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
         </div>
       </div>
 
+      {!hasHistory && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
+          <h2 className="text-base font-bold text-slate-900">Sin historial todavía</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Este negocio todavía no tiene mediciones históricas. La evolución aparecerá cuando existan análisis reales guardados en el tiempo.
+          </p>
+        </div>
+      )}
+
       {/* Metric Selector Buttons */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
         {Object.entries(metricConfigs).map(([key, cfg]) => {
@@ -190,7 +200,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       </div>
 
       {/* Main Chart Card */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+      {hasHistory && <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900 font-heading">
@@ -256,7 +266,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
             Tendencia de crecimiento sostenido ↑
           </span>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };
