@@ -49,10 +49,10 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto sm:shrink-0">
           <button
             onClick={handlePrint}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex items-center gap-2 cursor-pointer"
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Imprimir / Guardar PDF</span>
@@ -61,7 +61,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
       </div>
 
       {/* Printable Report Document Sheet */}
-      <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-lg max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
+      <div className="bg-white rounded-3xl p-5 sm:p-12 border border-slate-200 shadow-lg max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
         {/* Document Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b-2 border-slate-900">
           <div>
