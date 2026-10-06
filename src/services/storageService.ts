@@ -115,7 +115,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_EXECUTIVE_ISSUES[businessId] || INITIAL_EXECUTIVE_ISSUES['biz-hotel-mdp'];
+    return INITIAL_EXECUTIVE_ISSUES[businessId] || [];
   },
 
   getSeoAudit(): SeoAuditItem[] {
@@ -132,7 +132,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_KEYWORDS[businessId] || INITIAL_KEYWORDS['biz-hotel-mdp'];
+    return INITIAL_KEYWORDS[businessId] || [];
   },
 
   getCompetitors(businessId: string): Competitor[] {
@@ -145,7 +145,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_COMPETITORS[businessId] || INITIAL_COMPETITORS['biz-hotel-mdp'];
+    return INITIAL_COMPETITORS[businessId] || [];
   },
 
   getOpportunities(businessId: string): Opportunity[] {
@@ -158,7 +158,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_OPPORTUNITIES[businessId] || INITIAL_OPPORTUNITIES['biz-hotel-mdp'];
+    return INITIAL_OPPORTUNITIES[businessId] || [];
   },
 
   getActionTasks(businessId: string): ActionTask[] {
@@ -171,7 +171,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_ACTION_TASKS[businessId] || INITIAL_ACTION_TASKS['biz-hotel-mdp'];
+    return INITIAL_ACTION_TASKS[businessId] || [];
   },
 
   updateTaskStatus(businessId: string, taskId: string, newStatus: TaskStatus): ActionTask[] {
@@ -189,6 +189,20 @@ export const storageService = {
   },
 
   getEvolution(businessId: string): MonthlyEvolution {
-    return INITIAL_EVOLUTION[businessId] || INITIAL_EVOLUTION['biz-hotel-mdp'];
+    return INITIAL_EVOLUTION[businessId] || {
+      months: [],
+      visibility: [],
+      googlePositions: [],
+      estimatedVisits: [],
+      consultations: [],
+      fixedProblems: [],
+      monthComparison: {
+        visibilityChangePercent: 0,
+        improvedPositionsCount: 0,
+        solvedProblemsCount: 0,
+        newOpportunitiesCount: 0,
+        consultationsTotal: 0,
+      },
+    };
   },
 };
