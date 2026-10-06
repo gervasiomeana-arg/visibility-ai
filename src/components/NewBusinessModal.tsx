@@ -17,6 +17,7 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
   const [category, setCategory] = useState('Hotelería y Turismo');
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('Argentina');
+  const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
 
@@ -24,23 +25,36 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
     e.preventDefault();
     if (!url.trim()) return;
 
-    // Deduce clean name if not entered
-    let deducedName = name.trim();
-    if (!deducedName) {
-      try {
-        const u = new URL(url.startsWith('http') ? url : `https://${url}`);
-        deducedName = u.hostname.replace('www.', '').split('.')[0];
-        deducedName = deducedName.charAt(0).toUpperCase() + deducedName.slice(1);
-      } catch {
-        deducedName = 'Mi Nuevo Negocio';
-      }
+    const normalizedUrl = url.trim().startsWith('http://') || url.trim().startsWith('https://')
+      ? url.trim()
+      : `https://${url.trim()}`;
+
+    let parsed: URL;
+    try {
+      parsed = new URL(normalizedUrl);
+      if (!parsed.hostname.includes('.') || parsed.protocol !== 'https:') throw new Error('invalid');
+    } catch {
+      setErrorMsg('Ingresá una URL HTTPS válida, por ejemplo https://mihotel.com.');
+      return;
     }
 
+    if (!city.trim()) {
+      setErrorMsg('Ingresá la ciudad del negocio para poder contextualizar el análisis local.');
+      return;
+    }
+
+    let deducedName = name.trim();
+    if (!deducedName) {
+      deducedName = parsed.hostname.replace('www.', '').split('.')[0];
+      deducedName = deducedName.charAt(0).toUpperCase() + deducedName.slice(1);
+    }
+
+    setErrorMsg('');
     onAdd({
-      url: url.trim(),
+      url: normalizedUrl,
       name: deducedName,
       category,
-      city: city.trim() || 'Mar del Plata',
+      city: city.trim(),
       country,
     });
 
@@ -82,7 +96,7 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
                 type="text"
                 required
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                onChange={(e) => { setUrl(e.target.value); if (errorMsg) setErrorMsg(''); }}
                 placeholder="https://mihotel.com"
                 className="w-full pl-8 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
               />
@@ -129,12 +143,16 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
               <input
                 type="text"
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
+                onChange={(e) => { setCity(e.target.value); if (errorMsg) setErrorMsg(''); }}
                 placeholder="Ej: Mar del Plata"
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
               />
             </div>
           </div>
+
+          {errorMsg && (
+            <p className="text-xs font-medium text-rose-600" role="alert">{errorMsg}</p>
+          )}
 
           <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
             <button
