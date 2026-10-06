@@ -35,17 +35,17 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
               <span>CRECIMIENTO COMERCIAL</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-              Oportunidades de Negocio Detectadas
+              Oportunidades de Negocio · DEMO
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Transformamos problemas técnicos y vacíos de contenido en recomendaciones comerciales directas para <strong>{business.name}</strong>.
+              Esta vista muestra cómo transformaremos hallazgos verificados en recomendaciones comerciales para <strong>{business.name}</strong>.
             </p>
           </div>
 
           <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 shrink-0">
             <span className="font-bold block mb-0.5">Visibilidad = Más Consultas</span>
             <span className="text-indigo-700">
-              Cada oportunidad representa clientes reales que buscan tu servicio en {business.city}.
+              En esta fase las oportunidades son ejemplos; la demanda real se incorporará desde una fuente verificable.
             </span>
           </div>
         </div>
@@ -53,6 +53,11 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
 
       {/* Opportunities Cards Grid */}
       <div className="space-y-5">
+        {opportunities.length === 0 && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            Todavía no hay oportunidades disponibles para este negocio.
+          </div>
+        )}
         {opportunities.map((opp, idx) => (
           <div
             key={opp.id}
@@ -65,7 +70,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                   {idx + 1}
                 </span>
                 <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
-                  OPORTUNIDAD DETECTADA
+                  OPORTUNIDAD DEMO
                 </span>
               </div>
 
