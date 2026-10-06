@@ -70,7 +70,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
             <span className="hidden sm:inline text-slate-400">·</span>
             <span className="hidden sm:inline text-slate-400">
-              Datos simulados basados en auditorías reales para comercios y hoteles. Arquitectura lista para conectar APIs de Google.
+              Datos de ejemplo para validar la experiencia del producto. Todavía no representan mediciones reales del negocio.
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -156,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <p className="text-[11px] text-slate-500">{biz.city} · {biz.category}</p>
                           </div>
                           <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 shrink-0">
-                            {biz.scores.overall}/100
+                            DEMO {biz.scores.overall}/100
                           </span>
                         </button>
                       ))}
@@ -300,13 +300,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               Transparencia y Datos de Simulación (DEMO)
             </h3>
             <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-              En esta versión inicial MVP, los datos de auditoría, competidores y rankings se generan mediante un modelo de simulación realista diseñado específicamente para hotelería, gastronomía, salud y comercios locales.
+              En esta versión inicial MVP, los datos de auditoría, competidores, rankings y puntajes son ejemplos de demostración. No representan mediciones verificadas del sitio salvo que una pantalla indique expresamente una fuente real.
             </p>
 
             <div className="mt-4 space-y-2 text-xs text-slate-700 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
               <p className="font-semibold text-slate-900">Arquitectura desacoplada para conexiones reales:</p>
               <ul className="list-disc pl-4 space-y-1 text-slate-600">
-                <li>Google Search Console (indexabilidad y clicks)</li>
+                <li>Google Search Console (consultas, clics e impresiones)</li>
                 <li>Google PageSpeed Insights (velocidad y Core Web Vitals)</li>
                 <li>Google Business Profile (fichas y reseñas)</li>
                 <li>Servicios de palabras clave & rank tracking</li>
