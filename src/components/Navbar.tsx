@@ -62,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
       {/* Top Banner for Demo Transparency */}
       <div className="bg-slate-900 text-slate-300 text-xs py-1.5 px-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 font-medium text-amber-300">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -97,7 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-4">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0">
             <button
               onClick={() => setActiveTab('landing')}
               className="flex items-center gap-3 text-left group cursor-pointer"
@@ -106,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Search className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-lg font-bold tracking-tight text-slate-900 font-heading">
+                <span className="hidden sm:inline text-lg font-bold tracking-tight text-slate-900 font-heading">
                   VISIBILITY <span className="text-indigo-600">AI</span>
                 </span>
                 <p className="text-[11px] text-slate-500 font-medium hidden md:block">
@@ -119,7 +119,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="relative">
               <button
                 onClick={() => setBizDropdownOpen(!bizDropdownOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium transition-all"
+                className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium transition-all min-w-0"
               >
                 <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
                 <div className="text-left max-w-[130px] sm:max-w-[170px] truncate">
@@ -135,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="fixed inset-0 z-20"
                     onClick={() => setBizDropdownOpen(false)}
                   />
-                  <div className="absolute left-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-30 divide-y divide-slate-100">
+                  <div className="absolute left-0 mt-2 w-[min(18rem,calc(100vw-2rem))] bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-30 divide-y divide-slate-100">
                     <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       Seleccionar negocio activo
                     </div>
