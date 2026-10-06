@@ -207,6 +207,120 @@ function auditItem(
   };
 }
 
+
+async function fetchPageSpeedMetrics(pageUrl: string) {
+  const endpoint = new URL('https://www.googleapis.com/pagespeedonline/v5/runPagespeed');
+  endpoint.searchParams.set('url', pageUrl);
+  endpoint.searchParams.set('strategy', 'mobile');
+  endpoint.searchParams.append('category', 'performance');
+
+  const pageSpeedApiKey = process.env.PAGESPEED_API_KEY;
+  if (pageSpeedApiKey && pageSpeedApiKey !== 'MY_PAGESPEED_API_KEY') {
+    endpoint.searchParams.set('key', pageSpeedApiKey);
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+
+  try {
+    const response = await fetch(endpoint.toString(), {
+      signal: controller.signal,
+      headers: { accept: 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`PageSpeed API returned HTTP ${response.status}`);
+    }
+
+    const data: any = await response.json();
+    const lighthouse = data?.lighthouseResult;
+    const audits = lighthouse?.audits || {};
+    const performanceScore =
+      typeof lighthouse?.categories?.performance?.score === 'number'
+        ? Math.round(lighthouse.categories.performance.score * 100)
+        : null;
+
+    const metric = (key: string) => ({
+      displayValue: audits?.[key]?.displayValue || null,
+      numericValue: typeof audits?.[key]?.numericValue === 'number' ? audits[key].numericValue : null,
+      score: typeof audits?.[key]?.score === 'number' ? audits[key].score : null,
+    });
+
+    return {
+      performanceScore,
+      firstContentfulPaint: metric('first-contentful-paint'),
+      largestContentfulPaint: metric('largest-contentful-paint'),
+      cumulativeLayoutShift: metric('cumulative-layout-shift'),
+      totalBlockingTime: metric('total-blocking-time'),
+      speedIndex: metric('speed-index'),
+      fetchedAt: new Date().toISOString(),
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function pageSpeedItems(metrics: any) {
+  const items: any[] = [];
+
+  if (metrics.performanceScore !== null) {
+    const score = metrics.performanceScore;
+    items.push(
+      score >= 90
+        ? auditItem('pagespeed-performance', 'Rendimiento móvil PageSpeed', 'Velocidad y Móvil', 'ok', 'Bueno', 'Google PageSpeed reporta un rendimiento móvil sólido.', 'Mantener optimizaciones y controlar cambios futuros.', 'Alto', `${score}/100`)
+        : score >= 50
+        ? auditItem('pagespeed-performance', 'Rendimiento móvil PageSpeed', 'Velocidad y Móvil', 'warning', 'Mejorable', 'Google PageSpeed detecta margen de mejora en rendimiento móvil.', 'Revisar imágenes, JavaScript, CSS y recursos que bloquean la carga.', 'Alto', `${score}/100`)
+        : auditItem('pagespeed-performance', 'Rendimiento móvil PageSpeed', 'Velocidad y Móvil', 'error', 'Crítico', 'Google PageSpeed reporta un rendimiento móvil bajo.', 'Priorizar optimización de recursos pesados y tiempos de carga.', 'Alto', `${score}/100`)
+    );
+  }
+
+  if (metrics.firstContentfulPaint?.displayValue) {
+    const ms = metrics.firstContentfulPaint.numericValue;
+    items.push(
+      ms !== null && ms <= 1800
+        ? auditItem('fcp', 'First Contentful Paint (FCP)', 'Velocidad y Móvil', 'ok', 'Bueno', 'El primer contenido visible aparece rápidamente en la prueba móvil.', 'Mantener tiempos de respuesta y recursos iniciales optimizados.', 'Medio', metrics.firstContentfulPaint.displayValue)
+        : ms !== null && ms <= 3000
+        ? auditItem('fcp', 'First Contentful Paint (FCP)', 'Velocidad y Móvil', 'warning', 'Mejorable', 'El primer contenido visible tarda más de lo ideal.', 'Reducir recursos que bloquean el render inicial.', 'Medio', metrics.firstContentfulPaint.displayValue)
+        : auditItem('fcp', 'First Contentful Paint (FCP)', 'Velocidad y Móvil', 'error', 'Lento', 'El primer contenido visible tarda demasiado en la prueba móvil.', 'Optimizar servidor, CSS crítico y recursos iniciales.', 'Medio', metrics.firstContentfulPaint.displayValue)
+    );
+  }
+
+  if (metrics.largestContentfulPaint?.displayValue) {
+    const ms = metrics.largestContentfulPaint.numericValue;
+    items.push(
+      ms !== null && ms <= 2500
+        ? auditItem('lcp', 'Largest Contentful Paint (LCP)', 'Velocidad y Móvil', 'ok', 'Bueno', 'El contenido principal carga dentro de un tiempo saludable.', 'Mantener optimizada la imagen o bloque principal.', 'Alto', metrics.largestContentfulPaint.displayValue)
+        : ms !== null && ms <= 4000
+        ? auditItem('lcp', 'Largest Contentful Paint (LCP)', 'Velocidad y Móvil', 'warning', 'Mejorable', 'El contenido principal tarda más de lo recomendado.', 'Optimizar el elemento LCP, imágenes y carga del servidor.', 'Alto', metrics.largestContentfulPaint.displayValue)
+        : auditItem('lcp', 'Largest Contentful Paint (LCP)', 'Velocidad y Móvil', 'error', 'Lento', 'El contenido principal tarda demasiado en aparecer.', 'Priorizar el elemento LCP y reducir recursos que retrasan su carga.', 'Alto', metrics.largestContentfulPaint.displayValue)
+    );
+  }
+
+  if (metrics.cumulativeLayoutShift?.displayValue) {
+    const value = metrics.cumulativeLayoutShift.numericValue;
+    items.push(
+      value !== null && value <= 0.1
+        ? auditItem('cls', 'Cumulative Layout Shift (CLS)', 'Velocidad y Móvil', 'ok', 'Estable', 'La página se mantiene visualmente estable durante la carga.', 'Mantener dimensiones reservadas para imágenes, banners y módulos dinámicos.', 'Medio', metrics.cumulativeLayoutShift.displayValue)
+        : value !== null && value <= 0.25
+        ? auditItem('cls', 'Cumulative Layout Shift (CLS)', 'Velocidad y Móvil', 'warning', 'Mejorable', 'Detectamos movimientos visibles de elementos durante la carga.', 'Reservar espacio para medios y contenido dinámico.', 'Medio', metrics.cumulativeLayoutShift.displayValue)
+        : auditItem('cls', 'Cumulative Layout Shift (CLS)', 'Velocidad y Móvil', 'error', 'Inestable', 'La página presenta movimientos visuales importantes durante la carga.', 'Corregir elementos sin dimensiones y contenido que aparece tarde.', 'Medio', metrics.cumulativeLayoutShift.displayValue)
+    );
+  }
+
+  if (metrics.totalBlockingTime?.displayValue) {
+    const ms = metrics.totalBlockingTime.numericValue;
+    items.push(
+      ms !== null && ms <= 200
+        ? auditItem('tbt', 'Total Blocking Time (TBT)', 'Velocidad y Móvil', 'ok', 'Bueno', 'La página bloquea poco tiempo el hilo principal durante la prueba.', 'Mantener JavaScript liviano y dividido por demanda.', 'Medio', metrics.totalBlockingTime.displayValue)
+        : ms !== null && ms <= 600
+        ? auditItem('tbt', 'Total Blocking Time (TBT)', 'Velocidad y Móvil', 'warning', 'Mejorable', 'Hay tareas de JavaScript que retrasan la interacción.', 'Reducir JavaScript pesado y dividir tareas largas.', 'Medio', metrics.totalBlockingTime.displayValue)
+        : auditItem('tbt', 'Total Blocking Time (TBT)', 'Velocidad y Móvil', 'error', 'Alto', 'El navegador queda bloqueado demasiado tiempo por tareas largas.', 'Reducir scripts y trabajo de JavaScript en el hilo principal.', 'Medio', metrics.totalBlockingTime.displayValue)
+    );
+  }
+
+  return items;
+}
+
 async function buildRealSeoAudit(requestedUrl: string) {
   const startedAt = Date.now();
   const { response, finalUrl } = await safeFetch(requestedUrl);
@@ -368,6 +482,17 @@ async function buildRealSeoAudit(requestedUrl: string) {
       : auditItem('sitemap', 'Sitemap XML', 'Técnico e Indexación', 'warning', 'No confirmado', 'No pudimos confirmar un sitemap XML válido.', 'Generar y publicar un sitemap XML; luego declararlo en robots.txt y Search Console.', 'Medio', sitemapStatus ? `HTTP ${sitemapStatus}` : 'Sin respuesta')
   );
 
+  let pageSpeed: any = null;
+  let pageSpeedError: string | null = null;
+  try {
+    pageSpeed = await fetchPageSpeedMetrics(finalUrl);
+    items.push(...pageSpeedItems(pageSpeed));
+  } catch (error: any) {
+    pageSpeedError = error?.name === 'AbortError'
+      ? 'PageSpeed tardó demasiado en responder'
+      : error?.message || 'No se pudo obtener PageSpeed';
+  }
+
   const responseTimeMs = Date.now() - startedAt;
   items.push(
     response.ok
@@ -382,6 +507,8 @@ async function buildRealSeoAudit(requestedUrl: string) {
     httpStatus: response.status,
     responseTimeMs,
     items,
+    pageSpeed,
+    pageSpeedError,
   };
 }
 
