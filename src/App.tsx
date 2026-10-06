@@ -34,6 +34,7 @@ import {
   MonthlyEvolution,
   TaskStatus,
   ContentGenerationRequest,
+  SeoAuditResult,
 } from './types';
 import { Sparkles } from 'lucide-react';
 
@@ -61,7 +62,7 @@ export default function App() {
 
   // Specific data for the active business
   const issues = storageService.getIssues(activeBusiness.id);
-  const seoItems = storageService.getSeoAudit();
+  const seoItems = storageService.getSeoAudit(activeBusiness.id);
   const keywords = storageService.getKeywords(activeBusiness.id);
   const competitors = storageService.getCompetitors(activeBusiness.id);
   const opportunities = storageService.getOpportunities(activeBusiness.id);
@@ -86,7 +87,7 @@ export default function App() {
     setActiveTab('analyzing');
   };
 
-  const handleAnalysisComplete = () => {
+  const handleAnalysisComplete = (auditResult: SeoAuditResult) => {
     // Match existing businesses by normalized hostname to avoid duplicates.
     const getHostname = (value: string) => {
       try {
@@ -98,7 +99,9 @@ export default function App() {
     };
     const analyzedHost = getHostname(analyzingUrl);
     const existing = businesses.find((b) => getHostname(b.url) === analyzedHost);
+    let targetBusinessId: string;
     if (existing) {
+      targetBusinessId = existing.id;
       handleSelectBusiness(existing.id);
     } else {
       let deducedName = 'Negocio Analizado';
@@ -119,9 +122,11 @@ export default function App() {
       });
       setBusinesses(storageService.getBusinesses());
       handleSelectBusiness(created.id);
+      targetBusinessId = created.id;
     }
 
-    setActiveTab('dashboard');
+    storageService.saveSeoAudit(targetBusinessId!, auditResult.items);
+    setActiveTab('seo');
   };
 
   const handleSelectPreset = (presetId: string) => {
@@ -188,6 +193,7 @@ export default function App() {
           <AnalyzingView
             url={analyzingUrl || activeBusiness.url}
             onComplete={handleAnalysisComplete}
+            onCancel={() => setActiveTab('landing')}
           />
         )}
 
