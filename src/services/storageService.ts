@@ -68,12 +68,13 @@ export const storageService = {
   addBusiness(newBiz: Omit<Business, 'id' | 'createdAt' | 'scores' | 'totalOpportunities' | 'problemsCount'>): Business {
     const businesses = this.getBusinesses();
     const id = `biz-${Date.now()}`;
-    // Generate realistic simulated scores
-    const overall = Math.floor(Math.random() * 20) + 60; // 60-80
-    const google = Math.floor(Math.random() * 20) + 75;  // 75-95
-    const seo = Math.floor(Math.random() * 25) + 55;     // 55-80
-    const web = Math.floor(Math.random() * 20) + 65;     // 65-85
-    const aiVisibility = Math.floor(Math.random() * 30) + 40; // 40-70
+    // Phase 1: deterministic DEMO scores only.
+    // Real scoring will replace this in Phase 2 once measured signals are available.
+    const overall = 65;
+    const google = 70;
+    const seo = 62;
+    const web = 68;
+    const aiVisibility = 55;
 
     const created: Business = {
       ...newBiz,
@@ -86,7 +87,7 @@ export const storageService = {
         web,
         aiVisibility,
       },
-      totalOpportunities: Math.floor(Math.random() * 15) + 12,
+      totalOpportunities: 12,
       problemsCount: {
         high: 3,
         medium: 6,
