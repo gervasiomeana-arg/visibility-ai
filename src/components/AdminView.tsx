@@ -17,9 +17,10 @@ import { Business, ActiveTab } from '../types';
 interface AdminViewProps {
   businesses: Business[];
   setActiveTab: (tab: ActiveTab) => void;
+  onSelectBusiness: (bizId: string) => void;
 }
 
-export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }) => {
+export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, onSelectBusiness }) => {
   const [activeTab, setActiveAdminTab] = useState<'businesses' | 'plans' | 'ai-usage' | 'integrations'>('businesses');
 
   const plans = [
@@ -108,10 +109,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 text-xs font-semibold">
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 text-xs font-semibold overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveAdminTab('businesses')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'businesses'
               ? 'bg-slate-900 text-white'
               : 'text-slate-600 hover:bg-slate-100'
@@ -121,7 +122,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
         </button>
         <button
           onClick={() => setActiveAdminTab('plans')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'plans'
               ? 'bg-slate-900 text-white'
               : 'text-slate-600 hover:bg-slate-100'
@@ -131,7 +132,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
         </button>
         <button
           onClick={() => setActiveAdminTab('ai-usage')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'ai-usage'
               ? 'bg-slate-900 text-white'
               : 'text-slate-600 hover:bg-slate-100'
@@ -141,7 +142,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
         </button>
         <button
           onClick={() => setActiveAdminTab('integrations')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer ${
+          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
             activeTab === 'integrations'
               ? 'bg-slate-900 text-white'
               : 'text-slate-600 hover:bg-slate-100'
@@ -187,7 +188,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button
-                        onClick={() => setActiveTab('dashboard')}
+                        onClick={() => {
+                          onSelectBusiness(biz.id);
+                          setActiveTab('dashboard');
+                        }}
                         className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
                       >
                         Abrir panel →
@@ -287,7 +291,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
             Estado de Conectores y APIs Externas
           </h2>
           <div className="divide-y divide-slate-100 text-xs">
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="font-bold text-slate-900 block">Google Search Console API</span>
                 <span className="text-slate-500">Métricas de indexación real y clicks</span>
@@ -297,7 +301,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="font-bold text-slate-900 block">Google PageSpeed Insights API</span>
                 <span className="text-slate-500">Velocidad móvil y Core Web Vitals reales</span>
@@ -307,7 +311,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="font-bold text-slate-900 block">Google Business Profile API</span>
                 <span className="text-slate-500">Fichas de Google Maps, horarios y opiniones</span>
@@ -317,7 +321,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab }
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <span className="font-bold text-slate-900 block">Google Gemini API (gemini-3.8-flash)</span>
                 <span className="text-slate-500">Asistente empresarial y redactor inteligente</span>
