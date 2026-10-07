@@ -92,6 +92,13 @@ export const storageService = {
         web,
         aiVisibility,
       },
+      scoreSources: {
+        overall: 'demo',
+        google: 'demo',
+        seo: 'demo',
+        web: 'demo',
+        aiVisibility: 'demo',
+      },
       totalOpportunities: 12,
       problemsCount: {
         high: 3,
@@ -108,6 +115,60 @@ export const storageService = {
       // Ignore
     }
     return created;
+  },
+
+  updateBusinessScores(
+    businessId: string,
+    patch: Partial<Business['scores']>,
+    sourcePatch: Partial<NonNullable<Business['scoreSources']>>
+  ): Business | null {
+    const businesses = this.getBusinesses();
+    const index = businesses.findIndex((business) => business.id === businessId);
+    if (index === -1) return null;
+
+    const current = businesses[index];
+    const currentSources = current.scoreSources || {
+      overall: 'demo' as const,
+      google: 'demo' as const,
+      seo: 'demo' as const,
+      web: 'demo' as const,
+      aiVisibility: 'demo' as const,
+    };
+
+    const updatedBusiness: Business = {
+      ...current,
+      scores: { ...current.scores, ...patch },
+      scoreSources: { ...currentSources, ...sourcePatch },
+    };
+
+    businesses[index] = updatedBusiness;
+    try {
+      localStorage.setItem(STORAGE_KEYS.BUSINESSES, JSON.stringify(businesses));
+    } catch {
+      // Ignore
+    }
+
+    return updatedBusiness;
+  },
+
+  calculateSeoScore(items: SeoAuditItem[]): number | null {
+    const realItems = items.filter((item) => item.source === 'real');
+    if (!realItems.length) return null;
+
+    const weightForImpact = (impact: SeoAuditItem['impact']) =>
+      impact === 'Alto' ? 3 : impact === 'Medio' ? 2 : 1;
+    const valueForStatus = (status: SeoAuditItem['status']) =>
+      status === 'ok' ? 1 : status === 'warning' ? 0.5 : 0;
+
+    let earned = 0;
+    let possible = 0;
+    for (const item of realItems) {
+      const weight = weightForImpact(item.impact);
+      possible += weight;
+      earned += weight * valueForStatus(item.status);
+    }
+
+    return possible > 0 ? Math.round((earned / possible) * 100) : null;
   },
 
   getIssues(businessId: string): ExecutiveIssue[] {
