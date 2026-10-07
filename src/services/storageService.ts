@@ -171,6 +171,43 @@ export const storageService = {
     return possible > 0 ? Math.round((earned / possible) * 100) : null;
   },
 
+  buildIssuesFromSeoAudit(businessId: string, items: SeoAuditItem[]): ExecutiveIssue[] {
+    const categoryFor = (item: SeoAuditItem): ExecutiveIssue['category'] => {
+      if (item.category === 'Velocidad y Móvil') return 'Web';
+      if (item.category === 'Seguridad y Datos') return item.key === 'https' || item.key === 'http-status' ? 'Web' : 'SEO';
+      return 'SEO';
+    };
+
+    return items.map((item) => ({
+      id: `issue-${businessId}-${item.key}`,
+      businessId,
+      name: item.title,
+      simpleExplanation: item.simpleExplanation,
+      severity: item.status === 'error' ? 'high' : item.status === 'warning' ? 'medium' : 'ok',
+      possibleSolution: item.solution,
+      category: categoryFor(item),
+      impactText:
+        item.impact === 'Alto'
+          ? 'Este punto puede afectar de forma importante la visibilidad o la experiencia del sitio.'
+          : item.impact === 'Medio'
+          ? 'Conviene corregirlo para mejorar la calidad técnica y la visibilidad.'
+          : 'Es una mejora de menor impacto, pero suma calidad y consistencia.',
+      source: 'real',
+      checkedAt: item.checkedAt,
+    }));
+  },
+
+  saveIssues(businessId: string, issues: ExecutiveIssue[]): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.EXECUTIVE_ISSUES);
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[businessId] = issues;
+      localStorage.setItem(STORAGE_KEYS.EXECUTIVE_ISSUES, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
+  },
+
   getIssues(businessId: string): ExecutiveIssue[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.EXECUTIVE_ISSUES);
