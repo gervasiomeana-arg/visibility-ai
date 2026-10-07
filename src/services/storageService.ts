@@ -197,6 +197,68 @@ export const storageService = {
     }));
   },
 
+  buildActionTasksFromSeoAudit(businessId: string, items: SeoAuditItem[]): ActionTask[] {
+    return items
+      .filter((item) => item.status !== 'ok')
+      .map((item) => ({
+        id: `task-${businessId}-${item.key}`,
+        businessId,
+        title: item.title,
+        priority: item.status === 'error' ? 'URGENTE' : item.impact === 'Alto' ? 'IMPORTANTE' : 'RECOMENDADO',
+        status: 'pendiente',
+        estimatedImpact: item.impact,
+        difficulty: item.key === 'title' || item.key === 'meta-description' || item.key === 'h1' || item.key === 'lang'
+          ? 'Fácil'
+          : item.key === 'image-alt' || item.key === 'open-graph'
+          ? 'Media'
+          : 'Media',
+        simpleExplanation: item.simpleExplanation,
+        stepByStepSolution: [
+          item.solution,
+          'Aplicá el cambio primero en una página de prueba o entorno controlado.',
+          'Volvé a ejecutar Visibility AI para confirmar que el problema quedó resuelto.',
+        ],
+        quickActionPrompt: `Ayudame a resolver este hallazgo real de SEO: ${item.title}. Dato detectado: ${item.metricValue || 'sin valor adicional'}.`,
+        estimatedTimeToFix: item.impact === 'Alto' ? '15-45 min' : '15-30 min',
+      }));
+  },
+
+  saveActionTasks(businessId: string, tasks: ActionTask[]): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.ACTION_TASKS);
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[businessId] = tasks;
+      localStorage.setItem(STORAGE_KEYS.ACTION_TASKS, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
+  },
+
+  updateProblemCounts(businessId: string, issues: ExecutiveIssue[]): Business | null {
+    const businesses = this.getBusinesses();
+    const index = businesses.findIndex((business) => business.id === businessId);
+    if (index === -1) return null;
+
+    const current = businesses[index];
+    const high = issues.filter((issue) => issue.severity === 'high').length;
+    const medium = issues.filter((issue) => issue.severity === 'medium').length;
+    const ok = issues.filter((issue) => issue.severity === 'ok').length;
+
+    const updatedBusiness: Business = {
+      ...current,
+      problemsCount: { high, medium, ok },
+      totalOpportunities: high + medium,
+    };
+
+    businesses[index] = updatedBusiness;
+    try {
+      localStorage.setItem(STORAGE_KEYS.BUSINESSES, JSON.stringify(businesses));
+    } catch {
+      // Ignore
+    }
+    return updatedBusiness;
+  },
+
   saveIssues(businessId: string, issues: ExecutiveIssue[]): void {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.EXECUTIVE_ISSUES);
