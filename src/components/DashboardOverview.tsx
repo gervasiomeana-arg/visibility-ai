@@ -31,6 +31,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onOpenAssistant,
 }) => {
   const { scores } = business;
+  const scoreSources = business.scoreSources || {
+    overall: 'demo',
+    google: 'demo',
+    seo: 'demo',
+    web: 'demo',
+    aiVisibility: 'demo',
+  };
+  const labelForSource = (source: 'demo' | 'partial' | 'real') =>
+    source === 'real' ? 'DATO REAL' : source === 'partial' ? 'PARCIAL REAL' : 'DEMO';
 
   // Filter top issues
   const highIssues = issues.filter((i) => i.severity === 'high');
@@ -44,7 +53,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>DIAGNÓSTICO DEMO</span>
+            <span>{scoreSources.seo === 'real' || scoreSources.web === 'real' ? 'DIAGNÓSTICO CON DATOS REALES' : 'DIAGNÓSTICO DEMO'}</span>
             <span className="text-slate-300">·</span>
             <span className="text-slate-500">{business.category}</span>
           </div>
@@ -80,7 +89,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               VISIBILIDAD DIGITAL
             </span>
             <p className="text-[11px] text-emerald-400 font-medium mt-1">
-              {scores.overall >= 70 ? 'Puntaje demostrativo' : 'Puntaje demostrativo'}
+              {labelForSource(scoreSources.overall)}
             </p>
           </div>
           <div className="relative flex items-center justify-center">
@@ -126,7 +135,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                DEMO
+                {labelForSource(scoreSources.google)}
               </span>
               <button
                 onClick={() => setActiveTab('seo')}
@@ -149,11 +158,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">SEO</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Títulos, etiquetas, palabras clave posicionadas y contenido indexado.
+              Puntaje calculado desde señales técnicas verificadas del sitio. Rankings y tráfico todavía no forman parte de este score.
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded">
-                DEMO
+                {labelForSource(scoreSources.seo)}
               </span>
               <button
                 onClick={() => setActiveTab('keywords')}
@@ -176,11 +185,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">Web</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Velocidad de carga en móviles, adaptación responsive y seguridad SSL.
+              Rendimiento móvil desde Google PageSpeed cuando está disponible, más señales técnicas del sitio.
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                DEMO
+                {labelForSource(scoreSources.web)}
               </span>
               <button
                 onClick={() => setActiveTab('seo')}
@@ -207,7 +216,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded">
-                DEMO
+                {labelForSource(scoreSources.aiVisibility)}
               </span>
               <button
                 onClick={() => setActiveTab('opportunities')}
