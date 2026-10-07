@@ -43,6 +43,8 @@ export interface ExecutiveIssue {
   possibleSolution: string;
   category: 'Google' | 'SEO' | 'Web' | 'Visibilidad IA';
   impactText: string;
+  source?: 'real' | 'demo';
+  checkedAt?: string;
 }
 
 export interface SeoAuditItem {
