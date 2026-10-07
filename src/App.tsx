@@ -135,6 +135,34 @@ export default function App() {
       pageSpeed: auditResult.pageSpeed || null,
       pageSpeedError: auditResult.pageSpeedError || null,
     });
+
+    const seoScore = storageService.calculateSeoScore(auditResult.items);
+    const pageSpeedScore = auditResult.pageSpeed?.performanceScore ?? null;
+    if (seoScore !== null || pageSpeedScore !== null) {
+      const currentBusiness = storageService.getBusinesses().find((business) => business.id === targetBusinessId!);
+      const nextSeo = seoScore ?? currentBusiness?.scores.seo ?? 0;
+      const nextWeb = pageSpeedScore ?? currentBusiness?.scores.web ?? 0;
+      const verifiedValues = [seoScore, pageSpeedScore].filter((value): value is number => value !== null);
+      const overall = verifiedValues.length
+        ? Math.round(verifiedValues.reduce((sum, value) => sum + value, 0) / verifiedValues.length)
+        : currentBusiness?.scores.overall ?? 0;
+
+      storageService.updateBusinessScores(
+        targetBusinessId!,
+        {
+          seo: nextSeo,
+          web: nextWeb,
+          overall,
+        },
+        {
+          seo: seoScore !== null ? 'real' : 'demo',
+          web: pageSpeedScore !== null ? 'real' : 'demo',
+          overall: verifiedValues.length ? 'partial' : 'demo',
+        }
+      );
+      setBusinesses(storageService.getBusinesses());
+    }
+
     setActiveTab('seo');
   };
 
