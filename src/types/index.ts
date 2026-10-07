@@ -19,6 +19,13 @@ export interface Business {
   country: string;
   createdAt: string;
   scores: BusinessScores;
+  scoreSources?: {
+    overall: 'demo' | 'partial' | 'real';
+    google: 'demo' | 'real';
+    seo: 'demo' | 'real';
+    web: 'demo' | 'real';
+    aiVisibility: 'demo' | 'real';
+  };
   totalOpportunities: number;
   problemsCount: {
     high: number;
