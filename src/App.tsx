@@ -136,6 +136,9 @@ export default function App() {
       pageSpeedError: auditResult.pageSpeedError || null,
     });
 
+    const realIssues = storageService.buildIssuesFromSeoAudit(targetBusinessId!, auditResult.items);
+    storageService.saveIssues(targetBusinessId!, realIssues);
+
     const seoScore = storageService.calculateSeoScore(auditResult.items);
     const pageSpeedScore = auditResult.pageSpeed?.performanceScore ?? null;
     if (seoScore !== null || pageSpeedScore !== null) {
