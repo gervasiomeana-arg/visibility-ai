@@ -138,6 +138,10 @@ export default function App() {
 
     const realIssues = storageService.buildIssuesFromSeoAudit(targetBusinessId!, auditResult.items);
     storageService.saveIssues(targetBusinessId!, realIssues);
+    storageService.updateProblemCounts(targetBusinessId!, realIssues);
+
+    const realTasks = storageService.buildActionTasksFromSeoAudit(targetBusinessId!, auditResult.items);
+    storageService.saveActionTasks(targetBusinessId!, realTasks);
 
     const seoScore = storageService.calculateSeoScore(auditResult.items);
     const pageSpeedScore = auditResult.pageSpeed?.performanceScore ?? null;
@@ -166,6 +170,8 @@ export default function App() {
       setBusinesses(storageService.getBusinesses());
     }
 
+    setBusinesses(storageService.getBusinesses());
+    setActionTasks(storageService.getActionTasks(targetBusinessId!));
     setActiveTab('seo');
   };
 
