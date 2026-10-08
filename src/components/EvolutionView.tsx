@@ -24,7 +24,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   setActiveTab,
 }) => {
   const [selectedMetric, setSelectedMetric] = useState<
-    'visibility' | 'googlePositions' | 'estimatedVisits' | 'consultations' | 'fixedProblems'
+    'visibility' | 'googlePositions' | 'estimatedVisits' | 'consultations' | 'fixedProblems' | 'searchImpressions' | 'searchClicks' | 'searchCtr' | 'searchPositions'
   >('visibility');
 
   const { months, monthComparison } = evolution;
@@ -70,6 +70,38 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       color: 'amber',
       gradient: 'from-amber-500 to-orange-600',
       description: 'Optimizaciones técnicas y de contenido aplicadas.',
+    },
+    searchImpressions: {
+      label: 'Impresiones en Google',
+      values: evolution.searchImpressions || [],
+      unit: 'impresiones',
+      color: 'blue',
+      gradient: 'from-blue-500 to-indigo-600',
+      description: 'Impresiones verificadas desde Google Search Console.',
+    },
+    searchClicks: {
+      label: 'Clics desde Google',
+      values: evolution.searchClicks || [],
+      unit: 'clics',
+      color: 'emerald',
+      gradient: 'from-emerald-500 to-teal-600',
+      description: 'Clics orgánicos verificados desde Google Search Console.',
+    },
+    searchCtr: {
+      label: 'CTR en Google',
+      values: evolution.searchCtr || [],
+      unit: '% CTR',
+      color: 'purple',
+      gradient: 'from-purple-500 to-indigo-600',
+      description: 'Porcentaje de clics sobre impresiones en Google Search Console.',
+    },
+    searchPositions: {
+      label: 'Posición Media Search Console',
+      values: evolution.searchPositions || [],
+      unit: 'posición',
+      color: 'slate',
+      gradient: 'from-slate-500 to-slate-700',
+      description: 'Posición media real reportada por Google Search Console. Menor es mejor.',
     },
   };
 
