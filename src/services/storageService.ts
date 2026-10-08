@@ -30,6 +30,7 @@ const STORAGE_KEYS = {
   OPPORTUNITIES: 'visibility_ai_opportunities',
   SEO_AUDITS: 'visibility_ai_seo_audits',
   SEO_AUDIT_META: 'visibility_ai_seo_audit_meta',
+  AUDIT_HISTORY: 'visibility_ai_audit_history',
 };
 
 export const storageService = {
@@ -391,8 +392,89 @@ export const storageService = {
     return updated;
   },
 
+  saveAuditHistoryPoint(
+    businessId: string,
+    point: {
+      auditedAt: string;
+      overallScore: number;
+      seoScore: number | null;
+      webScore: number | null;
+      unresolvedIssues: number;
+    }
+  ): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.AUDIT_HISTORY);
+      const parsed = stored ? JSON.parse(stored) : {};
+      const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
+
+      const withoutDuplicate = current.filter((entry: any) => entry.auditedAt !== point.auditedAt);
+      parsed[businessId] = [...withoutDuplicate, point]
+        .sort((a: any, b: any) => new Date(a.auditedAt).getTime() - new Date(b.auditedAt).getTime())
+        .slice(-24);
+
+      localStorage.setItem(STORAGE_KEYS.AUDIT_HISTORY, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
+  },
+
+  getAuditHistory(businessId: string): Array<{
+    auditedAt: string;
+    overallScore: number;
+    seoScore: number | null;
+    webScore: number | null;
+    unresolvedIssues: number;
+  }> {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.AUDIT_HISTORY);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
+    } catch {
+      return [];
+    }
+  },
+
   getEvolution(businessId: string): MonthlyEvolution {
-    return INITIAL_EVOLUTION[businessId] || {
+    const history = this.getAuditHistory(businessId);
+    if (history.length > 0) {
+      const first = history[0];
+      const last = history[history.length - 1];
+      const visibilityChangePercent =
+        first.overallScore > 0
+          ? Math.round(((last.overallScore - first.overallScore) / first.overallScore) * 100)
+          : 0;
+
+      return {
+        source: 'real',
+        months: history.map((entry) =>
+          new Date(entry.auditedAt).toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: 'short',
+          })
+        ),
+        visibility: history.map((entry) => entry.overallScore),
+        googlePositions: [],
+        estimatedVisits: [],
+        consultations: [],
+        fixedProblems: history.map((entry) =>
+          Math.max(0, first.unresolvedIssues - entry.unresolvedIssues)
+        ),
+        monthComparison: {
+          visibilityChangePercent,
+          improvedPositionsCount: 0,
+          solvedProblemsCount: Math.max(0, first.unresolvedIssues - last.unresolvedIssues),
+          newOpportunitiesCount: 0,
+          consultationsTotal: 0,
+        },
+      };
+    }
+
+    const demo = INITIAL_EVOLUTION[businessId];
+    if (demo) return { ...demo, source: 'demo' };
+
+    return {
+      source: 'real',
       months: [],
       visibility: [],
       googlePositions: [],
