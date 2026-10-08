@@ -119,6 +119,8 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         : 0;
       const ctr = impressions > 0 ? clicks / impressions : 0;
 
+      const loadedAt = new Date().toISOString();
+
       storageService.saveSearchConsoleMeta(business.id, {
         siteUrl: selectedSite,
         startDate: result.startDate,
@@ -127,7 +129,15 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         impressions,
         ctr,
         position,
-        loadedAt: new Date().toISOString(),
+        loadedAt,
+      });
+
+      storageService.saveSearchConsoleHistoryPoint(business.id, {
+        loadedAt,
+        clicks,
+        impressions,
+        ctr,
+        position,
       });
 
       storageService.updateBusinessScores(
