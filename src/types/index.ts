@@ -21,7 +21,7 @@ export interface Business {
   scores: BusinessScores;
   scoreSources?: {
     overall: 'demo' | 'partial' | 'real';
-    google: 'demo' | 'real';
+    google: 'demo' | 'partial' | 'real';
     seo: 'demo' | 'real';
     web: 'demo' | 'real';
     aiVisibility: 'demo' | 'real';
