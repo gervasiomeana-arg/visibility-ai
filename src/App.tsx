@@ -139,10 +139,28 @@ export default function App() {
   useEffect(() => {
     if (authService.isConfigured() && activeWorkspace?.id) {
       storageService.setScope(activeWorkspace.id);
-      const scopedBusinesses = storageService.getBusinesses();
-      setBusinesses(scopedBusinesses);
-      const scopedActiveId = storageService.getActiveBusinessId();
-      setActiveBusinessId(scopedBusinesses.find((business) => business.id === scopedActiveId)?.id || scopedBusinesses[0]?.id || '');
+
+      workspaceService.listBusinesses(activeWorkspace.id)
+        .then((remoteBusinesses) => {
+          const scopedBusinesses = storageService.syncBusinessesFromRemote(remoteBusinesses);
+          setBusinesses(scopedBusinesses);
+          const scopedActiveId = storageService.getActiveBusinessId();
+          setActiveBusinessId(
+            scopedBusinesses.find((business) => business.id === scopedActiveId)?.id ||
+            scopedBusinesses[0]?.id ||
+            ''
+          );
+        })
+        .catch(() => {
+          const scopedBusinesses = storageService.getBusinesses();
+          setBusinesses(scopedBusinesses);
+          const scopedActiveId = storageService.getActiveBusinessId();
+          setActiveBusinessId(
+            scopedBusinesses.find((business) => business.id === scopedActiveId)?.id ||
+            scopedBusinesses[0]?.id ||
+            ''
+          );
+        });
     } else if (!authService.isConfigured()) {
       storageService.setScope();
     }
@@ -271,7 +289,7 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  const handleAddNewBusiness = (biz: {
+  const handleAddNewBusiness = async (biz: {
     name: string;
     url: string;
     category: string;
@@ -283,7 +301,23 @@ export default function App() {
     timezone?: string;
     subscriptionPlan?: any;
   }) => {
-    const created = storageService.addBusiness(biz);
+    let persistedId: string | undefined;
+
+    if (authService.isConfigured() && activeWorkspace?.id) {
+      persistedId = await workspaceService.createBusiness(activeWorkspace.id, {
+        ...biz,
+        workspaceId: activeWorkspace.id,
+      });
+    }
+
+    const created = storageService.addBusiness(
+      {
+        ...biz,
+        workspaceId: activeWorkspace?.id,
+      },
+      persistedId
+    );
+
     setBusinesses(storageService.getBusinesses());
     handleSelectBusiness(created.id);
     setAnalyzingUrl(biz.url);
