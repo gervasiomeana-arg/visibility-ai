@@ -105,7 +105,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       storageService.saveKeywords(business.id, realKeywords);
 
       const realOpportunities = storageService.buildOpportunitiesFromSearchConsole(business, realKeywords);
-      storageService.saveOpportunities(business.id, realOpportunities);
+      storageService.replaceOpportunitiesBySource(business.id, 'search-console', realOpportunities);
 
       const clicks = realKeywords.reduce((sum, kw) => sum + (kw.clicks || 0), 0);
       const impressions = realKeywords.reduce((sum, kw) => sum + (kw.impressions || 0), 0);
