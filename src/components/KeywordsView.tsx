@@ -106,6 +106,35 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
 
       const realOpportunities = storageService.buildOpportunitiesFromSearchConsole(business, realKeywords);
       storageService.saveOpportunities(business.id, realOpportunities);
+
+      const clicks = realKeywords.reduce((sum, kw) => sum + (kw.clicks || 0), 0);
+      const impressions = realKeywords.reduce((sum, kw) => sum + (kw.impressions || 0), 0);
+      const weightedPositionDenominator = realKeywords.reduce((sum, kw) => sum + (kw.impressions || 0), 0);
+      const weightedPositionNumerator = realKeywords.reduce(
+        (sum, kw) => sum + (kw.position || 0) * (kw.impressions || 0),
+        0
+      );
+      const position = weightedPositionDenominator > 0
+        ? weightedPositionNumerator / weightedPositionDenominator
+        : 0;
+      const ctr = impressions > 0 ? clicks / impressions : 0;
+
+      storageService.saveSearchConsoleMeta(business.id, {
+        siteUrl: selectedSite,
+        startDate: result.startDate,
+        endDate: result.endDate,
+        clicks,
+        impressions,
+        ctr,
+        position,
+        loadedAt: new Date().toISOString(),
+      });
+
+      storageService.updateBusinessScores(
+        business.id,
+        {},
+        { google: 'real', overall: 'partial' }
+      );
     } catch (error: any) {
       setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
     } finally {
