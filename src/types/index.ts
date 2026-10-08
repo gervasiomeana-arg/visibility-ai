@@ -160,6 +160,7 @@ export interface MonthlyEvolution {
   searchClicks?: number[];
   searchCtr?: number[];
   searchPositions?: number[];
+  searchMonths?: string[];
   monthComparison: {
     visibilityChangePercent: number; // e.g. +12
     improvedPositionsCount: number;   // e.g. 17
