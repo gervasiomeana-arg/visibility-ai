@@ -143,6 +143,7 @@ export interface ActionTask {
 }
 
 export interface MonthlyEvolution {
+  source?: 'real' | 'demo';
   months: string[];
   visibility: number[];
   googlePositions: number[];
