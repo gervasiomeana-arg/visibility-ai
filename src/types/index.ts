@@ -5,6 +5,27 @@ export type SupportedCountryCode = 'AR' | 'CL' | 'MX' | 'ES' | 'CO' | 'US';
 export type SupportedCurrency = 'USD' | 'ARS' | 'CLP' | 'MXN' | 'EUR' | 'COP';
 export type SupportedLocale = 'es-AR' | 'es-CL' | 'es-MX' | 'es-ES' | 'es-CO' | 'es-US';
 export type SubscriptionPlanId = 'diagnostic' | 'monitor' | 'growth' | 'pro' | 'agency';
+export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
+
+export interface Workspace {
+  id: string;
+  workspaceId?: string;
+  name: string;
+  slug?: string | null;
+  ownerUserId: string;
+  planId: SubscriptionPlanId;
+  countryCode: SupportedCountryCode;
+  currency: SupportedCurrency;
+  locale: SupportedLocale;
+  timezone: string;
+  role?: WorkspaceRole;
+}
+
+export interface WorkspaceMember {
+  workspaceId: string;
+  userId: string;
+  role: WorkspaceRole;
+}
 
 export interface BusinessScores {
   overall: number; // e.g. 71/100
