@@ -11,6 +11,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { KeywordItem, Business, ActiveTab } from '../types';
+import { searchConsoleService, SearchConsoleSite } from '../services/searchConsoleService';
+import { storageService } from '../services/storageService';
 
 interface KeywordsViewProps {
   business: Business;
@@ -30,6 +32,12 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const [intentFilter, setIntentFilter] = useState<string>('all');
   const [newKeywordInput, setNewKeywordInput] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [gscConfigured, setGscConfigured] = useState(false);
+  const [gscConnected, setGscConnected] = useState(false);
+  const [gscLoading, setGscLoading] = useState(false);
+  const [gscError, setGscError] = useState('');
+  const [gscSites, setGscSites] = useState<SearchConsoleSite[]>([]);
+  const [selectedSite, setSelectedSite] = useState('');
 
   useEffect(() => {
     setKeywords(initialKeywords);
