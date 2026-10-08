@@ -106,7 +106,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   };
 
   const currentConfig = metricConfigs[selectedMetric];
-  const hasHistory = months.length > 0 && currentConfig.values.length > 0;
+  const isSearchMetric = selectedMetric === 'searchImpressions' || selectedMetric === 'searchClicks' || selectedMetric === 'searchCtr' || selectedMetric === 'searchPositions';
+  const currentMonths = isSearchMetric ? (evolution.searchMonths || []) : months;
+  const hasHistory = currentMonths.length > 0 && currentConfig.values.length > 0;
   const maxVal = hasHistory ? Math.max(...currentConfig.values, 1) * 1.15 : 1;
 
   return (
@@ -250,14 +252,14 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>{isRealHistory ? `${months.length} medición${months.length === 1 ? '' : 'es'} real${months.length === 1 ? '' : 'es'}` : '6 meses de ejemplo'}</span>
+            <span>{isRealHistory ? `${currentMonths.length} medición${currentMonths.length === 1 ? '' : 'es'} real${currentMonths.length === 1 ? '' : 'es'}` : '6 meses de ejemplo'}</span>
           </div>
         </div>
 
         {/* Visual Bar & Line Graphic (Clean Responsive SVG/HTML) */}
         <div className="pt-6 pb-2">
           <div className="grid grid-cols-6 gap-3 sm:gap-6 items-end h-56 border-b border-slate-200 px-2 sm:px-6">
-            {months.map((month, idx) => {
+            {currentMonths.map((month, idx) => {
               const val = currentConfig.values[idx];
               const heightPercent = Math.max(15, Math.round((val / maxVal) * 100));
               const isLast = idx === months.length - 1;
@@ -297,7 +299,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
         {/* Summary Footer */}
         <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
           <span>
-            Punto de partida: <strong>{currentConfig.values[0]} {currentConfig.unit}</strong> ({months[0]}) → Estado actual: <strong>{currentConfig.values[currentConfig.values.length - 1]} {currentConfig.unit}</strong> ({months[months.length - 1]})
+            Punto de partida: <strong>{currentConfig.values[0]} {currentConfig.unit}</strong> ({currentMonths[0]}) → Estado actual: <strong>{currentConfig.values[currentConfig.values.length - 1]} {currentConfig.unit}</strong> ({currentMonths[currentMonths.length - 1]})
           </span>
           <span className={`font-bold ${currentConfig.values[currentConfig.values.length - 1] >= currentConfig.values[0] ? 'text-emerald-600' : 'text-rose-600'}`}>
             {currentConfig.values[currentConfig.values.length - 1] >= currentConfig.values[0] ? 'Mejora respecto del inicio ↑' : 'Descenso respecto del inicio ↓'}
