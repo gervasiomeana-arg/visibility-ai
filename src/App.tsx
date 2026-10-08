@@ -345,6 +345,16 @@ export default function App() {
           setAssistantInitialPrompt('');
           setAssistantOpen(true);
         }}
+        workspaceName={activeWorkspace?.name}
+        onSignOut={
+          authService.isConfigured()
+            ? async () => {
+                await authService.signOut();
+                setAuthenticated(false);
+                setActiveWorkspace(null);
+              }
+            : undefined
+        }
       />
 
       {/* Main Content Area */}
