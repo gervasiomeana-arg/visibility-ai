@@ -167,6 +167,15 @@ export default function App() {
           overall: verifiedValues.length ? 'partial' : 'demo',
         }
       );
+
+      storageService.saveAuditHistoryPoint(targetBusinessId!, {
+        auditedAt: auditResult.fetchedAt,
+        overallScore: overall,
+        seoScore,
+        webScore: pageSpeedScore,
+        unresolvedIssues: realIssues.filter((issue) => issue.severity !== 'ok').length,
+      });
+
       setBusinesses(storageService.getBusinesses());
     }
 
