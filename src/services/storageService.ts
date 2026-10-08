@@ -32,6 +32,7 @@ const STORAGE_KEYS = {
   SEO_AUDIT_META: 'visibility_ai_seo_audit_meta',
   AUDIT_HISTORY: 'visibility_ai_audit_history',
   SEARCH_CONSOLE_META: 'visibility_ai_search_console_meta',
+  SEARCH_CONSOLE_HISTORY: 'visibility_ai_search_console_history',
 };
 
 export const storageService = {
@@ -380,6 +381,52 @@ export const storageService = {
     }
   },
 
+  saveSearchConsoleHistoryPoint(
+    businessId: string,
+    point: {
+      loadedAt: string;
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      position: number;
+    }
+  ): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY);
+      const parsed = stored ? JSON.parse(stored) : {};
+      const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
+      const pointDay = new Date(point.loadedAt).toISOString().slice(0, 10);
+      const withoutSameDay = current.filter(
+        (entry: any) => new Date(entry.loadedAt).toISOString().slice(0, 10) !== pointDay
+      );
+
+      parsed[businessId] = [...withoutSameDay, point]
+        .sort((a: any, b: any) => new Date(a.loadedAt).getTime() - new Date(b.loadedAt).getTime())
+        .slice(-24);
+
+      localStorage.setItem(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
+  },
+
+  getSearchConsoleHistory(businessId: string): Array<{
+    loadedAt: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+  }> {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY);
+      if (!stored) return [];
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
+    } catch {
+      return [];
+    }
+  },
+
   getSearchConsoleMeta(businessId: string): any | null {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_META);
@@ -568,33 +615,46 @@ export const storageService = {
 
   getEvolution(businessId: string): MonthlyEvolution {
     const history = this.getAuditHistory(businessId);
-    if (history.length > 0) {
+    const searchHistory = this.getSearchConsoleHistory(businessId);
+    if (history.length > 0 || searchHistory.length > 0) {
       const first = history[0];
       const last = history[history.length - 1];
       const visibilityChangePercent =
-        first.overallScore > 0
+        first && last && first.overallScore > 0
           ? Math.round(((last.overallScore - first.overallScore) / first.overallScore) * 100)
           : 0;
 
+      const labelDates = history.length > 0
+        ? history.map((entry) => entry.auditedAt)
+        : searchHistory.map((entry) => entry.loadedAt);
+
       return {
         source: 'real',
-        months: history.map((entry) =>
-          new Date(entry.auditedAt).toLocaleDateString('es-AR', {
+        months: labelDates.map((value) =>
+          new Date(value).toLocaleDateString('es-AR', {
             day: '2-digit',
             month: 'short',
           })
         ),
         visibility: history.map((entry) => entry.overallScore),
-        googlePositions: [],
+        googlePositions: searchHistory.map((entry) => entry.position),
         estimatedVisits: [],
         consultations: [],
-        fixedProblems: history.map((entry) =>
-          Math.max(0, first.unresolvedIssues - entry.unresolvedIssues)
-        ),
+        fixedProblems: history.length > 0
+          ? history.map((entry) => Math.max(0, first.unresolvedIssues - entry.unresolvedIssues))
+          : [],
+        searchImpressions: searchHistory.map((entry) => entry.impressions),
+        searchClicks: searchHistory.map((entry) => entry.clicks),
+        searchCtr: searchHistory.map((entry) => Number((entry.ctr * 100).toFixed(2))),
+        searchPositions: searchHistory.map((entry) => entry.position),
         monthComparison: {
           visibilityChangePercent,
-          improvedPositionsCount: 0,
-          solvedProblemsCount: Math.max(0, first.unresolvedIssues - last.unresolvedIssues),
+          improvedPositionsCount:
+            searchHistory.length > 1
+              ? Math.max(0, Math.round(searchHistory[0].position - searchHistory[searchHistory.length - 1].position))
+              : 0,
+          solvedProblemsCount:
+            history.length > 1 ? Math.max(0, first.unresolvedIssues - last.unresolvedIssues) : 0,
           newOpportunitiesCount: 0,
           consultationsTotal: 0,
         },
