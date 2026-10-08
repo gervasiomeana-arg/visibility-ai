@@ -64,6 +64,7 @@ export default function App() {
   const issues = storageService.getIssues(activeBusiness.id);
   const seoItems = storageService.getSeoAudit(activeBusiness.id);
   const seoAuditMeta = storageService.getSeoAuditMeta(activeBusiness.id);
+  const searchConsoleMeta = storageService.getSearchConsoleMeta(activeBusiness.id);
   const keywords = storageService.getKeywords(activeBusiness.id);
   const competitors = storageService.getCompetitors(activeBusiness.id);
   const opportunities = storageService.getOpportunities(activeBusiness.id);
@@ -260,6 +261,7 @@ export default function App() {
               <DashboardOverview
                 business={activeBusiness}
                 issues={issues}
+                searchConsoleMeta={searchConsoleMeta}
                 setActiveTab={setActiveTab}
                 onOpenAssistant={() => {
                   setAssistantInitialPrompt('¿Qué debería mejorar primero en mi negocio?');
