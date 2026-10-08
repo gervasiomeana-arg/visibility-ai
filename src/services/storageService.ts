@@ -37,16 +37,25 @@ const STORAGE_KEYS = {
 
 export const storageService = {
   getBusinesses(): Business[] {
+    const normalize = (business: Business): Business => ({
+      ...business,
+      countryCode: business.countryCode || 'AR',
+      currency: business.currency || 'USD',
+      locale: business.locale || 'es-AR',
+      timezone: business.timezone || 'America/Argentina/Buenos_Aires',
+      subscriptionPlan: business.subscriptionPlan || 'growth',
+    });
+
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.BUSINESSES);
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(normalize);
       }
     } catch {
       // Fallback
     }
-    return INITIAL_BUSINESSES;
+    return INITIAL_BUSINESSES.map(normalize);
   },
 
   getActiveBusinessId(): string {
