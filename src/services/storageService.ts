@@ -451,6 +451,67 @@ export const storageService = {
     return INITIAL_COMPETITORS[businessId] || [];
   },
 
+  buildOpportunitiesFromSeoAudit(business: Business, items: SeoAuditItem[]): Opportunity[] {
+    return items
+      .filter((item) => item.status !== 'ok')
+      .slice(0, 12)
+      .map((item) => ({
+        id: `seo-${business.id}-${item.key}`,
+        businessId: business.id,
+        detectedProblem: item.title,
+        simpleExplanation: item.simpleExplanation,
+        commercialAction: item.solution,
+        suggestedPageTitle:
+          item.key === 'title' || item.key === 'meta-description' || item.key === 'h1'
+            ? `Mejorar la página principal de ${business.name}`
+            : `Optimización técnica: ${item.title}`,
+        potentialImpact: item.impact === 'Alto' ? 'Muy Alto' : item.impact === 'Medio' ? 'Alto' : 'Medio',
+        searchDemand: 'Sin dato de demanda asociado',
+        source: 'seo-audit',
+        evidenceText: `Auditoría SEO real · ${item.statusLabel}${item.metricValue ? ` · ${item.metricValue}` : ''}`,
+        contentParams: {
+          contentType:
+            item.key === 'meta-description' || item.key === 'title'
+              ? 'seo_meta'
+              : 'web_page',
+          topic: item.title,
+          keyword: '',
+          city: business.city,
+          businessType: business.category,
+          goal: 'Resolver un hallazgo técnico verificado y mejorar la visibilidad',
+        },
+      }));
+  },
+
+  replaceOpportunitiesBySource(
+    businessId: string,
+    source: 'seo-audit' | 'search-console',
+    incoming: Opportunity[]
+  ): Opportunity[] {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES);
+      const parsed = stored ? JSON.parse(stored) : {};
+      const current: Opportunity[] = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
+      const preserved = current.filter(
+        (opp) => opp.source && opp.source !== source && opp.source !== 'demo'
+      );
+      const combined = [...incoming, ...preserved].slice(0, 20);
+      parsed[businessId] = combined;
+      localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(parsed));
+
+      const businesses = this.getBusinesses();
+      const index = businesses.findIndex((business) => business.id === businessId);
+      if (index >= 0) {
+        businesses[index] = { ...businesses[index], totalOpportunities: combined.length };
+        localStorage.setItem(STORAGE_KEYS.BUSINESSES, JSON.stringify(businesses));
+      }
+
+      return combined;
+    } catch {
+      return incoming;
+    }
+  },
+
   buildOpportunitiesFromSearchConsole(business: Business, keywords: KeywordItem[]): Opportunity[] {
     const realRows = keywords
       .filter((kw) => kw.source === 'search-console' && (kw.impressions || 0) > 0)
