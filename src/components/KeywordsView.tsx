@@ -103,6 +103,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
 
       setKeywords(realKeywords);
       storageService.saveKeywords(business.id, realKeywords);
+
+      const realOpportunities = storageService.buildOpportunitiesFromSearchConsole(business, realKeywords);
+      storageService.saveOpportunities(business.id, realOpportunities);
     } catch (error: any) {
       setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
     } finally {
