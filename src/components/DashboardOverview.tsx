@@ -19,6 +19,15 @@ import { Business, ActiveTab, ExecutiveIssue } from '../types';
 interface DashboardOverviewProps {
   business: Business;
   issues: ExecutiveIssue[];
+  searchConsoleMeta?: {
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+    startDate: string;
+    endDate: string;
+    loadedAt: string;
+  } | null;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistant: () => void;
   onGenerateOpportunity: (oppId: string) => void;
@@ -27,6 +36,7 @@ interface DashboardOverviewProps {
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   business,
   issues,
+  searchConsoleMeta,
   setActiveTab,
   onOpenAssistant,
 }) => {
@@ -40,6 +50,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   };
   const labelForSource = (source: 'demo' | 'partial' | 'real') =>
     source === 'real' ? 'DATO REAL' : source === 'partial' ? 'PARCIAL REAL' : 'DEMO';
+  const hasSearchConsole = Boolean(searchConsoleMeta && searchConsoleMeta.impressions >= 0);
 
   // Filter top issues
   const highIssues = issues.filter((i) => i.severity === 'high');
@@ -121,29 +132,43 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Google */}
+          {/* Google / Search Console */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-indigo-200 transition-all">
             <div className="flex items-center justify-between">
               <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Globe className="w-5 h-5" />
               </div>
-              <span className="text-2xl font-extrabold text-slate-900 font-heading">
-                {scores.google} <span className="text-xs text-slate-400 font-normal">/100</span>
-              </span>
+              {hasSearchConsole ? (
+                <span className="text-2xl font-extrabold text-slate-900 font-heading">
+                  {searchConsoleMeta!.position > 0 ? searchConsoleMeta!.position.toFixed(1) : '—'}
+                  <span className="text-xs text-slate-400 font-normal"> pos. media</span>
+                </span>
+              ) : (
+                <span className="text-2xl font-extrabold text-slate-900 font-heading">
+                  {scores.google} <span className="text-xs text-slate-400 font-normal">/100</span>
+                </span>
+              )}
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">Google</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Google Maps, perfil local verificado y presencia en búsquedas por cercanía.
-            </p>
+            {hasSearchConsole ? (
+              <div className="mt-1 space-y-1 text-xs text-slate-500">
+                <p>{searchConsoleMeta!.impressions.toLocaleString('es-AR')} impresiones · {searchConsoleMeta!.clicks.toLocaleString('es-AR')} clics</p>
+                <p>{(searchConsoleMeta!.ctr * 100).toFixed(1)}% CTR · Search Console</p>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Search Console todavía no está conectado. Google Maps y perfil local siguen pendientes de fuente real.
+              </p>
+            )}
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                {labelForSource(scoreSources.google)}
+              <span className={`font-semibold px-2 py-0.5 rounded ${hasSearchConsole ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
+                {hasSearchConsole ? 'PARCIAL REAL' : labelForSource(scoreSources.google)}
               </span>
               <button
-                onClick={() => setActiveTab('seo')}
+                onClick={() => setActiveTab('keywords')}
                 className="text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-0.5 cursor-pointer"
               >
-                Ver detalle <ChevronRight className="w-3.5 h-3.5" />
+                Ver búsquedas <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
