@@ -21,7 +21,9 @@ import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
 import { LoginView } from './components/LoginView';
+import { WorkspaceSetupView } from './components/WorkspaceSetupView';
 import { authService } from './services/authService';
+import { workspaceService } from './services/workspaceService';
 import { DemoNotice } from './components/DemoNotice';
 import { storageService } from './services/storageService';
 import {
@@ -37,12 +39,15 @@ import {
   TaskStatus,
   ContentGenerationRequest,
   SeoAuditResult,
+  Workspace,
 } from './types';
 import { Sparkles } from 'lucide-react';
 
 export default function App() {
   const [authReady, setAuthReady] = useState(!authService.isConfigured());
   const [authenticated, setAuthenticated] = useState(!authService.isConfigured());
+  const [workspaceReady, setWorkspaceReady] = useState(!authService.isConfigured());
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
   const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
@@ -104,6 +109,32 @@ export default function App() {
       unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!authService.isConfigured() || !authenticated) {
+      if (!authService.isConfigured()) setWorkspaceReady(true);
+      return;
+    }
+
+    let mounted = true;
+    setWorkspaceReady(false);
+
+    workspaceService.listWorkspaces()
+      .then((workspaces) => {
+        if (!mounted) return;
+        setActiveWorkspace(workspaces[0] || null);
+        setWorkspaceReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setActiveWorkspace(null);
+        setWorkspaceReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [authenticated]);
 
   // Keep action tasks synced when activeBusiness changes
   useEffect(() => {
@@ -279,6 +310,25 @@ export default function App() {
 
   if (!authenticated) {
     return <LoginView onAuthenticated={() => setAuthenticated(true)} />;
+  }
+
+  if (authService.isConfigured() && !workspaceReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Cargando espacio de trabajo...
+      </div>
+    );
+  }
+
+  if (authService.isConfigured() && workspaceReady && !activeWorkspace) {
+    return (
+      <WorkspaceSetupView
+        onCreated={async () => {
+          const workspaces = await workspaceService.listWorkspaces();
+          setActiveWorkspace(workspaces[0] || null);
+        }}
+      />
+    );
   }
 
   return (
