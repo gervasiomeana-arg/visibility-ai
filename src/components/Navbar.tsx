@@ -19,6 +19,7 @@ import {
   Menu,
   X,
   ExternalLink,
+  LogOut,
 } from 'lucide-react';
 import { Business, ActiveTab } from '../types';
 
@@ -30,6 +31,8 @@ interface NavbarProps {
   onSelectBusiness: (bizId: string) => void;
   onOpenNewBusinessModal: () => void;
   onOpenAssistant: () => void;
+  workspaceName?: string;
+  onSignOut?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,6 +43,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectBusiness,
   onOpenNewBusinessModal,
   onOpenAssistant,
+  workspaceName,
+  onSignOut,
 }) => {
   const [bizDropdownOpen, setBizDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -80,6 +85,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               ¿Cómo funciona?
             </button>
+            {workspaceName && (
+              <>
+                <span className="text-slate-600">|</span>
+                <span className="text-slate-400 truncate max-w-[160px]">{workspaceName}</span>
+              </>
+            )}
             <span className="text-slate-600">|</span>
             <button
               onClick={() => setActiveTab('admin')}
@@ -182,6 +193,16 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Right Action Buttons */}
           <div className="flex items-center gap-2.5">
             {/* AI Assistant Quick Trigger */}
+            {onSignOut && (
+              <button
+                onClick={onSignOut}
+                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold"
+              >
+                <LogOut className="w-4 h-4" />
+                Salir
+              </button>
+            )}
+
             <button
               onClick={onOpenAssistant}
               className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm hover:shadow transition-all cursor-pointer"
