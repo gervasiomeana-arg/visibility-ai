@@ -201,7 +201,7 @@ export default function App() {
     setActiveTab('analyzing');
   };
 
-  const handleAnalysisComplete = (auditResult: SeoAuditResult) => {
+  const handleAnalysisComplete = async (auditResult: SeoAuditResult) => {
     // Match existing businesses by normalized hostname to avoid duplicates.
     const getHostname = (value: string) => {
       try {
@@ -211,7 +211,7 @@ export default function App() {
         return value.toLowerCase();
       }
     };
-    const analyzedHost = getHostname(analyzingUrl);
+    const analyzedHost = getHostname(auditResult.requestedUrl);
     const existing = businesses.find((b) => getHostname(b.url) === analyzedHost);
     let targetBusinessId: string;
     if (existing) {
@@ -227,13 +227,38 @@ export default function App() {
         deducedName = 'Mi Negocio';
       }
 
-      const created = storageService.addBusiness({
-        url: analyzingUrl,
+      const marketCountry = activeWorkspace?.countryCode === 'CL'
+        ? 'Chile'
+        : activeWorkspace?.countryCode === 'MX'
+        ? 'México'
+        : activeWorkspace?.countryCode === 'ES'
+        ? 'España'
+        : activeWorkspace?.countryCode === 'CO'
+        ? 'Colombia'
+        : activeWorkspace?.countryCode === 'US'
+        ? 'Estados Unidos'
+        : 'Argentina';
+
+      const businessDraft = {
+        url: auditResult.requestedUrl,
         name: deducedName,
         category: 'Pendiente de definir',
         city: 'Pendiente de definir',
-        country: 'Argentina',
-      });
+        country: marketCountry,
+        countryCode: activeWorkspace?.countryCode || 'AR',
+        currency: activeWorkspace?.currency || 'USD',
+        locale: activeWorkspace?.locale || 'es-AR',
+        timezone: activeWorkspace?.timezone || 'America/Argentina/Buenos_Aires',
+        subscriptionPlan: activeWorkspace?.planId || 'growth',
+        workspaceId: activeWorkspace?.id,
+      };
+
+      let persistedId: string | undefined;
+      if (authService.isConfigured() && activeWorkspace?.id) {
+        persistedId = await workspaceService.createBusiness(activeWorkspace.id, businessDraft);
+      }
+
+      const created = storageService.addBusiness(businessDraft, persistedId);
       setBusinesses(storageService.getBusinesses());
       handleSelectBusiness(created.id);
       targetBusinessId = created.id;
