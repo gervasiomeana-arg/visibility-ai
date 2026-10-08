@@ -369,6 +369,81 @@ export const storageService = {
     return INITIAL_COMPETITORS[businessId] || [];
   },
 
+  buildOpportunitiesFromSearchConsole(business: Business, keywords: KeywordItem[]): Opportunity[] {
+    const realRows = keywords
+      .filter((kw) => kw.source === 'search-console' && (kw.impressions || 0) > 0)
+      .sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
+
+    const opportunities: Opportunity[] = [];
+
+    for (const kw of realRows) {
+      const impressions = kw.impressions || 0;
+      const ctr = kw.ctr || 0;
+      const position = kw.position || 0;
+
+      if (impressions >= 20 && position >= 8 && position <= 20) {
+        opportunities.push({
+          id: `gsc-near-top-${business.id}-${opportunities.length}`,
+          businessId: business.id,
+          detectedProblem: `“${kw.keyword}” está cerca de las primeras posiciones`,
+          simpleExplanation: `Google mostró tu sitio ${impressions} veces para esta consulta en el período analizado y la posición media fue ${position.toFixed(1)}.`,
+          commercialAction: 'Revisar la página que responde a esta búsqueda, reforzar título, encabezados y contenido útil para intentar ganar posiciones.',
+          suggestedPageTitle: `Optimizar contenido para “${kw.keyword}”`,
+          potentialImpact: impressions >= 100 ? 'Muy Alto' : 'Alto',
+          searchDemand: `${impressions} impresiones verificadas`,
+          source: 'search-console',
+          evidenceText: `Search Console · posición media ${position.toFixed(1)} · ${impressions} impresiones`,
+          contentParams: {
+            contentType: 'web_page',
+            topic: kw.keyword,
+            keyword: kw.keyword,
+            city: business.city,
+            businessType: business.category,
+            goal: 'Mejorar la relevancia de una consulta con impresiones reales y acercarla a mejores posiciones',
+          },
+        });
+      }
+
+      if (impressions >= 30 && ctr < 0.03 && position > 0 && position <= 15) {
+        opportunities.push({
+          id: `gsc-low-ctr-${business.id}-${opportunities.length}`,
+          businessId: business.id,
+          detectedProblem: `“${kw.keyword}” obtiene impresiones pero pocos clics`,
+          simpleExplanation: `La consulta tuvo ${impressions} impresiones y un CTR de ${(ctr * 100).toFixed(1)}% con posición media ${position.toFixed(1)}.`,
+          commercialAction: 'Probar un título SEO y una meta description más claros y atractivos, alineados con lo que busca el usuario.',
+          suggestedPageTitle: `Mejorar CTR para “${kw.keyword}”`,
+          potentialImpact: impressions >= 100 ? 'Muy Alto' : 'Alto',
+          searchDemand: `${impressions} impresiones verificadas`,
+          source: 'search-console',
+          evidenceText: `Search Console · CTR ${(ctr * 100).toFixed(1)}% · ${impressions} impresiones`,
+          contentParams: {
+            contentType: 'seo_meta',
+            topic: kw.keyword,
+            keyword: kw.keyword,
+            city: business.city,
+            businessType: business.category,
+            goal: 'Mejorar el porcentaje de clics de una consulta con visibilidad real en Google',
+          },
+        });
+      }
+
+      if (opportunities.length >= 12) break;
+    }
+
+    return opportunities.slice(0, 12);
+  },
+
+  saveOpportunities(businessId: string, opportunities: Opportunity[]): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES);
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[businessId] = opportunities;
+      localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
+  },
+
   getOpportunities(businessId: string): Opportunity[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES);
