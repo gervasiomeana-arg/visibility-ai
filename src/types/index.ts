@@ -122,6 +122,8 @@ export interface Opportunity {
   suggestedPageTitle: string;
   potentialImpact: 'Muy Alto' | 'Alto' | 'Medio';
   searchDemand: string;
+  source?: 'demo' | 'seo-audit' | 'search-console';
+  evidenceText?: string;
   contentParams: {
     contentType: 'web_page' | 'blog_article' | 'service_description' | 'faq' | 'seo_meta' | 'google_post';
     topic: string;
