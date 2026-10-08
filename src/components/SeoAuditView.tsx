@@ -18,6 +18,7 @@ interface SeoAuditViewProps {
   auditMeta?: any | null;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistant: () => void;
+  onReanalyze: () => void;
 }
 
 export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
@@ -26,6 +27,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
   auditMeta,
   setActiveTab,
   onOpenAssistant,
+  onReanalyze,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
@@ -76,7 +78,8 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
             </p>
           </div>
 
-          <div className={`border rounded-xl p-3 max-w-xs text-xs shrink-0 ${isRealAudit ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
+          <div className="flex flex-col gap-2 shrink-0">
+          <div className={`border rounded-xl p-3 max-w-xs text-xs ${isRealAudit ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
             <div className="flex items-center gap-1.5 font-bold mb-0.5">
               {isRealAudit ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" /> : <Info className="w-3.5 h-3.5 text-amber-600 shrink-0" />}
               <span>{isRealAudit ? 'DATOS REALES · AUDITORÍA TÉCNICA' : 'DATOS DE SIMULACIÓN (DEMO)'}</span>
@@ -86,6 +89,14 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
                 ? 'Title, meta description, encabezados, canonical, indexación, ALT, robots.txt, sitemap y respuesta HTTP fueron verificados en el sitio.'
                 : 'Todavía no hay una auditoría técnica real guardada para este negocio.'}
             </p>
+          </div>
+          <button
+            type="button"
+            onClick={onReanalyze}
+            className="w-full px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider"
+          >
+            Volver a analizar
+          </button>
           </div>
         </div>
 
