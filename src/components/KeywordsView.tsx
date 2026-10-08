@@ -77,6 +77,39 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     };
   }, [business.id, business.url]);
 
+  const handleLoadSearchConsole = async () => {
+    if (!selectedSite) return;
+
+    setGscLoading(true);
+    setGscError('');
+
+    try {
+      const result = await searchConsoleService.query(selectedSite, 28);
+      const realKeywords: KeywordItem[] = result.rows.map((row, index) => ({
+        id: `gsc-${business.id}-${index}`,
+        businessId: business.id,
+        keyword: row.query,
+        position: row.position > 0 ? Math.round(row.position * 10) / 10 : 0,
+        searchVolume: 0,
+        difficulty: 'Media',
+        evolution: 0,
+        intent: 'Informativa',
+        url: business.url,
+        source: 'search-console',
+        clicks: row.clicks,
+        impressions: row.impressions,
+        ctr: row.ctr,
+      }));
+
+      setKeywords(realKeywords);
+      storageService.saveKeywords(business.id, realKeywords);
+    } catch (error: any) {
+      setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
+    } finally {
+      setGscLoading(false);
+    }
+  };
+
   const filteredKeywords = keywords.filter((kw) => {
     if (intentFilter !== 'all' && kw.intent !== intentFilter) return false;
     if (searchTerm && !kw.keyword.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -97,9 +130,12 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       evolution: 0,
       intent: 'Comercial',
       url: business.url,
+      source: 'manual',
     };
 
-    setKeywords([newItem, ...keywords]);
+    const updated = [newItem, ...keywords];
+    setKeywords(updated);
+    storageService.saveKeywords(business.id, updated);
     setNewKeywordInput('');
     setShowAddModal(false);
   };
@@ -133,20 +169,58 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           </div>
         </div>
 
-        {/* Demo Data Notice */}
-        <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span>
-              <strong>DATOS DEMO:</strong> Las filas precargadas son ejemplos. Las palabras agregadas manualmente quedan pendientes de medición hasta conectar una fuente real.
-            </span>
+        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${gscConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}></span>
+              <span>
+                {gscConnected
+                  ? <><strong>GOOGLE SEARCH CONSOLE CONECTADO:</strong> podés cargar consultas, clics, impresiones, CTR y posición media reales.</>
+                  : <><strong>FUENTE DE DATOS:</strong> Search Console todavía no está conectado. Las filas DEMO siguen identificadas como ejemplo.</>}
+              </span>
+            </div>
+            {!gscConnected && gscConfigured && (
+              <button
+                type="button"
+                onClick={() => searchConsoleService.connect('/')}
+                className="px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold"
+              >
+                Conectar Search Console
+              </button>
+            )}
           </div>
-          <button
-            onClick={onOpenAssistant}
-            className="text-indigo-600 hover:text-indigo-800 font-medium underline shrink-0 hidden sm:block cursor-pointer"
-          >
-            ¿Qué keywords me convienen?
-          </button>
+
+          {gscConnected && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                value={selectedSite}
+                onChange={(e) => setSelectedSite(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800"
+              >
+                {gscSites.map((site) => (
+                  <option key={site.siteUrl} value={site.siteUrl}>
+                    {site.siteUrl}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleLoadSearchConsole}
+                disabled={!selectedSite || gscLoading}
+                className="px-4 py-2 rounded-lg bg-indigo-600 disabled:bg-slate-300 text-white font-bold"
+              >
+                {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
+              </button>
+            </div>
+          )}
+
+          {!gscConfigured && (
+            <p className="text-[11px] text-slate-500">
+              Para habilitar esta conexión hay que configurar GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y APP_URL. No requiere DATABASE_URL.
+            </p>
+          )}
+
+          {gscError && <p className="text-[11px] font-semibold text-rose-600">{gscError}</p>}
         </div>
 
         {/* Search & Filters */}
