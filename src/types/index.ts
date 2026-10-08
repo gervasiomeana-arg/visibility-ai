@@ -91,6 +91,10 @@ export interface KeywordItem {
   evolution: number; // +3, -1, 0
   intent: 'Comercial' | 'Informativa' | 'Local' | 'Transaccional';
   url: string;
+  source?: 'demo' | 'manual' | 'search-console';
+  clicks?: number;
+  impressions?: number;
+  ctr?: number;
 }
 
 export interface Competitor {
