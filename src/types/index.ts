@@ -1,6 +1,10 @@
 export type PriorityLevel = 'URGENTE' | 'IMPORTANTE' | 'RECOMENDADO';
 export type SeverityLevel = 'high' | 'medium' | 'ok';
 export type TaskStatus = 'pendiente' | 'en_progreso' | 'completada';
+export type SupportedCountryCode = 'AR' | 'CL' | 'MX' | 'ES' | 'CO' | 'US';
+export type SupportedCurrency = 'USD' | 'ARS' | 'CLP' | 'MXN' | 'EUR' | 'COP';
+export type SupportedLocale = 'es-AR' | 'es-CL' | 'es-MX' | 'es-ES' | 'es-CO' | 'es-US';
+export type SubscriptionPlanId = 'diagnostic' | 'monitor' | 'growth' | 'pro' | 'agency';
 
 export interface BusinessScores {
   overall: number; // e.g. 71/100
@@ -17,6 +21,11 @@ export interface Business {
   category: string;
   city: string;
   country: string;
+  countryCode?: SupportedCountryCode;
+  currency?: SupportedCurrency;
+  locale?: SupportedLocale;
+  timezone?: string;
+  subscriptionPlan?: SubscriptionPlanId;
   createdAt: string;
   scores: BusinessScores;
   scoreSources?: {
