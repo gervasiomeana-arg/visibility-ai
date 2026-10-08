@@ -43,6 +43,40 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setKeywords(initialKeywords);
   }, [initialKeywords, business.id]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    searchConsoleService.status()
+      .then(async (status) => {
+        if (cancelled) return;
+        setGscConfigured(status.configured);
+        setGscConnected(status.connected);
+
+        if (status.connected) {
+          const sites = await searchConsoleService.sites();
+          if (cancelled) return;
+          setGscSites(sites);
+
+          let host = '';
+          try {
+            host = new URL(business.url).hostname.replace(/^www\./, '');
+          } catch {
+            host = '';
+          }
+
+          const preferred = sites.find((site) => site.siteUrl.includes(host)) || sites[0];
+          if (preferred) setSelectedSite(preferred.siteUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setGscError('No se pudo consultar Google Search Console.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [business.id, business.url]);
+
   const filteredKeywords = keywords.filter((kw) => {
     if (intentFilter !== 'all' && kw.intent !== intentFilter) return false;
     if (searchTerm && !kw.keyword.toLowerCase().includes(searchTerm.toLowerCase())) return false;
