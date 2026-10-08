@@ -339,6 +339,17 @@ export const storageService = {
     return INITIAL_KEYWORDS[businessId] || [];
   },
 
+  saveKeywords(businessId: string, keywords: KeywordItem[]): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.KEYWORDS);
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[businessId] = keywords;
+      localStorage.setItem(STORAGE_KEYS.KEYWORDS, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
+  },
+
   getCompetitors(businessId: string): Competitor[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.COMPETITORS);
