@@ -133,7 +133,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       storageService.updateBusinessScores(
         business.id,
         {},
-        { google: 'real', overall: 'partial' }
+        { google: 'partial', overall: 'partial' }
       );
     } catch (error: any) {
       setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
