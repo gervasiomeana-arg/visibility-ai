@@ -96,9 +96,12 @@ export const storageService = {
     return list.find((b) => b.id === activeId) || list[0] || INITIAL_BUSINESSES[0];
   },
 
-  addBusiness(newBiz: Omit<Business, 'id' | 'createdAt' | 'scores' | 'totalOpportunities' | 'problemsCount'>): Business {
+  addBusiness(
+    newBiz: Omit<Business, 'id' | 'createdAt' | 'scores' | 'totalOpportunities' | 'problemsCount'>,
+    explicitId?: string
+  ): Business {
     const businesses = this.getBusinesses();
-    const id = `biz-${Date.now()}`;
+    const id = explicitId || `biz-${Date.now()}`;
     // Phase 1: deterministic DEMO scores only.
     // Real scoring will replace this in Phase 2 once measured signals are available.
     const overall = 65;
@@ -141,6 +144,39 @@ export const storageService = {
       // Ignore
     }
     return created;
+  },
+
+  syncBusinessesFromRemote(remoteBusinesses: Business[]): Business[] {
+    const localBusinesses = this.getBusinesses();
+    const localById = new Map(localBusinesses.map((business) => [business.id, business]));
+
+    const merged = remoteBusinesses.map((remote) => {
+      const local = localById.get(remote.id);
+      return local
+        ? {
+            ...local,
+            ...remote,
+            scores: local.scores,
+            scoreSources: local.scoreSources,
+            totalOpportunities: local.totalOpportunities,
+            problemsCount: local.problemsCount,
+          }
+        : remote;
+    });
+
+    try {
+      localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(merged));
+      if (merged.length > 0) {
+        const currentActive = this.getActiveBusinessId();
+        if (!merged.some((business) => business.id === currentActive)) {
+          localStorage.setItem(scopedKey(STORAGE_KEYS.ACTIVE_BUSINESS_ID), merged[0].id);
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    return merged;
   },
 
   updateBusinessScores(
