@@ -136,6 +136,18 @@ export default function App() {
     };
   }, [authenticated]);
 
+  useEffect(() => {
+    if (authService.isConfigured() && activeWorkspace?.id) {
+      storageService.setScope(activeWorkspace.id);
+      const scopedBusinesses = storageService.getBusinesses();
+      setBusinesses(scopedBusinesses);
+      const scopedActiveId = storageService.getActiveBusinessId();
+      setActiveBusinessId(scopedBusinesses.find((business) => business.id === scopedActiveId)?.id || scopedBusinesses[0]?.id || '');
+    } else if (!authService.isConfigured()) {
+      storageService.setScope();
+    }
+  }, [activeWorkspace?.id]);
+
   // Keep action tasks synced when activeBusiness changes
   useEffect(() => {
     setActionTasks(storageService.getActionTasks(activeBusiness.id));
