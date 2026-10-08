@@ -285,6 +285,10 @@ export default function App() {
                   setAssistantInitialPrompt('¿Por qué es importante tener las imágenes con texto ALT y cómo afecta mis reservas?');
                   setAssistantOpen(true);
                 }}
+                onReanalyze={() => {
+                  setAnalyzingUrl(activeBusiness.url);
+                  setActiveTab('analyzing');
+                }}
               />
             )}
 
