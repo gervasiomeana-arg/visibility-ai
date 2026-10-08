@@ -156,6 +156,10 @@ export interface MonthlyEvolution {
   estimatedVisits: number[];
   consultations: number[];
   fixedProblems: number[];
+  searchImpressions?: number[];
+  searchClicks?: number[];
+  searchCtr?: number[];
+  searchPositions?: number[];
   monthComparison: {
     visibilityChangePercent: number; // e.g. +12
     improvedPositionsCount: number;   // e.g. 17
