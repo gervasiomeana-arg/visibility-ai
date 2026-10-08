@@ -144,6 +144,12 @@ export default function App() {
     const realTasks = storageService.buildActionTasksFromSeoAudit(targetBusinessId!, auditResult.items);
     storageService.saveActionTasks(targetBusinessId!, realTasks);
 
+    const targetBusiness = storageService.getBusinesses().find((business) => business.id === targetBusinessId!);
+    if (targetBusiness) {
+      const seoOpportunities = storageService.buildOpportunitiesFromSeoAudit(targetBusiness, auditResult.items);
+      storageService.replaceOpportunitiesBySource(targetBusinessId!, 'seo-audit', seoOpportunities);
+    }
+
     const seoScore = storageService.calculateSeoScore(auditResult.items);
     const pageSpeedScore = auditResult.pageSpeed?.performanceScore ?? null;
     if (seoScore !== null || pageSpeedScore !== null) {
