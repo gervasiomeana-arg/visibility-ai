@@ -262,9 +262,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3.5 px-4 sm:px-6">Palabra clave</th>
                 <th className="py-3.5 px-4 text-center">Posición</th>
-                <th className="py-3.5 px-4 text-right">Volumen</th>
-                <th className="py-3.5 px-4 text-center">Dificultad</th>
-                <th className="py-3.5 px-4 text-center">Evolución</th>
+                <th className="py-3.5 px-4 text-right">Impresiones</th>
+                <th className="py-3.5 px-4 text-right">Clics / CTR</th>
+                <th className="py-3.5 px-4 text-center">Fuente</th>
                 <th className="py-3.5 px-4 sm:px-6 text-right">Acción</th>
               </tr>
             </thead>
@@ -301,40 +301,26 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-medium text-slate-700">
-                      {kw.searchVolume > 0 ? kw.searchVolume.toLocaleString('es-AR') : 'Pendiente'}
+                      {kw.impressions !== undefined ? kw.impressions.toLocaleString('es-AR') : '—'}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-right font-medium text-slate-700">
+                      {kw.clicks !== undefined ? kw.clicks.toLocaleString('es-AR') : '—'}
                       <span className="text-[11px] text-slate-400 block font-normal">
-                        {kw.searchVolume > 0 ? 'búsquedas/mes · DEMO' : 'sin fuente conectada'}
+                        {kw.ctr !== undefined ? `${(kw.ctr * 100).toFixed(1)}% CTR` : 'sin medición'}
                       </span>
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
-                      <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                          kw.difficulty === 'Baja'
-                            ? 'text-emerald-700 bg-emerald-50'
-                            : kw.difficulty === 'Media'
-                            ? 'text-amber-700 bg-amber-50'
-                            : 'text-rose-700 bg-rose-50'
-                        }`}
-                      >
-                        {kw.difficulty}
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded ${
+                        kw.source === 'search-console'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : kw.source === 'manual'
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        {kw.source === 'search-console' ? 'SEARCH CONSOLE' : kw.source === 'manual' ? 'MANUAL' : 'DEMO'}
                       </span>
-                    </td>
-
-                    <td className="py-3.5 px-4 text-center">
-                      {kw.evolution > 0 ? (
-                        <span className="inline-flex items-center text-xs font-bold text-emerald-600">
-                          ↑ {kw.evolution}
-                        </span>
-                      ) : kw.evolution < 0 ? (
-                        <span className="inline-flex items-center text-xs font-bold text-rose-600">
-                          ↓ {Math.abs(kw.evolution)}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-xs font-medium text-slate-400">
-                          <Minus className="w-3 h-3" />
-                        </span>
-                      )}
                     </td>
 
                     <td className="py-3.5 px-4 sm:px-6 text-right">
