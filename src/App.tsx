@@ -196,7 +196,18 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
-  const handleAddNewBusiness = (biz: { name: string; url: string; category: string; city: string; country: string }) => {
+  const handleAddNewBusiness = (biz: {
+    name: string;
+    url: string;
+    category: string;
+    city: string;
+    country: string;
+    countryCode?: any;
+    currency?: any;
+    locale?: any;
+    timezone?: string;
+    subscriptionPlan?: any;
+  }) => {
     const created = storageService.addBusiness(biz);
     setBusinesses(storageService.getBusinesses());
     handleSelectBusiness(created.id);
