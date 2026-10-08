@@ -17,7 +17,7 @@ interface NewBusinessModalProps {
     locale: string;
     timezone: string;
     subscriptionPlan: SubscriptionPlanId;
-  }) => void;
+  }) => void | Promise<void>;
 }
 
 export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
@@ -35,7 +35,7 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim()) return;
 
@@ -66,7 +66,7 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
     setErrorMsg('');
     const market = getMarket(countryCode);
 
-    onAdd({
+    await onAdd({
       url: normalizedUrl,
       name: deducedName,
       category,
