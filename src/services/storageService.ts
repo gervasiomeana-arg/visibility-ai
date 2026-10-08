@@ -637,7 +637,7 @@ export const storageService = {
           })
         ),
         visibility: history.map((entry) => entry.overallScore),
-        googlePositions: searchHistory.map((entry) => entry.position),
+        googlePositions: [],
         estimatedVisits: [],
         consultations: [],
         fixedProblems: history.length > 0
@@ -647,6 +647,12 @@ export const storageService = {
         searchClicks: searchHistory.map((entry) => entry.clicks),
         searchCtr: searchHistory.map((entry) => Number((entry.ctr * 100).toFixed(2))),
         searchPositions: searchHistory.map((entry) => entry.position),
+        searchMonths: searchHistory.map((entry) =>
+          new Date(entry.loadedAt).toLocaleDateString('es-AR', {
+            day: '2-digit',
+            month: 'short',
+          })
+        ),
         monthComparison: {
           visibilityChangePercent,
           improvedPositionsCount:
