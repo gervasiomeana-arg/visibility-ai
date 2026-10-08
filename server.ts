@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import dns from 'dns/promises';
 import net from 'net';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -18,6 +19,93 @@ app.use(express.json({ limit: '100kb' }));
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_FIELD_LENGTH = 2000;
+
+
+type SearchConsoleSession = {
+  accessToken: string;
+  refreshToken?: string;
+  expiresAt: number;
+};
+
+const searchConsoleSessions = new Map<string, SearchConsoleSession>();
+const searchConsoleStates = new Map<string, { createdAt: number; returnTo: string }>();
+
+function parseCookies(cookieHeader?: string): Record<string, string> {
+  if (!cookieHeader) return {};
+  return cookieHeader.split(';').reduce<Record<string, string>>((acc, part) => {
+    const index = part.indexOf('=');
+    if (index === -1) return acc;
+    const key = part.slice(0, index).trim();
+    const value = decodeURIComponent(part.slice(index + 1).trim());
+    acc[key] = value;
+    return acc;
+  }, {});
+}
+
+function searchConsoleConfigured() {
+  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.APP_URL);
+}
+
+function getSearchConsoleRedirectUri() {
+  const appUrl = process.env.APP_URL;
+  if (!appUrl) throw new Error('APP_URL is not configured');
+  return new URL('/api/search-console/oauth/callback', appUrl).toString();
+}
+
+function setSearchConsoleSessionCookie(res: express.Response, sessionId: string) {
+  const appUrl = process.env.APP_URL || '';
+  const secure = appUrl.startsWith('https://') ? '; Secure' : '';
+  res.setHeader(
+    'Set-Cookie',
+    `visibility_gsc_session=${encodeURIComponent(sessionId)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000${secure}`
+  );
+}
+
+async function refreshSearchConsoleToken(session: SearchConsoleSession): Promise<SearchConsoleSession> {
+  if (session.expiresAt > Date.now() + 60_000) return session;
+  if (!session.refreshToken) throw new Error('Search Console session expired');
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID || '',
+    client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+    refresh_token: session.refreshToken,
+    grant_type: 'refresh_token',
+  });
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: params,
+  });
+
+  if (!response.ok) {
+    throw new Error('Could not refresh Search Console access');
+  }
+
+  const data: any = await response.json();
+  return {
+    accessToken: data.access_token,
+    refreshToken: session.refreshToken,
+    expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
+  };
+}
+
+async function getSearchConsoleSession(req: express.Request): Promise<{ id: string; session: SearchConsoleSession } | null> {
+  const sessionId = parseCookies(req.headers.cookie).visibility_gsc_session;
+  if (!sessionId) return null;
+
+  const existing = searchConsoleSessions.get(sessionId);
+  if (!existing) return null;
+
+  try {
+    const refreshed = await refreshSearchConsoleToken(existing);
+    if (refreshed !== existing) searchConsoleSessions.set(sessionId, refreshed);
+    return { id: sessionId, session: refreshed };
+  } catch {
+    searchConsoleSessions.delete(sessionId);
+    return null;
+  }
+}
 
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10000;
@@ -521,6 +609,187 @@ if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
 }
 
 // API Routes
+
+// Google Search Console OAuth + read-only data (Phase 2)
+app.get('/api/search-console/status', async (req, res) => {
+  const active = await getSearchConsoleSession(req);
+  return res.json({
+    configured: searchConsoleConfigured(),
+    connected: Boolean(active),
+    persistence: 'session',
+  });
+});
+
+app.get('/api/search-console/auth/start', (req, res) => {
+  try {
+    if (!searchConsoleConfigured()) {
+      return res.status(503).json({
+        error: 'Google Search Console OAuth is not configured',
+        required: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'APP_URL'],
+      });
+    }
+
+    const state = crypto.randomBytes(24).toString('hex');
+    const returnToRaw = typeof req.query.returnTo === 'string' ? req.query.returnTo : '/';
+    const returnTo = returnToRaw.startsWith('/') && !returnToRaw.startsWith('//') ? returnToRaw : '/';
+    searchConsoleStates.set(state, { createdAt: Date.now(), returnTo });
+
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID || '');
+    authUrl.searchParams.set('redirect_uri', getSearchConsoleRedirectUri());
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/webmasters.readonly');
+    authUrl.searchParams.set('access_type', 'offline');
+    authUrl.searchParams.set('prompt', 'consent');
+    authUrl.searchParams.set('state', state);
+
+    return res.redirect(authUrl.toString());
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'Could not start Search Console OAuth' });
+  }
+});
+
+app.get('/api/search-console/oauth/callback', async (req, res) => {
+  const code = typeof req.query.code === 'string' ? req.query.code : '';
+  const state = typeof req.query.state === 'string' ? req.query.state : '';
+  const pending = searchConsoleStates.get(state);
+
+  if (!code || !pending || Date.now() - pending.createdAt > 10 * 60 * 1000) {
+    return res.status(400).send('Search Console authorization could not be validated.');
+  }
+
+  searchConsoleStates.delete(state);
+
+  try {
+    const params = new URLSearchParams({
+      code,
+      client_id: process.env.GOOGLE_CLIENT_ID || '',
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+      redirect_uri: getSearchConsoleRedirectUri(),
+      grant_type: 'authorization_code',
+    });
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: params,
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error('Google token exchange failed');
+    }
+
+    const tokenData: any = await tokenResponse.json();
+    const sessionId = crypto.randomBytes(24).toString('hex');
+    searchConsoleSessions.set(sessionId, {
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+      expiresAt: Date.now() + Number(tokenData.expires_in || 3600) * 1000,
+    });
+    setSearchConsoleSessionCookie(res, sessionId);
+
+    const target = new URL(pending.returnTo, process.env.APP_URL).toString();
+    return res.redirect(target);
+  } catch (error: any) {
+    console.error('Search Console OAuth callback failed:', error);
+    return res.status(502).send('Could not connect Google Search Console.');
+  }
+});
+
+app.post('/api/search-console/disconnect', async (req, res) => {
+  const cookies = parseCookies(req.headers.cookie);
+  if (cookies.visibility_gsc_session) {
+    searchConsoleSessions.delete(cookies.visibility_gsc_session);
+  }
+
+  const appUrl = process.env.APP_URL || '';
+  const secure = appUrl.startsWith('https://') ? '; Secure' : '';
+  res.setHeader(
+    'Set-Cookie',
+    `visibility_gsc_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`
+  );
+  return res.json({ connected: false });
+});
+
+app.get('/api/search-console/sites', async (req, res) => {
+  try {
+    const active = await getSearchConsoleSession(req);
+    if (!active) return res.status(401).json({ error: 'Search Console is not connected' });
+
+    const response = await fetch('https://www.googleapis.com/webmasters/v3/sites', {
+      headers: { authorization: `Bearer ${active.session.accessToken}` },
+    });
+    if (!response.ok) throw new Error(`Search Console sites returned HTTP ${response.status}`);
+
+    const data: any = await response.json();
+    const sites = Array.isArray(data.siteEntry)
+      ? data.siteEntry.map((site: any) => ({
+          siteUrl: site.siteUrl,
+          permissionLevel: site.permissionLevel,
+        }))
+      : [];
+
+    return res.json({ sites });
+  } catch (error: any) {
+    return res.status(502).json({ error: error.message || 'Could not load Search Console sites' });
+  }
+});
+
+app.post('/api/search-console/query', async (req, res) => {
+  try {
+    const active = await getSearchConsoleSession(req);
+    if (!active) return res.status(401).json({ error: 'Search Console is not connected' });
+
+    const { siteUrl, startDate, endDate, rowLimit } = req.body;
+    if (!siteUrl || typeof siteUrl !== 'string') {
+      return res.status(400).json({ error: 'siteUrl is required' });
+    }
+
+    const safeStart = typeof startDate === 'string' ? startDate : '';
+    const safeEnd = typeof endDate === 'string' ? endDate : '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(safeStart) || !/^\d{4}-\d{2}-\d{2}$/.test(safeEnd)) {
+      return res.status(400).json({ error: 'Valid startDate and endDate are required' });
+    }
+
+    const limit = Math.min(Math.max(Number(rowLimit) || 100, 1), 500);
+    const endpoint = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${active.session.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        startDate: safeStart,
+        endDate: safeEnd,
+        dimensions: ['query'],
+        rowLimit: limit,
+        dataState: 'final',
+      }),
+    });
+
+    if (!response.ok) {
+      const details = await response.text();
+      throw new Error(`Search Console query returned HTTP ${response.status}: ${details.slice(0, 300)}`);
+    }
+
+    const data: any = await response.json();
+    const rows = Array.isArray(data.rows)
+      ? data.rows.map((row: any) => ({
+          query: row.keys?.[0] || '',
+          clicks: Number(row.clicks || 0),
+          impressions: Number(row.impressions || 0),
+          ctr: Number(row.ctr || 0),
+          position: Number(row.position || 0),
+        }))
+      : [];
+
+    return res.json({ rows, startDate: safeStart, endDate: safeEnd, source: 'google-search-console' });
+  } catch (error: any) {
+    return res.status(502).json({ error: error.message || 'Could not query Search Console' });
+  }
+});
+
 
 // Real technical SEO audit (Phase 2)
 app.post('/api/seo/audit', async (req, res) => {
