@@ -43,6 +43,25 @@ import {
 } from './types';
 import { Sparkles } from 'lucide-react';
 
+const EMPTY_BUSINESS: Business = {
+  id: 'no-business',
+  name: 'Sin negocios todavía',
+  url: 'https://example.com',
+  category: 'Pendiente',
+  city: '',
+  country: '',
+  countryCode: 'AR',
+  currency: 'USD',
+  locale: 'es-AR',
+  timezone: 'America/Argentina/Buenos_Aires',
+  subscriptionPlan: 'growth',
+  createdAt: '',
+  scores: { overall: 0, google: 0, seo: 0, web: 0, aiVisibility: 0 },
+  scoreSources: { overall: 'demo', google: 'demo', seo: 'demo', web: 'demo', aiVisibility: 'demo' },
+  totalOpportunities: 0,
+  problemsCount: { high: 0, medium: 0, ok: 0 },
+};
+
 export default function App() {
   const [authReady, setAuthReady] = useState(!authService.isConfigured());
   const [authenticated, setAuthenticated] = useState(!authService.isConfigured());
@@ -67,7 +86,7 @@ export default function App() {
 
   // Active business entity
   const activeBusiness =
-    businesses.find((b) => b.id === activeBusinessId) || businesses[0];
+    businesses.find((b) => b.id === activeBusinessId) || businesses[0] || EMPTY_BUSINESS;
 
   // Specific data for the active business
   const issues = storageService.getIssues(activeBusiness.id);
