@@ -19,6 +19,13 @@ export interface Business {
   country: string;
   createdAt: string;
   scores: BusinessScores;
+  scoreSources?: {
+    overall: 'demo' | 'partial' | 'real';
+    google: 'demo' | 'partial' | 'real';
+    seo: 'demo' | 'real';
+    web: 'demo' | 'real';
+    aiVisibility: 'demo' | 'real';
+  };
   totalOpportunities: number;
   problemsCount: {
     high: number;
@@ -36,6 +43,8 @@ export interface ExecutiveIssue {
   possibleSolution: string;
   category: 'Google' | 'SEO' | 'Web' | 'Visibilidad IA';
   impactText: string;
+  source?: 'real' | 'demo';
+  checkedAt?: string;
 }
 
 export interface SeoAuditItem {
@@ -49,6 +58,27 @@ export interface SeoAuditItem {
   solution: string;
   impact: 'Alto' | 'Medio' | 'Bajo';
   metricValue?: string;
+  source?: 'real' | 'demo';
+  checkedAt?: string;
+}
+
+export interface SeoAuditResult {
+  requestedUrl: string;
+  finalUrl: string;
+  fetchedAt: string;
+  httpStatus: number;
+  responseTimeMs: number;
+  items: SeoAuditItem[];
+  pageSpeed?: {
+    performanceScore: number | null;
+    firstContentfulPaint: { displayValue: string | null; numericValue: number | null; score: number | null };
+    largestContentfulPaint: { displayValue: string | null; numericValue: number | null; score: number | null };
+    cumulativeLayoutShift: { displayValue: string | null; numericValue: number | null; score: number | null };
+    totalBlockingTime: { displayValue: string | null; numericValue: number | null; score: number | null };
+    speedIndex: { displayValue: string | null; numericValue: number | null; score: number | null };
+    fetchedAt: string;
+  } | null;
+  pageSpeedError?: string | null;
 }
 
 export interface KeywordItem {
@@ -61,6 +91,10 @@ export interface KeywordItem {
   evolution: number; // +3, -1, 0
   intent: 'Comercial' | 'Informativa' | 'Local' | 'Transaccional';
   url: string;
+  source?: 'demo' | 'manual' | 'search-console';
+  clicks?: number;
+  impressions?: number;
+  ctr?: number;
 }
 
 export interface Competitor {
@@ -88,6 +122,8 @@ export interface Opportunity {
   suggestedPageTitle: string;
   potentialImpact: 'Muy Alto' | 'Alto' | 'Medio';
   searchDemand: string;
+  source?: 'demo' | 'seo-audit' | 'search-console';
+  evidenceText?: string;
   contentParams: {
     contentType: 'web_page' | 'blog_article' | 'service_description' | 'faq' | 'seo_meta' | 'google_post';
     topic: string;
@@ -113,12 +149,18 @@ export interface ActionTask {
 }
 
 export interface MonthlyEvolution {
+  source?: 'real' | 'demo';
   months: string[];
   visibility: number[];
   googlePositions: number[];
   estimatedVisits: number[];
   consultations: number[];
   fixedProblems: number[];
+  searchImpressions?: number[];
+  searchClicks?: number[];
+  searchCtr?: number[];
+  searchPositions?: number[];
+  searchMonths?: string[];
   monthComparison: {
     visibilityChangePercent: number; // e.g. +12
     improvedPositionsCount: number;   // e.g. 17

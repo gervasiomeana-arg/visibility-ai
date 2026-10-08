@@ -11,6 +11,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { KeywordItem, Business, ActiveTab } from '../types';
+import { searchConsoleService, SearchConsoleSite } from '../services/searchConsoleService';
+import { storageService } from '../services/storageService';
 
 interface KeywordsViewProps {
   business: Business;
@@ -30,10 +32,125 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const [intentFilter, setIntentFilter] = useState<string>('all');
   const [newKeywordInput, setNewKeywordInput] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [gscConfigured, setGscConfigured] = useState(false);
+  const [gscConnected, setGscConnected] = useState(false);
+  const [gscLoading, setGscLoading] = useState(false);
+  const [gscError, setGscError] = useState('');
+  const [gscSites, setGscSites] = useState<SearchConsoleSite[]>([]);
+  const [selectedSite, setSelectedSite] = useState('');
 
   useEffect(() => {
     setKeywords(initialKeywords);
   }, [initialKeywords, business.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    searchConsoleService.status()
+      .then(async (status) => {
+        if (cancelled) return;
+        setGscConfigured(status.configured);
+        setGscConnected(status.connected);
+
+        if (status.connected) {
+          const sites = await searchConsoleService.sites();
+          if (cancelled) return;
+          setGscSites(sites);
+
+          let host = '';
+          try {
+            host = new URL(business.url).hostname.replace(/^www\./, '');
+          } catch {
+            host = '';
+          }
+
+          const preferred = sites.find((site) => site.siteUrl.includes(host)) || sites[0];
+          if (preferred) setSelectedSite(preferred.siteUrl);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setGscError('No se pudo consultar Google Search Console.');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [business.id, business.url]);
+
+  const handleLoadSearchConsole = async () => {
+    if (!selectedSite) return;
+
+    setGscLoading(true);
+    setGscError('');
+
+    try {
+      const result = await searchConsoleService.query(selectedSite, 28);
+      const realKeywords: KeywordItem[] = result.rows.map((row, index) => ({
+        id: `gsc-${business.id}-${index}`,
+        businessId: business.id,
+        keyword: row.query,
+        position: row.position > 0 ? Math.round(row.position * 10) / 10 : 0,
+        searchVolume: 0,
+        difficulty: 'Media',
+        evolution: 0,
+        intent: 'Informativa',
+        url: business.url,
+        source: 'search-console',
+        clicks: row.clicks,
+        impressions: row.impressions,
+        ctr: row.ctr,
+      }));
+
+      setKeywords(realKeywords);
+      storageService.saveKeywords(business.id, realKeywords);
+
+      const realOpportunities = storageService.buildOpportunitiesFromSearchConsole(business, realKeywords);
+      storageService.replaceOpportunitiesBySource(business.id, 'search-console', realOpportunities);
+
+      const clicks = realKeywords.reduce((sum, kw) => sum + (kw.clicks || 0), 0);
+      const impressions = realKeywords.reduce((sum, kw) => sum + (kw.impressions || 0), 0);
+      const weightedPositionDenominator = realKeywords.reduce((sum, kw) => sum + (kw.impressions || 0), 0);
+      const weightedPositionNumerator = realKeywords.reduce(
+        (sum, kw) => sum + (kw.position || 0) * (kw.impressions || 0),
+        0
+      );
+      const position = weightedPositionDenominator > 0
+        ? weightedPositionNumerator / weightedPositionDenominator
+        : 0;
+      const ctr = impressions > 0 ? clicks / impressions : 0;
+
+      const loadedAt = new Date().toISOString();
+
+      storageService.saveSearchConsoleMeta(business.id, {
+        siteUrl: selectedSite,
+        startDate: result.startDate,
+        endDate: result.endDate,
+        clicks,
+        impressions,
+        ctr,
+        position,
+        loadedAt,
+      });
+
+      storageService.saveSearchConsoleHistoryPoint(business.id, {
+        loadedAt,
+        clicks,
+        impressions,
+        ctr,
+        position,
+      });
+
+      storageService.updateBusinessScores(
+        business.id,
+        {},
+        { google: 'partial', overall: 'partial' }
+      );
+    } catch (error: any) {
+      setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
+    } finally {
+      setGscLoading(false);
+    }
+  };
 
   const filteredKeywords = keywords.filter((kw) => {
     if (intentFilter !== 'all' && kw.intent !== intentFilter) return false;
@@ -55,9 +172,12 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       evolution: 0,
       intent: 'Comercial',
       url: business.url,
+      source: 'manual',
     };
 
-    setKeywords([newItem, ...keywords]);
+    const updated = [newItem, ...keywords];
+    setKeywords(updated);
+    storageService.saveKeywords(business.id, updated);
     setNewKeywordInput('');
     setShowAddModal(false);
   };
@@ -91,20 +211,58 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           </div>
         </div>
 
-        {/* Demo Data Notice */}
-        <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-            <span>
-              <strong>DATOS DEMO:</strong> Las filas precargadas son ejemplos. Las palabras agregadas manualmente quedan pendientes de medición hasta conectar una fuente real.
-            </span>
+        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-3">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${gscConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}></span>
+              <span>
+                {gscConnected
+                  ? <><strong>GOOGLE SEARCH CONSOLE CONECTADO:</strong> podés cargar consultas, clics, impresiones, CTR y posición media reales.</>
+                  : <><strong>FUENTE DE DATOS:</strong> Search Console todavía no está conectado. Las filas DEMO siguen identificadas como ejemplo.</>}
+              </span>
+            </div>
+            {!gscConnected && gscConfigured && (
+              <button
+                type="button"
+                onClick={() => searchConsoleService.connect('/')}
+                className="px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold"
+              >
+                Conectar Search Console
+              </button>
+            )}
           </div>
-          <button
-            onClick={onOpenAssistant}
-            className="text-indigo-600 hover:text-indigo-800 font-medium underline shrink-0 hidden sm:block cursor-pointer"
-          >
-            ¿Qué keywords me convienen?
-          </button>
+
+          {gscConnected && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <select
+                value={selectedSite}
+                onChange={(e) => setSelectedSite(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800"
+              >
+                {gscSites.map((site) => (
+                  <option key={site.siteUrl} value={site.siteUrl}>
+                    {site.siteUrl}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleLoadSearchConsole}
+                disabled={!selectedSite || gscLoading}
+                className="px-4 py-2 rounded-lg bg-indigo-600 disabled:bg-slate-300 text-white font-bold"
+              >
+                {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
+              </button>
+            </div>
+          )}
+
+          {!gscConfigured && (
+            <p className="text-[11px] text-slate-500">
+              Para habilitar esta conexión hay que configurar GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET y APP_URL. No requiere DATABASE_URL.
+            </p>
+          )}
+
+          {gscError && <p className="text-[11px] font-semibold text-rose-600">{gscError}</p>}
         </div>
 
         {/* Search & Filters */}
@@ -146,9 +304,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3.5 px-4 sm:px-6">Palabra clave</th>
                 <th className="py-3.5 px-4 text-center">Posición</th>
-                <th className="py-3.5 px-4 text-right">Volumen</th>
-                <th className="py-3.5 px-4 text-center">Dificultad</th>
-                <th className="py-3.5 px-4 text-center">Evolución</th>
+                <th className="py-3.5 px-4 text-right">Impresiones</th>
+                <th className="py-3.5 px-4 text-right">Clics / CTR</th>
+                <th className="py-3.5 px-4 text-center">Fuente</th>
                 <th className="py-3.5 px-4 sm:px-6 text-right">Acción</th>
               </tr>
             </thead>
@@ -185,40 +343,26 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                     </td>
 
                     <td className="py-3.5 px-4 text-right font-medium text-slate-700">
-                      {kw.searchVolume > 0 ? kw.searchVolume.toLocaleString('es-AR') : 'Pendiente'}
+                      {kw.impressions !== undefined ? kw.impressions.toLocaleString('es-AR') : '—'}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-right font-medium text-slate-700">
+                      {kw.clicks !== undefined ? kw.clicks.toLocaleString('es-AR') : '—'}
                       <span className="text-[11px] text-slate-400 block font-normal">
-                        {kw.searchVolume > 0 ? 'búsquedas/mes · DEMO' : 'sin fuente conectada'}
+                        {kw.ctr !== undefined ? `${(kw.ctr * 100).toFixed(1)}% CTR` : 'sin medición'}
                       </span>
                     </td>
 
                     <td className="py-3.5 px-4 text-center">
-                      <span
-                        className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                          kw.difficulty === 'Baja'
-                            ? 'text-emerald-700 bg-emerald-50'
-                            : kw.difficulty === 'Media'
-                            ? 'text-amber-700 bg-amber-50'
-                            : 'text-rose-700 bg-rose-50'
-                        }`}
-                      >
-                        {kw.difficulty}
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded ${
+                        kw.source === 'search-console'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : kw.source === 'manual'
+                          ? 'bg-blue-50 text-blue-700'
+                          : 'bg-amber-50 text-amber-700'
+                      }`}>
+                        {kw.source === 'search-console' ? 'SEARCH CONSOLE' : kw.source === 'manual' ? 'MANUAL' : 'DEMO'}
                       </span>
-                    </td>
-
-                    <td className="py-3.5 px-4 text-center">
-                      {kw.evolution > 0 ? (
-                        <span className="inline-flex items-center text-xs font-bold text-emerald-600">
-                          ↑ {kw.evolution}
-                        </span>
-                      ) : kw.evolution < 0 ? (
-                        <span className="inline-flex items-center text-xs font-bold text-rose-600">
-                          ↓ {Math.abs(kw.evolution)}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-xs font-medium text-slate-400">
-                          <Minus className="w-3 h-3" />
-                        </span>
-                      )}
                     </td>
 
                     <td className="py-3.5 px-4 sm:px-6 text-right">

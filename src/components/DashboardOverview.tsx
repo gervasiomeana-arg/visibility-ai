@@ -19,6 +19,15 @@ import { Business, ActiveTab, ExecutiveIssue } from '../types';
 interface DashboardOverviewProps {
   business: Business;
   issues: ExecutiveIssue[];
+  searchConsoleMeta?: {
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+    startDate: string;
+    endDate: string;
+    loadedAt: string;
+  } | null;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistant: () => void;
   onGenerateOpportunity: (oppId: string) => void;
@@ -27,15 +36,28 @@ interface DashboardOverviewProps {
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   business,
   issues,
+  searchConsoleMeta,
   setActiveTab,
   onOpenAssistant,
 }) => {
   const { scores } = business;
+  const scoreSources = business.scoreSources || {
+    overall: 'demo',
+    google: 'demo',
+    seo: 'demo',
+    web: 'demo',
+    aiVisibility: 'demo',
+  };
+  const labelForSource = (source: 'demo' | 'partial' | 'real') =>
+    source === 'real' ? 'DATO REAL' : source === 'partial' ? 'PARCIAL REAL' : 'DEMO';
+  const hasSearchConsole = Boolean(searchConsoleMeta && searchConsoleMeta.impressions >= 0);
 
   // Filter top issues
   const highIssues = issues.filter((i) => i.severity === 'high');
   const mediumIssues = issues.filter((i) => i.severity === 'medium');
   const okIssues = issues.filter((i) => i.severity === 'ok');
+  const isRealDiagnosis = issues.length > 0 && issues.every((issue) => issue.source === 'real');
+  const unresolvedIssues = highIssues.length + mediumIssues.length;
 
   return (
     <div className="space-y-8 pb-12">
@@ -44,7 +66,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div>
           <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 mb-1">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>DIAGNÓSTICO DEMO</span>
+            <span>{scoreSources.seo === 'real' || scoreSources.web === 'real' ? 'DIAGNÓSTICO CON DATOS REALES' : 'DIAGNÓSTICO DEMO'}</span>
             <span className="text-slate-300">·</span>
             <span className="text-slate-500">{business.category}</span>
           </div>
@@ -80,7 +102,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               VISIBILIDAD DIGITAL
             </span>
             <p className="text-[11px] text-emerald-400 font-medium mt-1">
-              {scores.overall >= 70 ? 'Puntaje demostrativo' : 'Puntaje demostrativo'}
+              {labelForSource(scoreSources.overall)}
             </p>
           </div>
           <div className="relative flex items-center justify-center">
@@ -110,29 +132,43 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Google */}
+          {/* Google / Search Console */}
           <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-indigo-200 transition-all">
             <div className="flex items-center justify-between">
               <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Globe className="w-5 h-5" />
               </div>
-              <span className="text-2xl font-extrabold text-slate-900 font-heading">
-                {scores.google} <span className="text-xs text-slate-400 font-normal">/100</span>
-              </span>
+              {hasSearchConsole ? (
+                <span className="text-2xl font-extrabold text-slate-900 font-heading">
+                  {searchConsoleMeta!.position > 0 ? searchConsoleMeta!.position.toFixed(1) : '—'}
+                  <span className="text-xs text-slate-400 font-normal"> pos. media</span>
+                </span>
+              ) : (
+                <span className="text-2xl font-extrabold text-slate-900 font-heading">
+                  {scores.google} <span className="text-xs text-slate-400 font-normal">/100</span>
+                </span>
+              )}
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">Google</h3>
-            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Google Maps, perfil local verificado y presencia en búsquedas por cercanía.
-            </p>
+            {hasSearchConsole ? (
+              <div className="mt-1 space-y-1 text-xs text-slate-500">
+                <p>{searchConsoleMeta!.impressions.toLocaleString('es-AR')} impresiones · {searchConsoleMeta!.clicks.toLocaleString('es-AR')} clics</p>
+                <p>{(searchConsoleMeta!.ctr * 100).toFixed(1)}% CTR · Search Console</p>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                Search Console todavía no está conectado. Google Maps y perfil local siguen pendientes de fuente real.
+              </p>
+            )}
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                DEMO
+              <span className={`font-semibold px-2 py-0.5 rounded ${hasSearchConsole ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
+                {hasSearchConsole ? 'PARCIAL REAL' : labelForSource(scoreSources.google)}
               </span>
               <button
-                onClick={() => setActiveTab('seo')}
+                onClick={() => setActiveTab('keywords')}
                 className="text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-0.5 cursor-pointer"
               >
-                Ver detalle <ChevronRight className="w-3.5 h-3.5" />
+                Ver búsquedas <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
@@ -149,11 +185,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">SEO</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Títulos, etiquetas, palabras clave posicionadas y contenido indexado.
+              Puntaje calculado desde señales técnicas verificadas del sitio. Rankings y tráfico todavía no forman parte de este score.
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded">
-                DEMO
+                {labelForSource(scoreSources.seo)}
               </span>
               <button
                 onClick={() => setActiveTab('keywords')}
@@ -176,11 +212,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">Web</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Velocidad de carga en móviles, adaptación responsive y seguridad SSL.
+              Rendimiento móvil desde Google PageSpeed cuando está disponible, más señales técnicas del sitio.
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                DEMO
+                {labelForSource(scoreSources.web)}
               </span>
               <button
                 onClick={() => setActiveTab('seo')}
@@ -207,7 +243,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded">
-                DEMO
+                {labelForSource(scoreSources.aiVisibility)}
               </span>
               <button
                 onClick={() => setActiveTab('opportunities')}
@@ -226,13 +262,17 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold mb-3">
               <Lightbulb className="w-3.5 h-3.5 text-amber-300" />
-              <span>RESUMEN EJECUTIVO COMERCIAL</span>
+              <span>{isRealDiagnosis ? 'RESUMEN EJECUTIVO · DATOS REALES' : 'RESUMEN EJECUTIVO COMERCIAL'}</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-bold font-heading">
-              Mostramos {business.totalOpportunities} oportunidades de ejemplo para validar cómo se verá el diagnóstico.
+              {isRealDiagnosis
+                ? `Detectamos ${issues.length} señales técnicas verificadas; ${unresolvedIssues} requieren atención.`
+                : `Mostramos ${business.totalOpportunities} oportunidades de ejemplo para validar cómo se verá el diagnóstico.`}
             </h2>
             <p className="text-xs sm:text-sm text-slate-300 mt-2 max-w-2xl leading-relaxed">
-              En esta fase los hallazgos son ejemplos de producto. Las próximas integraciones convertirán estas tarjetas en resultados verificables.
+              {isRealDiagnosis
+                ? 'Estos resultados provienen de la última auditoría técnica guardada para este sitio. Rankings, Google Maps y demanda comercial siguen pendientes de sus fuentes reales.'
+                : 'En esta fase los hallazgos son ejemplos de producto. Las próximas integraciones convertirán estas tarjetas en resultados verificables.'}
             </p>
           </div>
 
@@ -253,7 +293,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           >
             <div>
               <span className="text-xs font-semibold text-rose-300 block">🔴 Problemas importantes</span>
-              <span className="text-[11px] text-slate-400">Ejemplos de alto impacto</span>
+              <span className="text-[11px] text-slate-400">{isRealDiagnosis ? 'Hallazgos reales de alto impacto' : 'Ejemplos de alto impacto'}</span>
             </div>
             <span className="text-lg font-black text-rose-400">{highIssues.length}</span>
           </button>
@@ -264,7 +304,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           >
             <div>
               <span className="text-xs font-semibold text-amber-300 block">🟡 Mejoras recomendadas</span>
-              <span className="text-[11px] text-slate-400">Ejemplos de mejora</span>
+              <span className="text-[11px] text-slate-400">{isRealDiagnosis ? 'Hallazgos reales a mejorar' : 'Ejemplos de mejora'}</span>
             </div>
             <span className="text-lg font-black text-amber-400">{mediumIssues.length}</span>
           </button>
@@ -275,7 +315,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           >
             <div>
               <span className="text-xs font-semibold text-emerald-300 block">🟢 Elementos correctos</span>
-              <span className="text-[11px] text-slate-400">Ejemplos positivos</span>
+              <span className="text-[11px] text-slate-400">{isRealDiagnosis ? 'Señales verificadas correctas' : 'Ejemplos positivos'}</span>
             </div>
             <span className="text-lg font-black text-emerald-400">{okIssues.length}</span>
           </button>
@@ -302,6 +342,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           <div className="space-y-3">
+            {highIssues.length === 0 && (
+              <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/60 text-xs text-emerald-800">
+                {isRealDiagnosis
+                  ? 'La última auditoría no detectó problemas críticos. Revisá las mejoras recomendadas para seguir optimizando.'
+                  : 'No hay problemas críticos disponibles en este ejemplo.'}
+              </div>
+            )}
             {highIssues.slice(0, 3).map((issue) => (
               <div
                 key={issue.id}
@@ -326,49 +373,72 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
 
-        {/* Commercial Opportunities Preview */}
+        {/* Next actions / Commercial demo */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Lightbulb className="w-5 h-5 text-amber-500" />
                 <h3 className="text-base font-bold text-slate-900 font-heading">
-                  Oportunidades Comerciales DEMO
+                  {isRealDiagnosis ? 'Próximas acciones reales' : 'Oportunidades Comerciales DEMO'}
                 </h3>
               </div>
               <button
-                onClick={() => setActiveTab('opportunities')}
+                onClick={() => setActiveTab(isRealDiagnosis ? 'action-plan' : 'opportunities')}
                 className="text-xs text-indigo-600 font-semibold hover:underline"
               >
-                Ver todas ({business.totalOpportunities})
+                {isRealDiagnosis ? `Ver plan (${unresolvedIssues})` : `Ver todas (${business.totalOpportunities})`}
               </button>
             </div>
 
-            <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200">
-              <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-1">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                EJEMPLO DE OPORTUNIDAD
+            {isRealDiagnosis ? (
+              <div className="space-y-3">
+                {[...highIssues, ...mediumIssues].slice(0, 3).map((issue) => (
+                  <button
+                    key={issue.id}
+                    onClick={() => setActiveTab('action-plan')}
+                    className="w-full text-left p-3.5 rounded-xl border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors"
+                  >
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${issue.severity === 'high' ? 'text-rose-700' : 'text-amber-700'}`}>
+                      {issue.severity === 'high' ? 'URGENTE' : 'MEJORA'}
+                    </span>
+                    <p className="mt-1 text-xs font-bold text-slate-900">{issue.name}</p>
+                    <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">{issue.possibleSolution}</p>
+                  </button>
+                ))}
+                {unresolvedIssues === 0 && (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+                    No quedan hallazgos técnicos pendientes en la última auditoría.
+                  </div>
+                )}
               </div>
-              <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
-                “Ejemplo: una búsqueda local relevante podría justificar crear una página específica para ese servicio.”
-              </p>
-              <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
-                Acción de ejemplo: <strong>crear una página enfocada en una necesidad local concreta</strong> cuando los datos reales confirmen la oportunidad.
-              </p>
+            ) : (
+              <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 uppercase tracking-wider mb-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  EJEMPLO DE OPORTUNIDAD
+                </div>
+                <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                  “Ejemplo: una búsqueda local relevante podría justificar crear una página específica para ese servicio.”
+                </p>
+                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                  Acción de ejemplo: <strong>crear una página enfocada en una necesidad local concreta</strong> cuando los datos reales confirmen la oportunidad.
+                </p>
 
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <span className="text-xs text-slate-500 font-medium">
-                  Demanda: pendiente de fuente real
-                </span>
-                <button
-                  onClick={() => setActiveTab('content-generator')}
-                  className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>GENERAR CON IA</span>
-                </button>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <span className="text-xs text-slate-500 font-medium">
+                    Demanda: pendiente de fuente real
+                  </span>
+                  <button
+                    onClick={() => setActiveTab('content-generator')}
+                    className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span>GENERAR CON IA</span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* AI Assistant Callout */}

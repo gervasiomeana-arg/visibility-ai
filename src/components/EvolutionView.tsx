@@ -24,10 +24,11 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   setActiveTab,
 }) => {
   const [selectedMetric, setSelectedMetric] = useState<
-    'visibility' | 'googlePositions' | 'estimatedVisits' | 'consultations' | 'fixedProblems'
+    'visibility' | 'googlePositions' | 'estimatedVisits' | 'consultations' | 'fixedProblems' | 'searchImpressions' | 'searchClicks' | 'searchCtr' | 'searchPositions'
   >('visibility');
 
   const { months, monthComparison } = evolution;
+  const isRealHistory = evolution.source === 'real';
 
   const metricConfigs = {
     visibility: {
@@ -70,10 +71,44 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       gradient: 'from-amber-500 to-orange-600',
       description: 'Optimizaciones técnicas y de contenido aplicadas.',
     },
+    searchImpressions: {
+      label: 'Impresiones en Google',
+      values: evolution.searchImpressions || [],
+      unit: 'impresiones',
+      color: 'blue',
+      gradient: 'from-blue-500 to-indigo-600',
+      description: 'Impresiones verificadas desde Google Search Console.',
+    },
+    searchClicks: {
+      label: 'Clics desde Google',
+      values: evolution.searchClicks || [],
+      unit: 'clics',
+      color: 'emerald',
+      gradient: 'from-emerald-500 to-teal-600',
+      description: 'Clics orgánicos verificados desde Google Search Console.',
+    },
+    searchCtr: {
+      label: 'CTR en Google',
+      values: evolution.searchCtr || [],
+      unit: '% CTR',
+      color: 'purple',
+      gradient: 'from-purple-500 to-indigo-600',
+      description: 'Porcentaje de clics sobre impresiones en Google Search Console.',
+    },
+    searchPositions: {
+      label: 'Posición Media Search Console',
+      values: evolution.searchPositions || [],
+      unit: 'posición',
+      color: 'slate',
+      gradient: 'from-slate-500 to-slate-700',
+      description: 'Posición media real reportada por Google Search Console. Menor es mejor.',
+    },
   };
 
   const currentConfig = metricConfigs[selectedMetric];
-  const hasHistory = months.length > 0 && currentConfig.values.length > 0;
+  const isSearchMetric = selectedMetric === 'searchImpressions' || selectedMetric === 'searchClicks' || selectedMetric === 'searchCtr' || selectedMetric === 'searchPositions';
+  const currentMonths = isSearchMetric ? (evolution.searchMonths || []) : months;
+  const hasHistory = currentMonths.length > 0 && currentConfig.values.length > 0;
   const maxVal = hasHistory ? Math.max(...currentConfig.values, 1) * 1.15 : 1;
 
   return (
@@ -90,7 +125,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               Crecimiento y Progreso Histórico
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Vista DEMO de cómo se mostrará el seguimiento histórico de <strong>{business.name}</strong> a lo largo de los últimos 6 meses.
+              {isRealHistory
+                ? <>Historial construido a partir de auditorías verificadas de <strong>{business.name}</strong>.</>
+                : <>Vista DEMO de cómo se mostrará el seguimiento histórico de <strong>{business.name}</strong>.</>}
             </p>
           </div>
 
@@ -114,7 +151,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <ArrowUpRight className="w-4 h-4 text-emerald-600" />
             </div>
-            <span className="text-[10px] text-slate-500">DEMO</span>
+            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-left">
@@ -127,7 +164,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <ArrowUpRight className="w-4 h-4 text-emerald-600" />
             </div>
-            <span className="text-[10px] text-slate-500">DEMO</span>
+            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 text-left">
@@ -140,7 +177,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <CheckCircle2 className="w-4 h-4 text-amber-600" />
             </div>
-            <span className="text-[10px] text-slate-500">DEMO</span>
+            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-100 text-left">
@@ -152,7 +189,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
                 {monthComparison.newOpportunitiesCount}
               </span>
             </div>
-            <span className="text-[10px] text-slate-500">DEMO</span>
+            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-left col-span-2 sm:col-span-1">
@@ -165,7 +202,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               </span>
               <ArrowUpRight className="w-4 h-4 text-emerald-600" />
             </div>
-            <span className="text-[10px] text-slate-500">DEMO</span>
+            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
           </div>
         </div>
       </div>
@@ -181,7 +218,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
       {/* Metric Selector Buttons */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
-        {Object.entries(metricConfigs).map(([key, cfg]) => {
+        {Object.entries(metricConfigs)
+          .filter(([key, cfg]) => !isRealHistory || cfg.values.length > 0)
+          .map(([key, cfg]) => {
           const isSelected = selectedMetric === key;
           return (
             <button
@@ -213,14 +252,14 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>6 meses de ejemplo</span>
+            <span>{isRealHistory ? `${currentMonths.length} medición${currentMonths.length === 1 ? '' : 'es'} real${currentMonths.length === 1 ? '' : 'es'}` : '6 meses de ejemplo'}</span>
           </div>
         </div>
 
         {/* Visual Bar & Line Graphic (Clean Responsive SVG/HTML) */}
         <div className="pt-6 pb-2">
           <div className="grid grid-cols-6 gap-3 sm:gap-6 items-end h-56 border-b border-slate-200 px-2 sm:px-6">
-            {months.map((month, idx) => {
+            {currentMonths.map((month, idx) => {
               const val = currentConfig.values[idx];
               const heightPercent = Math.max(15, Math.round((val / maxVal) * 100));
               const isLast = idx === months.length - 1;
@@ -260,10 +299,10 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
         {/* Summary Footer */}
         <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
           <span>
-            Punto de partida: <strong>{currentConfig.values[0]} {currentConfig.unit}</strong> (Mayo) → Estado actual: <strong>{currentConfig.values[currentConfig.values.length - 1]} {currentConfig.unit}</strong> (Octubre)
+            Punto de partida: <strong>{currentConfig.values[0]} {currentConfig.unit}</strong> ({currentMonths[0]}) → Estado actual: <strong>{currentConfig.values[currentConfig.values.length - 1]} {currentConfig.unit}</strong> ({currentMonths[currentMonths.length - 1]})
           </span>
-          <span className="text-emerald-600 font-bold">
-            Tendencia de crecimiento sostenido ↑
+          <span className={`font-bold ${currentConfig.values[currentConfig.values.length - 1] >= currentConfig.values[0] ? 'text-emerald-600' : 'text-rose-600'}`}>
+            {currentConfig.values[currentConfig.values.length - 1] >= currentConfig.values[0] ? 'Mejora respecto del inicio ↑' : 'Descenso respecto del inicio ↓'}
           </span>
         </div>
       </div>}

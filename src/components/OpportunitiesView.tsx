@@ -24,6 +24,9 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
   setActiveTab,
   onSelectOpportunityForAI,
 }) => {
+  const realCount = opportunities.filter((opp) => opp.source === 'search-console' || opp.source === 'seo-audit').length;
+  const isReal = opportunities.length > 0 && realCount === opportunities.length;
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -35,17 +38,21 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
               <span>CRECIMIENTO COMERCIAL</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-              Oportunidades de Negocio · DEMO
+              {isReal ? 'Oportunidades de Negocio · DATOS REALES' : 'Oportunidades de Negocio · DEMO'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Esta vista muestra cómo transformaremos hallazgos verificados en recomendaciones comerciales para <strong>{business.name}</strong>.
+              {isReal
+                ? <>Oportunidades generadas a partir de evidencia verificable de <strong>{business.name}</strong>.</>
+                : <>Esta vista muestra cómo transformaremos hallazgos verificados en recomendaciones comerciales para <strong>{business.name}</strong>.</>}
             </p>
           </div>
 
           <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 shrink-0">
             <span className="font-bold block mb-0.5">Visibilidad = Más Consultas</span>
             <span className="text-indigo-700">
-              En esta fase las oportunidades son ejemplos; la demanda real se incorporará desde una fuente verificable.
+              {isReal
+                ? 'La evidencia mostrada proviene de fuentes reales conectadas. No usamos impresiones como sinónimo de volumen de búsqueda.'
+                : 'En esta fase las oportunidades son ejemplos; la demanda real se incorporará desde una fuente verificable.'}
             </span>
           </div>
         </div>
@@ -70,7 +77,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
                   {idx + 1}
                 </span>
                 <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
-                  OPORTUNIDAD DEMO
+                  {opp.source === 'search-console' ? 'OPORTUNIDAD REAL · SEARCH CONSOLE' : opp.source === 'seo-audit' ? 'OPORTUNIDAD REAL · SEO' : 'OPORTUNIDAD DEMO'}
                 </span>
               </div>
 
@@ -92,6 +99,12 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mt-2">
               {opp.simpleExplanation}
             </p>
+
+            {opp.evidenceText && (
+              <p className="mt-2 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2.5 py-2">
+                Evidencia: {opp.evidenceText}
+              </p>
+            )}
 
             {/* Action Box */}
             <div className="mt-5 p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">

@@ -34,6 +34,7 @@ import {
   MonthlyEvolution,
   TaskStatus,
   ContentGenerationRequest,
+  SeoAuditResult,
 } from './types';
 import { Sparkles } from 'lucide-react';
 
@@ -61,7 +62,9 @@ export default function App() {
 
   // Specific data for the active business
   const issues = storageService.getIssues(activeBusiness.id);
-  const seoItems = storageService.getSeoAudit();
+  const seoItems = storageService.getSeoAudit(activeBusiness.id);
+  const seoAuditMeta = storageService.getSeoAuditMeta(activeBusiness.id);
+  const searchConsoleMeta = storageService.getSearchConsoleMeta(activeBusiness.id);
   const keywords = storageService.getKeywords(activeBusiness.id);
   const competitors = storageService.getCompetitors(activeBusiness.id);
   const opportunities = storageService.getOpportunities(activeBusiness.id);
@@ -86,7 +89,7 @@ export default function App() {
     setActiveTab('analyzing');
   };
 
-  const handleAnalysisComplete = () => {
+  const handleAnalysisComplete = (auditResult: SeoAuditResult) => {
     // Match existing businesses by normalized hostname to avoid duplicates.
     const getHostname = (value: string) => {
       try {
@@ -98,7 +101,9 @@ export default function App() {
     };
     const analyzedHost = getHostname(analyzingUrl);
     const existing = businesses.find((b) => getHostname(b.url) === analyzedHost);
+    let targetBusinessId: string;
     if (existing) {
+      targetBusinessId = existing.id;
       handleSelectBusiness(existing.id);
     } else {
       let deducedName = 'Negocio Analizado';
@@ -119,9 +124,71 @@ export default function App() {
       });
       setBusinesses(storageService.getBusinesses());
       handleSelectBusiness(created.id);
+      targetBusinessId = created.id;
     }
 
-    setActiveTab('dashboard');
+    storageService.saveSeoAudit(targetBusinessId!, auditResult.items, {
+      requestedUrl: auditResult.requestedUrl,
+      finalUrl: auditResult.finalUrl,
+      fetchedAt: auditResult.fetchedAt,
+      httpStatus: auditResult.httpStatus,
+      responseTimeMs: auditResult.responseTimeMs,
+      pageSpeed: auditResult.pageSpeed || null,
+      pageSpeedError: auditResult.pageSpeedError || null,
+    });
+
+    const realIssues = storageService.buildIssuesFromSeoAudit(targetBusinessId!, auditResult.items);
+    storageService.saveIssues(targetBusinessId!, realIssues);
+    storageService.updateProblemCounts(targetBusinessId!, realIssues);
+
+    const realTasks = storageService.buildActionTasksFromSeoAudit(targetBusinessId!, auditResult.items);
+    storageService.saveActionTasks(targetBusinessId!, realTasks);
+
+    const targetBusiness = storageService.getBusinesses().find((business) => business.id === targetBusinessId!);
+    if (targetBusiness) {
+      const seoOpportunities = storageService.buildOpportunitiesFromSeoAudit(targetBusiness, auditResult.items);
+      storageService.replaceOpportunitiesBySource(targetBusinessId!, 'seo-audit', seoOpportunities);
+    }
+
+    const seoScore = storageService.calculateSeoScore(auditResult.items);
+    const pageSpeedScore = auditResult.pageSpeed?.performanceScore ?? null;
+    if (seoScore !== null || pageSpeedScore !== null) {
+      const currentBusiness = storageService.getBusinesses().find((business) => business.id === targetBusinessId!);
+      const nextSeo = seoScore ?? currentBusiness?.scores.seo ?? 0;
+      const nextWeb = pageSpeedScore ?? currentBusiness?.scores.web ?? 0;
+      const verifiedValues = [seoScore, pageSpeedScore].filter((value): value is number => value !== null);
+      const overall = verifiedValues.length
+        ? Math.round(verifiedValues.reduce((sum, value) => sum + value, 0) / verifiedValues.length)
+        : currentBusiness?.scores.overall ?? 0;
+
+      storageService.updateBusinessScores(
+        targetBusinessId!,
+        {
+          seo: nextSeo,
+          web: nextWeb,
+          overall,
+        },
+        {
+          seo: seoScore !== null ? 'real' : 'demo',
+          web: pageSpeedScore !== null ? 'real' : 'demo',
+          overall: verifiedValues.length ? 'partial' : 'demo',
+        }
+      );
+
+      storageService.saveAuditHistoryPoint(targetBusinessId!, {
+        auditedAt: auditResult.fetchedAt,
+        overallScore: overall,
+        seoScore,
+        webScore: pageSpeedScore,
+        unresolvedIssues: realIssues.filter((issue) => issue.severity !== 'ok').length,
+      });
+
+      setBusinesses(storageService.getBusinesses());
+    }
+
+    setBusinesses(storageService.getBusinesses());
+    setActionTasks(storageService.getActionTasks(targetBusinessId!));
+    setActiveTab('seo');
   };
 
   const handleSelectPreset = (presetId: string) => {
@@ -188,6 +255,7 @@ export default function App() {
           <AnalyzingView
             url={analyzingUrl || activeBusiness.url}
             onComplete={handleAnalysisComplete}
+            onCancel={() => setActiveTab('landing')}
           />
         )}
 
@@ -199,6 +267,7 @@ export default function App() {
               <DashboardOverview
                 business={activeBusiness}
                 issues={issues}
+                searchConsoleMeta={searchConsoleMeta}
                 setActiveTab={setActiveTab}
                 onOpenAssistant={() => {
                   setAssistantInitialPrompt('¿Qué debería mejorar primero en mi negocio?');
@@ -227,10 +296,15 @@ export default function App() {
               <SeoAuditView
                 business={activeBusiness}
                 items={seoItems}
+                auditMeta={seoAuditMeta}
                 setActiveTab={setActiveTab}
                 onOpenAssistant={() => {
                   setAssistantInitialPrompt('¿Por qué es importante tener las imágenes con texto ALT y cómo afecta mis reservas?');
                   setAssistantOpen(true);
+                }}
+                onReanalyze={() => {
+                  setAnalyzingUrl(activeBusiness.url);
+                  setActiveTab('analyzing');
                 }}
               />
             )}

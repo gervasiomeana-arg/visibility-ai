@@ -37,6 +37,8 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
   const highCount = issues.filter((i) => i.severity === 'high').length;
   const mediumCount = issues.filter((i) => i.severity === 'medium').length;
   const okCount = issues.filter((i) => i.severity === 'ok').length;
+  const realCount = issues.filter((i) => i.source === 'real').length;
+  const isRealSummary = issues.length > 0 && realCount === issues.length;
 
   const toggleExpand = (id: string) => {
     setExpandedIssueId(expandedIssueId === id ? null : id);
@@ -50,13 +52,17 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold mb-2">
               <FileCheck2 className="w-3.5 h-3.5 text-indigo-600" />
-              <span>RESUMEN DEMO</span>
+              <span>{isRealSummary ? 'RESUMEN CON DATOS REALES' : 'RESUMEN DEMO'}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
               Resumen Ejecutivo de Visibilidad
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Mostramos <strong>{business.totalOpportunities} oportunidades de ejemplo</strong> para validar cómo se presentará el diagnóstico de <strong>{business.name}</strong> cuando existan fuentes reales.
+              {isRealSummary ? (
+                <>Encontramos <strong>{issues.length} hallazgos técnicos verificados</strong> para <strong>{business.name}</strong>, priorizados por severidad e impacto.</>
+              ) : (
+                <>Mostramos <strong>{business.totalOpportunities} oportunidades de ejemplo</strong> para validar cómo se presentará el diagnóstico de <strong>{business.name}</strong> cuando existan fuentes reales.</>
+              )}
             </p>
           </div>
 
@@ -178,7 +184,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
                             ? '🔴 Problema Importante'
                             : isMedium
                             ? '🟡 Mejora Recomendada'
-                            : '🟢 Elemento Correcto'}
+                            : '🟢 Elemento Correcto'}{issue.source === 'real' ? ' · REAL' : ' · DEMO'}
                         </span>
                         <span className="text-xs text-slate-400">·</span>
                         <span className="text-xs font-semibold text-slate-500">
