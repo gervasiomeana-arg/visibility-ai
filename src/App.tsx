@@ -20,6 +20,8 @@ import { MonthlyReportView } from './components/MonthlyReportView';
 import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
+import { LoginView } from './components/LoginView';
+import { authService } from './services/authService';
 import { DemoNotice } from './components/DemoNotice';
 import { storageService } from './services/storageService';
 import {
@@ -39,6 +41,8 @@ import {
 import { Sparkles } from 'lucide-react';
 
 export default function App() {
+  const [authReady, setAuthReady] = useState(!authService.isConfigured());
+  const [authenticated, setAuthenticated] = useState(!authService.isConfigured());
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
   const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
@@ -72,6 +76,34 @@ export default function App() {
     storageService.getActionTasks(activeBusiness.id)
   );
   const evolution = storageService.getEvolution(activeBusiness.id);
+
+  useEffect(() => {
+    if (!authService.isConfigured()) return;
+
+    let mounted = true;
+    authService.getSession()
+      .then((session) => {
+        if (!mounted) return;
+        setAuthenticated(Boolean(session));
+        setAuthReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setAuthenticated(false);
+        setAuthReady(true);
+      });
+
+    const unsubscribe = authService.onAuthStateChange((session) => {
+      if (!mounted) return;
+      setAuthenticated(Boolean(session));
+      setAuthReady(true);
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   // Keep action tasks synced when activeBusiness changes
   useEffect(() => {
@@ -236,6 +268,18 @@ export default function App() {
     setAssistantInitialPrompt(prompt);
     setAssistantOpen(true);
   };
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Cargando Visibility AI...
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <LoginView onAuthenticated={() => setAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500 selection:text-white">
