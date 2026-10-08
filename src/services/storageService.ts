@@ -31,6 +31,7 @@ const STORAGE_KEYS = {
   SEO_AUDITS: 'visibility_ai_seo_audits',
   SEO_AUDIT_META: 'visibility_ai_seo_audit_meta',
   AUDIT_HISTORY: 'visibility_ai_audit_history',
+  SEARCH_CONSOLE_META: 'visibility_ai_search_console_meta',
 };
 
 export const storageService = {
@@ -353,6 +354,40 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.KEYWORDS, JSON.stringify(parsed));
     } catch {
       // Ignore
+    }
+  },
+
+  saveSearchConsoleMeta(
+    businessId: string,
+    meta: {
+      siteUrl: string;
+      startDate: string;
+      endDate: string;
+      clicks: number;
+      impressions: number;
+      ctr: number;
+      position: number;
+      loadedAt: string;
+    }
+  ): void {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_META);
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[businessId] = meta;
+      localStorage.setItem(STORAGE_KEYS.SEARCH_CONSOLE_META, JSON.stringify(parsed));
+    } catch {
+      // Ignore
+    }
+  },
+
+  getSearchConsoleMeta(businessId: string): any | null {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_META);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      return parsed[businessId] || null;
+    } catch {
+      return null;
     }
   },
 
