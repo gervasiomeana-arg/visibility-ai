@@ -66,11 +66,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 font-medium text-amber-300">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
-              MODO DEMO / SIMULACIÓN ACTIVA
+              DATOS REALES + DEMO IDENTIFICADOS
             </span>
             <span className="hidden sm:inline text-slate-400">·</span>
             <span className="hidden sm:inline text-slate-400">
-              Datos de ejemplo para validar la experiencia del producto. Todavía no representan mediciones reales del negocio.
+              Visibility AI separa cada dato real, parcial y DEMO según su fuente.
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -156,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                             <p className="text-[11px] text-slate-500">{biz.city} · {biz.category}</p>
                           </div>
                           <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 shrink-0">
-                            DEMO {biz.scores.overall}/100
+                            {biz.scoreSources?.overall === 'demo' ? 'DEMO' : biz.scoreSources?.overall === 'partial' ? 'PARCIAL' : 'REAL'} {biz.scores.overall}/100
                           </span>
                         </button>
                       ))}
