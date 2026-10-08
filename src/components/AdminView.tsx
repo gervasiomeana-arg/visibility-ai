@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Business, ActiveTab } from '../types';
+import { BASE_PLANS, getPlanPrice } from '../config/markets';
 
 interface AdminViewProps {
   businesses: Business[];
@@ -23,45 +24,13 @@ interface AdminViewProps {
 export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, onSelectBusiness }) => {
   const [activeTab, setActiveAdminTab] = useState<'businesses' | 'plans' | 'ai-usage' | 'integrations'>('businesses');
 
-  const plans = [
-    {
-      id: 'plan-free',
-      name: 'Diagnóstico Gratuito',
-      price: '$0',
-      period: 'por siempre',
-      businessesCount: 0,
-      features: ['1 negocio', 'Diagnóstico general 0-100', '3 problemas principales', 'Actualización mensual'],
-      status: 'Activo',
-    },
-    {
-      id: 'plan-starter',
-      name: 'Starter Business',
-      price: '$49',
-      period: 'por mes',
-      businessesCount: 0,
-      features: ['1 negocio', 'Auditoría SEO completa 14 factores', '20 palabras clave', 'Generador IA (10 contenidos/mes)'],
-      status: 'Activo',
-    },
-    {
-      id: 'plan-pro',
-      name: 'Pro Growth',
-      price: '$99',
-      period: 'por mes',
-      businessesCount: 0,
-      features: ['Hasta 3 negocios', 'Auditoría semanal automática', '5 competidores monitoreados', 'Generador IA ilimitado', 'Asistente IA 24/7'],
-      status: 'Activo',
-      popular: true,
-    },
-    {
-      id: 'plan-agency',
-      name: 'Agency Multi-Cuenta',
-      price: '$249',
-      period: 'por mes',
-      businessesCount: 0,
-      features: ['Hasta 15 negocios', 'Informes en PDF con marca blanca', 'API Access', 'Soporte prioritario'],
-      status: 'Activo',
-    },
-  ];
+  const plans = BASE_PLANS.map((plan) => ({
+    ...plan,
+    price: getPlanPrice(plan, 'AR'),
+    businessesCount: 0,
+    status: 'Activo',
+    popular: plan.id === 'growth',
+  }));
 
   return (
     <div className="space-y-6 pb-12">
@@ -228,8 +197,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 </div>
 
                 <div className="my-3">
-                  <span className="text-3xl font-extrabold text-slate-900 font-heading">{p.price}</span>
-                  <span className="text-xs text-slate-400 font-medium"> /{p.period}</span>
+                  <span className="text-3xl font-extrabold text-slate-900 font-heading">
+                    {p.price ? `${p.price.currency} ${p.price.amount}` : 'A cotizar'}
+                  </span>
+                  <span className="text-xs text-slate-400 font-medium"> /mes</span>
                 </div>
 
                 <p className="text-xs text-indigo-700 font-semibold mb-4">
