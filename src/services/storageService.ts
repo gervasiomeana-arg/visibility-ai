@@ -228,7 +228,13 @@ export const storageService = {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.ACTION_TASKS);
       const parsed = stored ? JSON.parse(stored) : {};
-      parsed[businessId] = tasks;
+      const previous: ActionTask[] = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
+      const statusById = new Map(previous.map((task) => [task.id, task.status]));
+
+      parsed[businessId] = tasks.map((task) => ({
+        ...task,
+        status: statusById.get(task.id) || task.status,
+      }));
       localStorage.setItem(STORAGE_KEYS.ACTION_TASKS, JSON.stringify(parsed));
     } catch {
       // Ignore
@@ -418,8 +424,12 @@ export const storageService = {
       const parsed = stored ? JSON.parse(stored) : {};
       const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
 
-      const withoutDuplicate = current.filter((entry: any) => entry.auditedAt !== point.auditedAt);
-      parsed[businessId] = [...withoutDuplicate, point]
+      const pointDay = new Date(point.auditedAt).toISOString().slice(0, 10);
+      const withoutSameDay = current.filter(
+        (entry: any) => new Date(entry.auditedAt).toISOString().slice(0, 10) !== pointDay
+      );
+
+      parsed[businessId] = [...withoutSameDay, point]
         .sort((a: any, b: any) => new Date(a.auditedAt).getTime() - new Date(b.auditedAt).getTime())
         .slice(-24);
 
