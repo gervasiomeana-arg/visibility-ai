@@ -6,6 +6,12 @@ import { SubscriptionPlanId, SupportedCountryCode } from '../types';
 interface NewBusinessModalProps {
   isOpen: boolean;
   onClose: () => void;
+  workspacePlanId?: SubscriptionPlanId;
+  entitlement?: {
+    usedBusinesses: number;
+    maxBusinesses: number;
+    canAddBusiness: boolean;
+  };
   onAdd: (biz: {
     name: string;
     url: string;
@@ -24,6 +30,8 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
   isOpen,
   onClose,
   onAdd,
+  workspacePlanId,
+  entitlement,
 }) => {
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
@@ -63,23 +71,38 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
       deducedName = deducedName.charAt(0).toUpperCase() + deducedName.slice(1);
     }
 
+    if (entitlement && !entitlement.canAddBusiness) {
+      setErrorMsg(
+        `El plan actual permite ${entitlement.maxBusinesses} negocio${entitlement.maxBusinesses === 1 ? '' : 's'} y el cupo ya está completo.`
+      );
+      return;
+    }
+
     setErrorMsg('');
     const market = getMarket(countryCode);
+    const effectivePlan = workspacePlanId || subscriptionPlan;
 
-    await onAdd({
-      url: normalizedUrl,
-      name: deducedName,
-      category,
-      city: city.trim(),
-      country: market.country,
-      countryCode: market.countryCode,
-      currency: market.currency,
-      locale: market.locale,
-      timezone: market.timezone,
-      subscriptionPlan,
-    });
+    try {
+      await onAdd({
+        url: normalizedUrl,
+        name: deducedName,
+        category,
+        city: city.trim(),
+        country: market.country,
+        countryCode: market.countryCode,
+        currency: market.currency,
+        locale: market.locale,
+        timezone: market.timezone,
+        subscriptionPlan: effectivePlan,
+      });
 
-    onClose();
+      onClose();
+    } catch (error: any) {
+      setErrorMsg(
+        error?.message ||
+          'No se pudo agregar el negocio. Revisá el cupo disponible del plan.'
+      );
+    }
   };
 
   return (
@@ -191,19 +214,35 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
 
             <div>
               <label className="font-semibold text-slate-700 block mb-1">
-                Plan inicial
+                Plan
               </label>
-              <select
-                value={subscriptionPlan}
-                onChange={(e) => setSubscriptionPlan(e.target.value as SubscriptionPlanId)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900 bg-white"
-              >
-                <option value="diagnostic">Diagnóstico</option>
-                <option value="monitor">Visibility Monitor</option>
-                <option value="growth">Visibility Growth</option>
-                <option value="pro">Visibility PRO</option>
-                <option value="agency">Agency</option>
-              </select>
+              {workspacePlanId ? (
+                <div className="w-full px-3 py-2 rounded-lg bg-slate-50 ring-1 ring-slate-200 text-slate-700">
+                  <span className="font-semibold capitalize">{workspacePlanId}</span>
+                  <span className="block text-[10px] text-slate-500 mt-0.5">
+                    Heredado del workspace
+                    {entitlement
+                      ? ` · ${entitlement.usedBusinesses}/${entitlement.maxBusinesses} negocios usados`
+                      : ''}
+                  </span>
+                </div>
+              ) : (
+                <select
+                  value={subscriptionPlan}
+                  onChange={(e) =>
+                    setSubscriptionPlan(
+                      e.target.value as SubscriptionPlanId
+                    )
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900 bg-white"
+                >
+                  <option value="diagnostic">Diagnóstico</option>
+                  <option value="monitor">Visibility Monitor</option>
+                  <option value="growth">Visibility Growth</option>
+                  <option value="pro">Visibility PRO</option>
+                  <option value="agency">Agency</option>
+                </select>
+              )}
             </div>
           </div>
 
@@ -221,9 +260,14 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
+              disabled={Boolean(entitlement && !entitlement.canAddBusiness)}
+              className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
             >
-              <span>COMENZAR ANÁLISIS</span>
+              <span>
+                {entitlement && !entitlement.canAddBusiness
+                  ? 'LÍMITE DEL PLAN'
+                  : 'COMENZAR ANÁLISIS'}
+              </span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
