@@ -120,6 +120,174 @@ export const workspaceService = {
     }));
   },
 
+  async saveSeoAudit(params: {
+    workspaceId: string;
+    businessId: string;
+    requestedUrl: string;
+    finalUrl?: string;
+    httpStatus?: number;
+    responseTimeMs?: number;
+    seoScore?: number | null;
+    webScore?: number | null;
+    overallScore?: number | null;
+    unresolvedIssues?: number;
+    payload: unknown;
+  }): Promise<void> {
+    if (!supabase) return;
+
+    const { error } = await supabase.from('seo_audits').insert({
+      workspace_id: params.workspaceId,
+      business_id: params.businessId,
+      requested_url: params.requestedUrl,
+      final_url: params.finalUrl || null,
+      http_status: params.httpStatus ?? null,
+      response_time_ms: params.responseTimeMs ?? null,
+      seo_score: params.seoScore ?? null,
+      web_score: params.webScore ?? null,
+      overall_score: params.overallScore ?? null,
+      unresolved_issues: params.unresolvedIssues ?? 0,
+      payload: params.payload,
+    });
+
+    if (error) throw error;
+  },
+
+  async loadLatestSeoAudit(workspaceId: string, businessId: string): Promise<any | null> {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from('seo_audits')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
+  },
+
+  async saveSearchConsoleSnapshot(params: {
+    workspaceId: string;
+    businessId: string;
+    siteUrl: string;
+    periodStart: string;
+    periodEnd: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    position: number;
+    payload: unknown;
+  }): Promise<void> {
+    if (!supabase) return;
+
+    const { error } = await supabase.from('search_console_snapshots').insert({
+      workspace_id: params.workspaceId,
+      business_id: params.businessId,
+      site_url: params.siteUrl,
+      period_start: params.periodStart,
+      period_end: params.periodEnd,
+      clicks: params.clicks,
+      impressions: params.impressions,
+      ctr: params.ctr,
+      position: params.position,
+      payload: params.payload,
+    });
+
+    if (error) throw error;
+  },
+
+  async upsertActionTasks(workspaceId: string, businessId: string, tasks: any[]): Promise<void> {
+    if (!supabase || tasks.length === 0) return;
+
+    const rows = tasks.map((task) => ({
+      workspace_id: workspaceId,
+      business_id: businessId,
+      source_key: task.id,
+      title: task.title,
+      priority: task.priority,
+      status: task.status,
+      payload: task,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('action_tasks')
+      .upsert(rows, { onConflict: 'business_id,source_key' });
+
+    if (error) throw error;
+  },
+
+  async upsertOpportunities(workspaceId: string, businessId: string, opportunities: any[]): Promise<void> {
+    if (!supabase) return;
+
+    const { error: deleteError } = await supabase
+      .from('opportunities')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId);
+
+    if (deleteError) throw deleteError;
+    if (opportunities.length === 0) return;
+
+    const rows = opportunities.map((opportunity) => ({
+      workspace_id: workspaceId,
+      business_id: businessId,
+      source_key: opportunity.id,
+      source: opportunity.source || 'seo-audit',
+      payload: opportunity,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase.from('opportunities').insert(rows);
+    if (error) throw error;
+  },
+
+  async loadBusinessState(workspaceId: string, businessId: string): Promise<{
+    audit: any | null;
+    tasks: any[];
+    opportunities: any[];
+    searchConsole: any | null;
+  }> {
+    if (!supabase) return { audit: null, tasks: [], opportunities: [], searchConsole: null };
+
+    const [audit, tasksResult, opportunitiesResult, searchResult] = await Promise.all([
+      this.loadLatestSeoAudit(workspaceId, businessId),
+      supabase
+        .from('action_tasks')
+        .select('payload')
+        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId)
+        .order('updated_at', { ascending: true }),
+      supabase
+        .from('opportunities')
+        .select('payload')
+        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId)
+        .order('updated_at', { ascending: true }),
+      supabase
+        .from('search_console_snapshots')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    if (tasksResult.error) throw tasksResult.error;
+    if (opportunitiesResult.error) throw opportunitiesResult.error;
+    if (searchResult.error) throw searchResult.error;
+
+    return {
+      audit,
+      tasks: (tasksResult.data || []).map((row: any) => row.payload),
+      opportunities: (opportunitiesResult.data || []).map((row: any) => row.payload),
+      searchConsole: searchResult.data || null,
+    };
+  },
+
   async createBusiness(workspaceId: string, business: Omit<Business, 'id' | 'createdAt' | 'scores' | 'scoreSources' | 'totalOpportunities' | 'problemsCount'>): Promise<string> {
     if (!supabase) throw new Error('Supabase no está configurado.');
 
