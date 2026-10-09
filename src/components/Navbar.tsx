@@ -30,6 +30,8 @@ interface NavbarProps {
   businesses: Business[];
   onSelectBusiness: (bizId: string) => void;
   onOpenNewBusinessModal: () => void;
+  canAddBusiness?: boolean;
+  businessLimitLabel?: string;
   onOpenAssistant: () => void;
   workspaceName?: string;
   workspaces?: Workspace[];
@@ -45,6 +47,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   businesses,
   onSelectBusiness,
   onOpenNewBusinessModal,
+  canAddBusiness = true,
+  businessLimitLabel,
   onOpenAssistant,
   workspaceName,
   workspaces = [],
@@ -197,15 +201,22 @@ export const Navbar: React.FC<NavbarProps> = ({
                     </div>
                     <div className="p-2">
                       <button
+                        disabled={!canAddBusiness}
                         onClick={() => {
+                          if (!canAddBusiness) return;
                           setBizDropdownOpen(false);
                           onOpenNewBusinessModal();
                         }}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
+                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-semibold text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed rounded-lg transition-colors cursor-pointer"
                       >
                         <Plus className="w-4 h-4" />
-                        Analizar nuevo negocio
+                        {canAddBusiness ? 'Analizar nuevo negocio' : 'Límite del plan alcanzado'}
                       </button>
+                      {businessLimitLabel && (
+                        <p className="mt-1.5 text-center text-[10px] font-semibold text-slate-400">
+                          {businessLimitLabel}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </>
