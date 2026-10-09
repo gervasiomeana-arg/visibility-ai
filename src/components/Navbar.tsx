@@ -21,7 +21,7 @@ import {
   ExternalLink,
   LogOut,
 } from 'lucide-react';
-import { Business, ActiveTab } from '../types';
+import { Business, ActiveTab, Workspace } from '../types';
 
 interface NavbarProps {
   activeTab: ActiveTab;
@@ -32,6 +32,9 @@ interface NavbarProps {
   onOpenNewBusinessModal: () => void;
   onOpenAssistant: () => void;
   workspaceName?: string;
+  workspaces?: Workspace[];
+  activeWorkspaceId?: string;
+  onSelectWorkspace?: (workspaceId: string) => void;
   onSignOut?: () => void;
 }
 
@@ -44,6 +47,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNewBusinessModal,
   onOpenAssistant,
   workspaceName,
+  workspaces = [],
+  activeWorkspaceId,
+  onSelectWorkspace,
   onSignOut,
 }) => {
   const [bizDropdownOpen, setBizDropdownOpen] = useState(false);
@@ -88,7 +94,24 @@ export const Navbar: React.FC<NavbarProps> = ({
             {workspaceName && (
               <>
                 <span className="text-slate-600">|</span>
-                <span className="hidden sm:inline text-slate-400 truncate max-w-[140px] lg:max-w-[180px]">{workspaceName}</span>
+                {workspaces.length > 1 && onSelectWorkspace ? (
+                  <select
+                    value={activeWorkspaceId || ''}
+                    onChange={(e) => onSelectWorkspace(e.target.value)}
+                    className="max-w-[150px] lg:max-w-[210px] bg-transparent text-slate-300 text-[11px] font-semibold focus:outline-none cursor-pointer"
+                    aria-label="Seleccionar workspace"
+                  >
+                    {workspaces.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id} className="text-slate-900">
+                        {workspace.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="hidden sm:inline text-slate-400 truncate max-w-[140px] lg:max-w-[180px]">
+                    {workspaceName}
+                  </span>
+                )}
               </>
             )}
             <span className="text-slate-600">|</span>
