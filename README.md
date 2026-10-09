@@ -131,6 +131,18 @@ Devuelve únicamente estado booleano de integraciones, entorno y uptime. Nunca d
 
 No agregar nueva lógica de negocio directamente en `server.ts`. Las nuevas integraciones deben vivir en un servicio/router específico y montarse desde el bootstrap principal.
 
+## Protección de consumo API
+
+Las rutas costosas tienen rate limiting configurable:
+
+- Auditoría SEO: `SEO_AUDIT_RATE_LIMIT_PER_WINDOW` (default 30)
+- IA: `AI_RATE_LIMIT_PER_WINDOW` (default 120)
+- Ventana: `API_RATE_LIMIT_WINDOW_SECONDS` (default 600 segundos)
+
+El límite se aplica por usuario autenticado y, en modo local sin Supabase, por identidad de red disponible.
+
+Esta implementación usa memoria del proceso y funciona como safety net inicial. Si Visibility AI escala a múltiples instancias, el límite deberá migrarse a almacenamiento distribuido (por ejemplo Redis) para tener cuotas globales consistentes.
+
 ## Seguridad
 
 - RLS por workspace en Supabase.
