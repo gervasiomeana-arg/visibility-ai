@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import apiRouter from './server/apiRouter';
+import { apiRequestContext } from './server/requestContext';
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ const PORT = Number(process.env.PORT) || 3000;
 app.use(express.json({ limit: '100kb' }));
 
 // API
-app.use('/api', apiRouter);
+app.use('/api', apiRequestContext, apiRouter);
 
 // Setup Vite middleware in dev or serve dist in production
 async function startServer() {
