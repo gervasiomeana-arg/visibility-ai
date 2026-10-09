@@ -1,4 +1,4 @@
-import { createClient, Session, User } from '@supabase/supabase-js';
+import { AuthChangeEvent, createClient, Session, User } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -47,15 +47,29 @@ export const authService = {
     return data.user;
   },
 
+  async requestPasswordReset(email: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase no está configurado.');
+
+    const redirectTo = `${window.location.origin}${window.location.pathname}`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) throw error;
+  },
+
+  async updatePassword(password: string): Promise<void> {
+    if (!supabase) throw new Error('Supabase no está configurado.');
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw error;
+  },
+
   async signOut(): Promise<void> {
     if (!supabase) return;
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   },
 
-  onAuthStateChange(callback: (session: Session | null) => void) {
+  onAuthStateChange(callback: (session: Session | null, event: AuthChangeEvent) => void) {
     if (!supabase) return () => {};
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+    const { data } = supabase.auth.onAuthStateChange((event, session) => callback(session, event));
     return () => data.subscription.unsubscribe();
   },
 };
