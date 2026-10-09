@@ -97,7 +97,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
           <div className="text-xs text-slate-300 bg-white/[0.05] p-3.5 rounded-[1rem] ring-1 ring-white/10">
             <span className="text-emerald-400 font-bold block mb-0.5">● Consola SaaS DEMO</span>
-            <span>MVP visual · persistencia multi-tenant aún no implementada</span>
+            <span>Workspace multi-tenant · roles y persistencia preparados</span>
           </div>
         </div>
 
@@ -179,11 +179,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       {/* Tab: Businesses */}
       {activeTab === 'businesses' && (
         <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200 flex items-center justify-between">
+          <div className="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-base font-bold text-slate-900 font-heading">
               Negocios y Clientes Registrados
             </h2>
-            <span className="text-xs text-slate-500">Aislamiento real pendiente de backend</span>
+            <span className="text-xs text-slate-500">Aislamiento por workspace</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -330,9 +330,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Miembros activos</div>
             <div className="divide-y divide-slate-100">
               {members.map((member) => (
-                <div key={member.userId} className="p-4 flex items-center justify-between gap-3 text-xs">
+                <div key={member.userId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <div>
-                    <p className="font-semibold text-slate-900">{member.userId}</p>
+                    <p className="font-semibold text-slate-900 break-all">{member.userId}</p>
                     <p className="text-slate-500">Usuario Supabase</p>
                   </div>
                   <span className="px-2 py-1 rounded bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
