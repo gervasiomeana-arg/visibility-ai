@@ -104,7 +104,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
         </div>
 
         {/* Status Counters */}
-        <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100/80">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100/80">
           <div className="p-3 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Correctos</span>
             <span className="text-lg font-bold text-emerald-600">{okCount} / {items.length}</span>
@@ -180,7 +180,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
       )}
 
       {/* Grid of SEO items */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {filteredItems.map((item) => {
           const isOk = item.status === 'ok';
           const isWarning = item.status === 'warning';
