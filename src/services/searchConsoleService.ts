@@ -79,7 +79,11 @@ export const searchConsoleService = {
     return data.sites || [];
   },
 
-  async query(siteUrl: string, days = 28): Promise<{ rows: SearchConsoleQueryRow[]; startDate: string; endDate: string }> {
+  async query(
+    siteUrl: string,
+    days = 28,
+    context?: { workspaceId?: string; businessId?: string }
+  ): Promise<{ rows: SearchConsoleQueryRow[]; startDate: string; endDate: string }> {
     const end = new Date();
     end.setDate(end.getDate() - 2);
     const start = new Date(end);
@@ -101,6 +105,8 @@ export const searchConsoleService = {
         startDate: format(start),
         endDate: format(end),
         rowLimit: 100,
+        workspaceId: context?.workspaceId,
+        businessId: context?.businessId,
       }),
     });
   },
