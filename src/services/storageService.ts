@@ -188,13 +188,12 @@ export const storageService = {
   ): Business {
     const businesses = this.getBusinesses();
     const id = explicitId || `biz-${Date.now()}`;
-    // Phase 1: deterministic DEMO scores only.
-    // Real scoring will replace this in Phase 2 once measured signals are available.
-    const overall = 65;
-    const google = 70;
-    const seo = 62;
-    const web = 68;
-    const aiVisibility = 55;
+    const isLocalDemo = activeStorageScope === 'local';
+    const overall = isLocalDemo ? 65 : 0;
+    const google = isLocalDemo ? 70 : 0;
+    const seo = isLocalDemo ? 62 : 0;
+    const web = isLocalDemo ? 68 : 0;
+    const aiVisibility = isLocalDemo ? 55 : 0;
 
     const created: Business = {
       ...newBiz,
@@ -214,12 +213,10 @@ export const storageService = {
         web: 'demo',
         aiVisibility: 'demo',
       },
-      totalOpportunities: 12,
-      problemsCount: {
-        high: 3,
-        medium: 6,
-        ok: 8,
-      },
+      totalOpportunities: isLocalDemo ? 12 : 0,
+      problemsCount: isLocalDemo
+        ? { high: 3, medium: 6, ok: 8 }
+        : { high: 0, medium: 0, ok: 0 },
     };
 
     const updated = [created, ...businesses];
