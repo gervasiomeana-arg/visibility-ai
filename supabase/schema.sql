@@ -35,6 +35,20 @@ create table if not exists public.workspace_members (
   primary key (workspace_id, user_id)
 );
 
+create table if not exists public.workspace_invites (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  email text not null,
+  role text not null default 'member'
+    check (role in ('admin','member','viewer')),
+  token uuid not null default gen_random_uuid() unique,
+  invited_by uuid not null references auth.users(id) on delete cascade,
+  expires_at timestamptz not null default (now() + interval '7 days'),
+  accepted_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (workspace_id, email)
+);
+
 create table if not exists public.businesses (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -148,6 +162,7 @@ for each row execute procedure public.handle_new_user();
 alter table public.profiles enable row level security;
 alter table public.workspaces enable row level security;
 alter table public.workspace_members enable row level security;
+alter table public.workspace_invites enable row level security;
 alter table public.businesses enable row level security;
 alter table public.seo_audits enable row level security;
 alter table public.search_console_snapshots enable row level security;
@@ -274,3 +289,71 @@ on public.opportunities
 for all
 using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
+
+
+drop policy if exists "workspace owners manage invites" on public.workspace_invites;
+create policy "workspace owners manage invites"
+on public.workspace_invites
+for all
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = workspace_invites.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin')
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = workspace_invites.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin')
+  )
+);
+
+create or replace function public.accept_workspace_invite(invite_token uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  invite_row public.workspace_invites%rowtype;
+  user_email text;
+begin
+  if auth.uid() is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select lower(coalesce(auth.jwt()->>'email', '')) into user_email;
+
+  select *
+  into invite_row
+  from public.workspace_invites
+  where token = invite_token
+    and accepted_at is null
+    and expires_at > now();
+
+  if invite_row.id is null then
+    raise exception 'Invite not found or expired';
+  end if;
+
+  if lower(invite_row.email) <> user_email then
+    raise exception 'Invite email does not match authenticated user';
+  end if;
+
+  insert into public.workspace_members (workspace_id, user_id, role)
+  values (invite_row.workspace_id, auth.uid(), invite_row.role)
+  on conflict (workspace_id, user_id)
+  do update set role = excluded.role;
+
+  update public.workspace_invites
+  set accepted_at = now()
+  where id = invite_row.id;
+
+  return invite_row.workspace_id;
+end;
+$$;
