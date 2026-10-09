@@ -200,6 +200,29 @@ export const workspaceService = {
     }
   },
 
+  async updateWorkspaceName(
+    workspace: Workspace,
+    name: string
+  ): Promise<Workspace> {
+    if (!supabase) throw new Error('Supabase no está configurado.');
+
+    const nextName = name.trim();
+    if (!nextName) throw new Error('El nombre del workspace es obligatorio.');
+
+    const { data, error } = await supabase
+      .from('workspaces')
+      .update({
+        name: nextName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', workspace.id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return mapWorkspace(data, workspace.role);
+  },
+
   async listMembers(workspaceId: string): Promise<Array<{
     userId: string;
     role: 'owner' | 'admin' | 'member' | 'viewer';
