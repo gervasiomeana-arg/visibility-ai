@@ -694,6 +694,7 @@ export default function App() {
             onAnalyze={handleStartAnalysis}
             onSelectPreset={handleSelectPreset}
             showPresets={!authService.isConfigured()}
+            analysisEnabled={canEditWorkspace}
           />
         )}
 
