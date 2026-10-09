@@ -44,6 +44,42 @@ export const workspaceService = {
   },
 
 
+  async getUsageSummary(
+    workspaceId: string,
+    periodDays = 30
+  ): Promise<{
+    periodDays: number;
+    seoAudits: number;
+    aiAssistantCalls: number;
+    aiContentGenerations: number;
+    aiCalls: number;
+    aiTokens: number;
+    searchConsoleQueries: number;
+  } | null> {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase.rpc(
+      'get_workspace_usage_summary',
+      {
+        target_workspace: workspaceId,
+        period_days: periodDays,
+      }
+    );
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return {
+      periodDays: Number(data.periodDays || periodDays),
+      seoAudits: Number(data.seoAudits || 0),
+      aiAssistantCalls: Number(data.aiAssistantCalls || 0),
+      aiContentGenerations: Number(data.aiContentGenerations || 0),
+      aiCalls: Number(data.aiCalls || 0),
+      aiTokens: Number(data.aiTokens || 0),
+      searchConsoleQueries: Number(data.searchConsoleQueries || 0),
+    };
+  },
+
   async runRlsIsolationTest(): Promise<{
     ok: boolean;
     accessibleWorkspaceIds: string[];
@@ -76,6 +112,7 @@ export const workspaceService = {
       { table: 'opportunities', workspaceField: 'workspace_id', select: 'workspace_id' },
       { table: 'action_tasks', workspaceField: 'workspace_id', select: 'workspace_id' },
       { table: 'tracked_keywords', workspaceField: 'workspace_id', select: 'workspace_id' },
+      { table: 'usage_events', workspaceField: 'workspace_id', select: 'workspace_id' },
     ];
 
     const tables = await Promise.all(
