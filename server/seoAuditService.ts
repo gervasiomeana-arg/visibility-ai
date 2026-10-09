@@ -1,46 +1,79 @@
 import dns from 'dns/promises';
+import https from 'https';
 import net from 'net';
 
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10000;
 
-function isPrivateIp(address: string): boolean {
+function isDisallowedIp(address: string): boolean {
   if (net.isIPv4(address)) {
     const parts = address.split('.').map(Number);
+    const [a, b, c] = parts;
+
     return (
-      parts[0] === 10 ||
-      parts[0] === 127 ||
-      (parts[0] === 169 && parts[1] === 254) ||
-      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) ||
-      (parts[0] === 192 && parts[1] === 168) ||
-      parts[0] === 0
+      a === 0 ||
+      a === 10 ||
+      a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 0 && c === 0) ||
+      (a === 192 && b === 0 && c === 2) ||
+      (a === 192 && b === 168) ||
+      (a === 198 && (b === 18 || b === 19)) ||
+      (a === 198 && b === 51 && c === 100) ||
+      (a === 203 && b === 0 && c === 113) ||
+      a >= 224
     );
   }
 
   if (net.isIPv6(address)) {
     const value = address.toLowerCase();
+
     return (
       value === '::1' ||
       value === '::' ||
+      value.startsWith('::ffff:') ||
       value.startsWith('fc') ||
       value.startsWith('fd') ||
       value.startsWith('fe8') ||
       value.startsWith('fe9') ||
       value.startsWith('fea') ||
-      value.startsWith('feb')
+      value.startsWith('feb') ||
+      value.startsWith('ff') ||
+      value.startsWith('2001:db8:')
     );
   }
 
   return true;
 }
 
-async function assertPublicHttpsUrl(rawUrl: string): Promise<URL> {
+type ResolvedHttpsTarget = {
+  url: URL;
+  addresses: Array<{
+    address: string;
+    family: 4 | 6;
+  }>;
+};
+
+async function resolvePublicHttpsTarget(
+  rawUrl: string
+): Promise<ResolvedHttpsTarget> {
   const url = new URL(rawUrl);
+
   if (url.protocol !== 'https:') {
     throw new Error('Only HTTPS URLs are allowed');
   }
 
-  const hostname = url.hostname.toLowerCase();
+  if (url.username || url.password) {
+    throw new Error('URLs with embedded credentials are not allowed');
+  }
+
+  const hostname = url.hostname
+    .toLowerCase()
+    .replace(/^\[/, '')
+    .replace(/\]$/, '');
+
   if (
     hostname === 'localhost' ||
     hostname.endsWith('.localhost') ||
@@ -51,48 +84,244 @@ async function assertPublicHttpsUrl(rawUrl: string): Promise<URL> {
   }
 
   if (net.isIP(hostname)) {
-    if (isPrivateIp(hostname)) throw new Error('Private IP addresses are not allowed');
-    return url;
-  }
-
-  const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
-  if (!addresses.length || addresses.some(({ address }) => isPrivateIp(address))) {
-    throw new Error('Host does not resolve to a public address');
-  }
-
-  return url;
-}
-
-async function safeFetch(rawUrl: string, maxRedirects = 4): Promise<{ response: Response; finalUrl: string }> {
-  let currentUrl = (await assertPublicHttpsUrl(rawUrl)).toString();
-
-  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    let response: Response;
-    try {
-      response = await fetch(currentUrl, {
-        method: 'GET',
-        redirect: 'manual',
-        signal: controller.signal,
-        headers: {
-          'user-agent': 'VisibilityAI/0.2 (+SEO audit)',
-          accept: 'text/html,application/xhtml+xml,application/xml,text/plain;q=0.9,*/*;q=0.8',
-        },
-      });
-    } finally {
-      clearTimeout(timeout);
+    if (isDisallowedIp(hostname)) {
+      throw new Error('Private or non-public IP addresses are not allowed');
     }
 
-    if (response.status >= 300 && response.status < 400) {
+    return {
+      url,
+      addresses: [
+        {
+          address: hostname,
+          family: net.isIPv4(hostname) ? 4 : 6,
+        },
+      ],
+    };
+  }
+
+  const resolved = await dns.lookup(hostname, {
+    all: true,
+    verbatim: true,
+  });
+
+  if (!resolved.length) {
+    throw new Error('Host does not resolve to an address');
+  }
+
+  const addresses = resolved.map(({ address, family }) => ({
+    address,
+    family: family as 4 | 6,
+  }));
+
+  if (addresses.some(({ address }) => isDisallowedIp(address))) {
+    throw new Error('Host resolves to a private or non-public address');
+  }
+
+  return { url, addresses };
+}
+
+function responseHeadersFromNode(
+  headers: Record<string, string | string[] | undefined>
+): Headers {
+  const result = new Headers();
+
+  for (const [key, value] of Object.entries(headers)) {
+    if (Array.isArray(value)) {
+      value.forEach((item) => result.append(key, item));
+    } else if (value !== undefined) {
+      result.set(key, String(value));
+    }
+  }
+
+  return result;
+}
+
+function isRedirectStatus(status: number): boolean {
+  return [300, 301, 302, 303, 307, 308].includes(status);
+}
+
+function timeoutError(): Error {
+  const error = new Error('The website took too long to respond');
+  error.name = 'AbortError';
+  return error;
+}
+
+async function requestPinnedAddress(
+  target: ResolvedHttpsTarget,
+  pinned: { address: string; family: 4 | 6 }
+): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    let settled = false;
+    let request: ReturnType<typeof https.request>;
+
+    const absoluteTimeout = setTimeout(() => {
+      if (!settled && request) {
+        request.destroy(timeoutError());
+      }
+    }, FETCH_TIMEOUT_MS);
+
+    const finishResolve = (response: Response) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(absoluteTimeout);
+      resolve(response);
+    };
+
+    const finishReject = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(absoluteTimeout);
+      reject(
+        error instanceof Error
+          ? error
+          : new Error('HTTPS request failed')
+      );
+    };
+
+    request = https.request(
+      target.url,
+      {
+        method: 'GET',
+        headers: {
+          'user-agent': 'VisibilityAI/0.3 (+SEO audit)',
+          accept:
+            'text/html,application/xhtml+xml,application/xml,text/plain;q=0.9,*/*;q=0.8',
+          'accept-encoding': 'identity',
+        },
+        lookup: ((_hostname: string, _options: any, callback: any) => {
+          callback(null, pinned.address, pinned.family);
+        }) as any,
+      },
+      (incoming) => {
+        const status = incoming.statusCode || 502;
+        const headers = responseHeadersFromNode(
+          incoming.headers as Record<
+            string,
+            string | string[] | undefined
+          >
+        );
+
+        if (isRedirectStatus(status)) {
+          incoming.resume();
+          finishResolve(
+            new Response(null, {
+              status,
+              statusText: incoming.statusMessage,
+              headers,
+            })
+          );
+          return;
+        }
+
+        const declaredLength = Number(
+          incoming.headers['content-length'] || '0'
+        );
+
+        if (
+          Number.isFinite(declaredLength) &&
+          declaredLength > MAX_HTML_BYTES
+        ) {
+          incoming.destroy();
+          finishReject(new Error('Response is too large to audit'));
+          return;
+        }
+
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+
+        incoming.on('data', (chunk: Buffer | string) => {
+          const buffer = Buffer.isBuffer(chunk)
+            ? chunk
+            : Buffer.from(chunk);
+
+          totalBytes += buffer.byteLength;
+
+          if (totalBytes > MAX_HTML_BYTES) {
+            incoming.destroy(
+              new Error('Response is too large to audit')
+            );
+            return;
+          }
+
+          chunks.push(buffer);
+        });
+
+        incoming.on('end', () => {
+          const body =
+            status === 204 || status === 205
+              ? null
+              : Buffer.concat(chunks);
+
+          finishResolve(
+            new Response(body, {
+              status,
+              statusText: incoming.statusMessage,
+              headers,
+            })
+          );
+        });
+
+        incoming.on('error', (error) => {
+          finishReject(error);
+        });
+      }
+    );
+
+    request.on('error', (error) => {
+      finishReject(error);
+    });
+
+    request.end();
+  });
+}
+
+async function pinnedFetch(
+  target: ResolvedHttpsTarget
+): Promise<Response> {
+  let lastError: unknown = null;
+
+  for (const pinned of target.addresses) {
+    try {
+      return await requestPinnedAddress(target, pinned);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Could not connect to the validated public address');
+}
+
+async function safeFetch(
+  rawUrl: string,
+  maxRedirects = 4
+): Promise<{ response: Response; finalUrl: string }> {
+  let currentUrl = rawUrl;
+
+  for (
+    let redirectCount = 0;
+    redirectCount <= maxRedirects;
+    redirectCount += 1
+  ) {
+    const target = await resolvePublicHttpsTarget(currentUrl);
+    const response = await pinnedFetch(target);
+
+    if (isRedirectStatus(response.status)) {
       const location = response.headers.get('location');
-      if (!location) throw new Error('Redirect without Location header');
-      currentUrl = (await assertPublicHttpsUrl(new URL(location, currentUrl).toString())).toString();
+
+      if (!location) {
+        throw new Error('Redirect without Location header');
+      }
+
+      currentUrl = new URL(location, target.url).toString();
       continue;
     }
 
-    return { response, finalUrl: currentUrl };
+    return {
+      response,
+      finalUrl: target.url.toString(),
+    };
   }
 
   throw new Error('Too many redirects');
