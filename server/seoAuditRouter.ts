@@ -1,10 +1,25 @@
 import express from 'express';
 import { requireSupabaseAuth } from './supabaseAuth';
 import { buildRealSeoAudit } from './seoAuditService';
+import {
+  createRateLimiter,
+  envRateLimit,
+  rateLimitWindowMs,
+} from './rateLimit';
 
 const router = express.Router();
 
-router.post('/audit', requireSupabaseAuth, async (req, res) => {
+const seoAuditRateLimit = createRateLimiter({
+  name: 'seo-audit',
+  maxRequests: envRateLimit('SEO_AUDIT_RATE_LIMIT_PER_WINDOW', 30),
+  windowMs: rateLimitWindowMs(),
+});
+
+router.post(
+  '/audit',
+  requireSupabaseAuth,
+  seoAuditRateLimit,
+  async (req, res) => {
   try {
     const { url } = req.body;
 
