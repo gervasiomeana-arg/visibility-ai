@@ -64,9 +64,17 @@ En **Authentication → URL Configuration** del proyecto Supabase, configurar:
 
 El flujo “Olvidé mi contraseña” vuelve a `window.location.origin + window.location.pathname`, por lo que ese destino debe estar permitido por Supabase.
 
-Ejecutar `supabase/schema.sql` una vez en el SQL Editor del proyecto Supabase.
+Para un proyecto nuevo, aplicar la migración versionada:
 
-El schema crea perfiles, workspaces, miembros, invitaciones, negocios, auditorías, snapshots de Search Console, oportunidades, tareas y políticas RLS.
+`supabase/migrations/202610090001_visibility_ai_baseline_v6.sql`
+
+`supabase/schema.sql` se mantiene como snapshot legible del schema actual. La carpeta `supabase/migrations/` es la fuente para cambios de base de datos en producción.
+
+La baseline v6 crea perfiles, workspaces, miembros, invitaciones, negocios, auditorías, snapshots de Search Console, oportunidades, tareas, conexiones OAuth cifradas, funciones RPC y políticas RLS.
+
+Después de aplicar la migración y configurar las variables, abrir **Admin → Estado de Integraciones → Verificar schema**. El resultado esperado es **Schema v6**, **SCHEMA COMPLETO** y todos los checks críticos en verde.
+
+Si Supabase está configurado pero el RPC de readiness no existe, la base está desactualizada y debe aplicarse la migración antes de probar login o persistencia.
 
 ### Search Console
 

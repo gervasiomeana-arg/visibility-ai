@@ -1,3 +1,8 @@
+-- Visibility AI database baseline
+-- Generated from supabase/schema.sql.
+-- Idempotent baseline for production migration tracking.
+-- Schema version: 6
+
 -- Visibility AI · Phase 3 multi-tenant foundation
 -- Run in Supabase SQL Editor once per project.
 
