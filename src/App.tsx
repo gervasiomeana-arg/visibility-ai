@@ -785,6 +785,7 @@ export default function App() {
                 setActiveTab={setActiveTab}
                 onSelectBusiness={handleSelectBusiness}
                 workspace={activeWorkspace}
+                onWorkspaceUpdated={setActiveWorkspace}
               />
             )}
           </div>
