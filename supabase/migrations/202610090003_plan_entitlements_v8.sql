@@ -28,19 +28,26 @@ declare
   max_businesses integer;
   current_count integer;
 begin
+  -- Lock the workspace row so concurrent inserts cannot consume the same slot.
   select plan_id
   into current_plan
   from public.workspaces
-  where id = new.workspace_id;
+  where id = new.workspace_id
+  for update;
 
   if current_plan is null then
     raise exception 'Workspace not found';
   end if;
 
-  max_businesses := public.plan_max_businesses(current_plan);
-
   -- Workspace plan is authoritative for every business.
   new.subscription_plan := current_plan;
+
+  -- Updating fields inside the same workspace does not consume another slot.
+  if tg_op = 'UPDATE' and old.workspace_id = new.workspace_id then
+    return new;
+  end if;
+
+  max_businesses := public.plan_max_businesses(current_plan);
 
   select count(*)
   into current_count
@@ -58,8 +65,9 @@ $$;
 
 drop trigger if exists enforce_workspace_business_limit_trigger on public.businesses;
 create trigger enforce_workspace_business_limit_trigger
-before insert on public.businesses
+before insert or update of workspace_id, subscription_plan on public.businesses
 for each row execute procedure public.enforce_workspace_business_limit();
+
 
 create or replace function public.get_workspace_entitlements(target_workspace uuid)
 returns jsonb
