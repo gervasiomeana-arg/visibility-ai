@@ -95,7 +95,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
           </div>
 
-          <div className="bg-slate-950 text-white rounded-[1.4rem] p-5 sm:p-6 flex items-center gap-6 shrink-0 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-white/10">
+          <div className="w-full md:w-auto bg-slate-950 text-white rounded-[1.4rem] p-5 sm:p-6 flex items-center justify-between md:justify-start gap-6 shrink-0 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-white/10">
             <div>
               <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.14em] block">
                 Visibilidad digital
