@@ -136,6 +136,10 @@ function responseHeadersFromNode(
   return result;
 }
 
+function isRedirectStatus(status: number): boolean {
+  return [300, 301, 302, 303, 307, 308].includes(status);
+}
+
 function timeoutError(): Error {
   const error = new Error('The website took too long to respond');
   error.name = 'AbortError';
@@ -182,6 +186,7 @@ async function requestPinnedAddress(
           'user-agent': 'VisibilityAI/0.3 (+SEO audit)',
           accept:
             'text/html,application/xhtml+xml,application/xml,text/plain;q=0.9,*/*;q=0.8',
+          'accept-encoding': 'identity',
         },
         lookup: ((_hostname: string, _options: any, callback: any) => {
           callback(null, pinned.address, pinned.family);
@@ -196,7 +201,7 @@ async function requestPinnedAddress(
           >
         );
 
-        if (status >= 300 && status < 400) {
+        if (isRedirectStatus(status)) {
           incoming.resume();
           finishResolve(
             new Response(null, {
@@ -242,8 +247,13 @@ async function requestPinnedAddress(
         });
 
         incoming.on('end', () => {
+          const body =
+            status === 204 || status === 205
+              ? null
+              : Buffer.concat(chunks);
+
           finishResolve(
-            new Response(Buffer.concat(chunks), {
+            new Response(body, {
               status,
               statusText: incoming.statusMessage,
               headers,
@@ -297,7 +307,7 @@ async function safeFetch(
     const target = await resolvePublicHttpsTarget(currentUrl);
     const response = await pinnedFetch(target);
 
-    if (response.status >= 300 && response.status < 400) {
+    if (isRedirectStatus(response.status)) {
       const location = response.headers.get('location');
 
       if (!location) {
