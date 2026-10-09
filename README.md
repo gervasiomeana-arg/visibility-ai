@@ -70,12 +70,15 @@ Para un proyecto nuevo, aplicar las migraciones en orden:
 
 1. `supabase/migrations/202610090001_visibility_ai_baseline_v6.sql`
 2. `supabase/migrations/202610090002_usage_telemetry_v7.sql`
+3. `supabase/migrations/202610090003_plan_entitlements_v8.sql`
 
 `supabase/schema.sql` se mantiene como snapshot legible del schema actual. La carpeta `supabase/migrations/` es la fuente para cambios de base de datos en producción.
 
 La v7 agrega telemetría de uso por workspace con RLS y resumen de auditorías, IA, tokens y consultas Search Console.
 
-Después de aplicar las migraciones y configurar las variables, abrir **Admin → Estado de Integraciones → Verificar schema**. El resultado esperado es **Schema v7**, **SCHEMA COMPLETO** y todos los checks críticos en verde.
+La v8 agrega entitlements de plan: el límite de negocios se hace cumplir en Supabase y el plan del workspace pasa a ser la fuente de verdad para todos sus negocios.
+
+Después de aplicar las migraciones y configurar las variables, abrir **Admin → Estado de Integraciones → Verificar schema**. El resultado esperado es **Schema v8**, **SCHEMA COMPLETO** y todos los checks críticos en verde.
 
 Si Supabase está configurado pero el RPC de readiness no existe, la base está desactualizada y debe aplicarse la migración antes de probar login o persistencia.
 
