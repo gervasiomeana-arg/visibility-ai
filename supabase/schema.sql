@@ -673,7 +673,7 @@ language plpgsql
 stable
 security definer
 set search_path = public
-as $
+as $$
 declare
   safe_days integer := greatest(1, least(coalesce(period_days, 30), 365));
   result jsonb;
@@ -698,7 +698,7 @@ begin
 
   return result;
 end;
-$;
+$$;
 
 revoke all on function public.get_workspace_usage_summary(uuid, integer) from public;
 grant execute on function public.get_workspace_usage_summary(uuid, integer) to authenticated;
