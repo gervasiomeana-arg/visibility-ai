@@ -25,6 +25,9 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
   setActiveTab,
   onOpenAssistant,
 }) => {
+  const isRealCompetitiveData =
+    competitors.length > 0 && competitors.every((competitor) => competitor.source === 'real');
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -39,14 +42,20 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
               Análisis de Competidores
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Vista DEMO de comparación competitiva para <strong>{business.city}</strong>.
+              {isRealCompetitiveData
+                ? <>Comparación competitiva con fuentes verificadas para <strong>{business.city}</strong>.</>
+                : <>Vista DEMO de cómo funcionará la comparación competitiva para <strong>{business.city}</strong>.</>}
             </p>
           </div>
 
           <div className="bg-slate-900 text-white rounded-xl p-3.5 text-xs shrink-0 max-w-xs">
-            <span className="text-amber-300 font-bold block mb-0.5">Comparación DEMO</span>
+            <span className={`${isRealCompetitiveData ? 'text-emerald-300' : 'text-amber-300'} font-bold block mb-0.5`}>
+              {isRealCompetitiveData ? 'Comparación con datos reales' : 'Comparación DEMO'}
+            </span>
             <span className="text-slate-300">
-              Los puntajes de esta pantalla son ejemplos y no representan mediciones del mercado.
+              {isRealCompetitiveData
+                ? 'Cada comparación debe estar respaldada por una fuente verificable.'
+                : 'Los puntajes y competidores de ejemplo no representan mediciones del mercado.'}
             </span>
           </div>
         </div>
@@ -79,7 +88,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
       {/* Competitors Comparison Cards */}
       <div className="space-y-4">
         <h2 className="text-base font-bold text-slate-900 font-heading">
-          Comparativa de negocios de ejemplo (DEMO)
+          {isRealCompetitiveData ? 'Comparativa competitiva' : 'Comparativa de negocios de ejemplo (DEMO)'}
         </h2>
 
         <div className="grid grid-cols-1 gap-4">
@@ -225,61 +234,50 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
         </div>
       </div>
 
-      {/* Section: Oportunidades frente a tus competidores */}
-      <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-lg">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">
+      {/* Competitive opportunities */}
+      <div className="bg-slate-950 text-white rounded-[1.5rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300 mb-2">
           <Lightbulb className="w-4 h-4" />
-          <span>Oportunidades frente a tus competidores</span>
+          <span>{isRealCompetitiveData ? 'Oportunidades frente a competidores' : 'Qué mostrará esta sección'}</span>
         </div>
         <h2 className="text-xl sm:text-2xl font-bold font-heading">
-          Estrategias para superarlos en los próximos 30 días
+          {isRealCompetitiveData
+            ? 'Acciones basadas en brechas competitivas verificadas'
+            : 'Ejemplos de análisis que podremos generar con una fuente real'}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-            <h3 className="text-sm font-bold text-white font-heading">
-              1. Desbancar en búsquedas familiares
-            </h3>
-            <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-              El Hotel Costa Galana cobra tarifas altas. Si creas una página de "Hotel familiar con pileta", podés captar a las familias que buscan una excelente relación precio-calidad.
-            </p>
-            <button
-              onClick={() => setActiveTab('content-generator')}
-              className="mt-3 text-xs text-indigo-400 hover:text-white font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              Crear página con IA →
-            </button>
-          </div>
-
-          <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-            <h3 className="text-sm font-bold text-white font-heading">
-              2. Superar su velocidad de carga
-            </h3>
-            <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-              El Hotel Nuevo Horizonte tiene una web no adaptable y lenta. Si optimizas tus fotos a WebP, Google te mostrará primero a los usuarios que buscan desde el celular.
-            </p>
-            <button
-              onClick={() => setActiveTab('action-plan')}
-              className="mt-3 text-xs text-indigo-400 hover:text-white font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              Ver tarea en plan de acción →
-            </button>
-          </div>
-
-          <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
-            <h3 className="text-sm font-bold text-white font-heading">
-              3. Destacar la pileta climatizada
-            </h3>
-            <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-              El Hotel Playa Grande Resort capta 980 visitas con su pileta. Tu hotel también cuenta con pileta pero no la promocionas en una página web dedicada.
-            </p>
-            <button
-              onClick={() => setActiveTab('opportunities')}
-              className="mt-3 text-xs text-indigo-400 hover:text-white font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              Ver oportunidad detallada →
-            </button>
-          </div>
+          {[
+            {
+              title: 'Consultas donde otro negocio aparece antes',
+              text: 'Compararemos posiciones únicamente cuando tengamos una fuente real de resultados o rank tracking.',
+              tab: 'keywords' as ActiveTab,
+              cta: 'Ver palabras clave',
+            },
+            {
+              title: 'Diferencias técnicas verificables',
+              text: 'Podremos contrastar señales medibles como rendimiento web o elementos SEO sin inventar autoridad ni tráfico.',
+              tab: 'seo' as ActiveTab,
+              cta: 'Ver auditoría',
+            },
+            {
+              title: 'Oportunidades respaldadas por evidencia',
+              text: 'Las acciones comerciales se propondrán solo cuando exista una brecha demostrable entre tu negocio y una referencia real.',
+              tab: 'opportunities' as ActiveTab,
+              cta: 'Ver oportunidades',
+            },
+          ].map((item) => (
+            <div key={item.title} className="bg-white/[0.05] p-4 rounded-xl ring-1 ring-white/10">
+              <h3 className="text-sm font-bold text-white font-heading">{item.title}</h3>
+              <p className="text-xs text-slate-300 mt-2 leading-relaxed">{item.text}</p>
+              <button
+                onClick={() => setActiveTab(item.tab)}
+                className="mt-3 text-xs text-indigo-300 hover:text-white font-semibold cursor-pointer"
+              >
+                {item.cta} →
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
