@@ -77,15 +77,21 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
     setIsGenerating(true);
     setIsApproved(false);
     try {
-      const result = await aiService.generateContent({
-        contentType,
-        topic,
-        keyword,
-        city,
-        businessType,
-        goal,
-        tone,
-      });
+      const result = await aiService.generateContent(
+        {
+          contentType,
+          topic,
+          keyword,
+          city,
+          businessType,
+          goal,
+          tone,
+        },
+        {
+          workspaceId: business.workspaceId,
+          businessId: business.id,
+        }
+      );
       setGeneratedResult(result);
     } catch (err) {
       console.error(err);
