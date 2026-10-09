@@ -130,6 +130,26 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!authService.isConfigured() || !authenticated) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const inviteToken = params.get('invite');
+    if (!inviteToken) return;
+
+    workspaceService.acceptInvite(inviteToken)
+      .then(async () => {
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+        const workspaces = await workspaceService.listWorkspaces();
+        setActiveWorkspace(workspaces[0] || null);
+        setWorkspaceReady(true);
+      })
+      .catch(() => {
+        // Invalid, expired or mismatched invitation remains unaccepted.
+      });
+  }, [authenticated]);
+
+  useEffect(() => {
     if (!authService.isConfigured() || !authenticated) {
       if (!authService.isConfigured()) setWorkspaceReady(true);
       return;
@@ -688,6 +708,7 @@ export default function App() {
                 businesses={businesses}
                 setActiveTab={setActiveTab}
                 onSelectBusiness={handleSelectBusiness}
+                workspace={activeWorkspace}
               />
             )}
           </div>
