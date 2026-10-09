@@ -168,6 +168,18 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
 
+insert into public.profiles (id, email, full_name)
+select
+  id,
+  email,
+  nullif(raw_user_meta_data->>'full_name', '')
+from auth.users
+on conflict (id) do update
+set
+  email = excluded.email,
+  full_name = coalesce(public.profiles.full_name, excluded.full_name),
+  updated_at = now();
+
 alter table public.profiles enable row level security;
 alter table public.workspaces enable row level security;
 alter table public.workspace_members enable row level security;
