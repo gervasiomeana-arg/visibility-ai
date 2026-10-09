@@ -1,17 +1,20 @@
 import { AuthChangeEvent, createClient, Session, User } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const supabasePublishableKey =
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) ||
+  (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
 
 export const supabaseConfigured = Boolean(
   supabaseUrl &&
-  supabaseAnonKey &&
+  supabasePublishableKey &&
   supabaseUrl !== 'MY_SUPABASE_URL' &&
-  supabaseAnonKey !== 'MY_SUPABASE_ANON_KEY'
+  supabasePublishableKey !== 'MY_SUPABASE_PUBLISHABLE_KEY' &&
+  supabasePublishableKey !== 'MY_SUPABASE_ANON_KEY'
 );
 
 export const supabase = supabaseConfigured
-  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+  ? createClient(supabaseUrl!, supabasePublishableKey!, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
