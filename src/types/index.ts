@@ -9,7 +9,6 @@ export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
 
 export interface Workspace {
   id: string;
-  workspaceId?: string;
   name: string;
   slug?: string | null;
   ownerUserId: string;
@@ -37,6 +36,7 @@ export interface BusinessScores {
 
 export interface Business {
   id: string;
+  workspaceId?: string;
   name: string;
   url: string;
   category: string;
