@@ -35,7 +35,9 @@ export const workspaceService = {
     if (!memberships?.length) return [];
 
     const ids = memberships.map((item) => item.workspace_id);
-    const roleByWorkspace = new Map(memberships.map((item) => [item.workspace_id, item.role]));
+    const roleByWorkspace = new Map(
+      memberships.map((item) => [item.workspace_id, item.role as Workspace['role']])
+    );
 
     const { data: rows, error } = await supabase
       .from('workspaces')
