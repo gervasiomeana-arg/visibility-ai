@@ -185,6 +185,57 @@ export default function App() {
     }
   }, [activeWorkspace?.id]);
 
+  useEffect(() => {
+    if (!authService.isConfigured() || !activeWorkspace?.id || activeBusiness.id === 'no-business') return;
+
+    workspaceService.loadBusinessState(activeWorkspace.id, activeBusiness.id)
+      .then((state) => {
+        if (state.audit?.payload) {
+          const payload = state.audit.payload;
+          if (Array.isArray(payload.items)) {
+            storageService.saveSeoAudit(activeBusiness.id, payload.items, payload.meta || undefined);
+          }
+          if (Array.isArray(payload.issues)) {
+            storageService.saveIssues(activeBusiness.id, payload.issues);
+          }
+          if (payload.scores) {
+            storageService.updateBusinessScores(
+              activeBusiness.id,
+              payload.scores,
+              payload.scoreSources || {}
+            );
+          }
+        }
+
+        if (Array.isArray(state.tasks) && state.tasks.length > 0) {
+          storageService.saveActionTasks(activeBusiness.id, state.tasks);
+          setActionTasks(storageService.getActionTasks(activeBusiness.id));
+        }
+
+        if (Array.isArray(state.opportunities)) {
+          storageService.saveOpportunities(activeBusiness.id, state.opportunities);
+        }
+
+        if (state.searchConsole) {
+          storageService.saveSearchConsoleMeta(activeBusiness.id, {
+            siteUrl: state.searchConsole.site_url,
+            startDate: state.searchConsole.period_start,
+            endDate: state.searchConsole.period_end,
+            clicks: state.searchConsole.clicks,
+            impressions: state.searchConsole.impressions,
+            ctr: Number(state.searchConsole.ctr || 0),
+            position: Number(state.searchConsole.position || 0),
+            loadedAt: state.searchConsole.created_at,
+          });
+        }
+
+        setBusinesses(storageService.getBusinesses());
+      })
+      .catch(() => {
+        // Local workspace cache remains available as fallback.
+      });
+  }, [activeWorkspace?.id, activeBusiness.id]);
+
   // Keep action tasks synced when activeBusiness changes
   useEffect(() => {
     setActionTasks(storageService.getActionTasks(activeBusiness.id));
@@ -312,13 +363,56 @@ export default function App() {
         }
       );
 
+      const unresolvedIssues = realIssues.filter((issue) => issue.severity !== 'ok').length;
+
       storageService.saveAuditHistoryPoint(targetBusinessId!, {
         auditedAt: auditResult.fetchedAt,
         overallScore: overall,
         seoScore,
         webScore: pageSpeedScore,
-        unresolvedIssues: realIssues.filter((issue) => issue.severity !== 'ok').length,
+        unresolvedIssues,
       });
+
+      if (authService.isConfigured() && activeWorkspace?.id) {
+        const currentOpportunities = storageService.getOpportunities(targetBusinessId!);
+        await Promise.all([
+          workspaceService.saveSeoAudit({
+            workspaceId: activeWorkspace.id,
+            businessId: targetBusinessId!,
+            requestedUrl: auditResult.requestedUrl,
+            finalUrl: auditResult.finalUrl,
+            httpStatus: auditResult.httpStatus,
+            responseTimeMs: auditResult.responseTimeMs,
+            seoScore,
+            webScore: pageSpeedScore,
+            overallScore: overall,
+            unresolvedIssues,
+            payload: {
+              items: auditResult.items,
+              issues: realIssues,
+              meta: {
+                requestedUrl: auditResult.requestedUrl,
+                finalUrl: auditResult.finalUrl,
+                fetchedAt: auditResult.fetchedAt,
+                httpStatus: auditResult.httpStatus,
+                responseTimeMs: auditResult.responseTimeMs,
+                pageSpeed: auditResult.pageSpeed || null,
+                pageSpeedError: auditResult.pageSpeedError || null,
+              },
+              scores: { seo: nextSeo, web: nextWeb, overall },
+              scoreSources: {
+                seo: seoScore !== null ? 'real' : 'demo',
+                web: pageSpeedScore !== null ? 'real' : 'demo',
+                overall: verifiedValues.length ? 'partial' : 'demo',
+              },
+            },
+          }),
+          workspaceService.upsertActionTasks(activeWorkspace.id, targetBusinessId!, realTasks),
+          workspaceService.upsertOpportunities(activeWorkspace.id, targetBusinessId!, currentOpportunities),
+        ]).catch(() => {
+          // Keep local cache when remote persistence is temporarily unavailable.
+        });
+      }
 
       setBusinesses(storageService.getBusinesses());
     }
