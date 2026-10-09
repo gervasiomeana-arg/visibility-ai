@@ -244,8 +244,15 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             {!gscConnected && gscConfigured && (
               <button
                 type="button"
-                onClick={() => searchConsoleService.connect('/')}
-                className="px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold"
+                onClick={async () => {
+                  try {
+                    setGscError('');
+                    await searchConsoleService.connect('/');
+                  } catch (error: any) {
+                    setGscError(error?.message || 'No se pudo iniciar la conexión con Search Console.');
+                  }
+                }}
+                className="px-3 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white font-semibold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
               >
                 Conectar Search Console
               </button>
