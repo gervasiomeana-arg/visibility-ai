@@ -67,7 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     <header className="sticky top-0 z-40 bg-[rgba(246,248,251,0.82)] backdrop-blur-xl">
       {/* Top Banner for Demo Transparency */}
       <div className="bg-slate-950 text-slate-300 text-[11px] py-1.5 px-4">
-        <div className="max-w-7xl mx-auto flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3">
+        <div className="max-w-7xl mx-auto flex flex-wrap md:flex-nowrap items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 font-medium text-amber-300">
               <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -78,7 +78,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               Visibility AI separa cada dato real, parcial y DEMO según su fuente.
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={() => setDemoInfoOpen(true)}
               className="text-indigo-300 hover:text-white underline text-xs transition-colors cursor-pointer"
@@ -88,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {workspaceName && (
               <>
                 <span className="text-slate-600">|</span>
-                <span className="text-slate-400 truncate max-w-[160px]">{workspaceName}</span>
+                <span className="hidden sm:inline text-slate-400 truncate max-w-[140px] lg:max-w-[180px]">{workspaceName}</span>
               </>
             )}
             <span className="text-slate-600">|</span>
@@ -113,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setActiveTab('landing')}
               className="flex items-center gap-3 text-left group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-[0.95rem] bg-slate-950 flex items-center justify-center text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)] group-hover:-translate-y-0.5 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-[0.95rem] bg-slate-950 flex items-center justify-center text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)] group-hover:-translate-y-0.5 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
                 <Search className="w-5 h-5" />
               </div>
               <div>
@@ -133,7 +133,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100/70 hover:bg-slate-100 text-slate-700 text-xs font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] min-w-0 ring-1 ring-slate-200/70 active:scale-[0.985]"
               >
                 <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
-                <div className="text-left max-w-[130px] sm:max-w-[170px] truncate">
+                <div className="text-left max-w-[92px] min-[390px]:max-w-[118px] sm:max-w-[170px] truncate">
                   <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">Mis negocios</span>
                   <span className="font-semibold text-slate-900 truncate block">{activeBusiness.name}</span>
                 </div>
@@ -191,7 +191,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action Buttons */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* AI Assistant Quick Trigger */}
             {onSignOut && (
               <button
