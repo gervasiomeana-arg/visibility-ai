@@ -10,6 +10,12 @@ export interface ProductionHealth {
     pageSpeedKey: boolean;
     gemini: boolean;
   };
+  readiness: {
+    coreSaasReady: boolean;
+    searchConsoleProductionReady: boolean;
+    blockers: string[];
+    optionalMissing: string[];
+  };
 }
 
 export const productionHealthService = {
