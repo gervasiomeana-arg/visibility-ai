@@ -7,9 +7,17 @@ interface AnalyzingViewProps {
   url: string;
   onComplete: (result: SeoAuditResult) => void;
   onCancel?: () => void;
+  workspaceId?: string;
+  businessId?: string;
 }
 
-export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ url, onComplete, onCancel }) => {
+export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
+  url,
+  onComplete,
+  onCancel,
+  workspaceId,
+  businessId,
+}) => {
   const [status, setStatus] = useState<'running' | 'success' | 'error'>('running');
   const [error, setError] = useState('');
   const [result, setResult] = useState<SeoAuditResult | null>(null);
@@ -30,7 +38,7 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ url, onComplete, o
       setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
     }, 700);
 
-    seoAuditService.audit(url)
+    seoAuditService.audit(url, { workspaceId, businessId })
       .then((data) => {
         if (cancelled) return;
         window.clearInterval(timer);
@@ -49,7 +57,7 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ url, onComplete, o
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [url]);
+  }, [url, workspaceId, businessId]);
 
   useEffect(() => {
     if (status !== 'success' || !result) return;
