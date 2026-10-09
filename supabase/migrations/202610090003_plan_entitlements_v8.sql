@@ -39,6 +39,9 @@ begin
 
   max_businesses := public.plan_max_businesses(current_plan);
 
+  -- Workspace plan is authoritative for every business.
+  new.subscription_plan := current_plan;
+
   select count(*)
   into current_count
   from public.businesses
