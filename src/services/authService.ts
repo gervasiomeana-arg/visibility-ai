@@ -32,6 +32,22 @@ export const authService = {
     return data.session;
   },
 
+  async getAuthorizationHeaders(
+    extra: Record<string, string> = {}
+  ): Promise<Record<string, string>> {
+    const headers = { ...extra };
+    if (!supabase) return headers;
+
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+
+    if (data.session?.access_token) {
+      headers.Authorization = `Bearer ${data.session.access_token}`;
+    }
+
+    return headers;
+  },
+
   async signIn(email: string, password: string): Promise<User> {
     if (!supabase) throw new Error('Supabase no está configurado.');
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
