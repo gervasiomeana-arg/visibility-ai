@@ -600,7 +600,7 @@ export default function App() {
   if (authService.isConfigured() && workspaceReady && !activeWorkspace) {
     return (
       <WorkspaceSetupView
-        onCreated={async () => {
+        onCreated={async (workspaceId) => {
           const nextWorkspaces = await workspaceService.listWorkspaces();
           setWorkspaces(nextWorkspaces);
           setActiveWorkspace(
@@ -703,7 +703,7 @@ export default function App() {
                 }}
                 onGenerateOpportunity={(oppId) => {
                   const opp = opportunities.find((o) => o.id === oppId) || opportunities[0];
-                  handleSelectOpportunityForAI(opp);
+                  if (opp) handleSelectOpportunityForAI(opp);
                 }}
               />
             )}
