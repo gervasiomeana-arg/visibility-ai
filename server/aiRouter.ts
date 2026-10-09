@@ -1,6 +1,11 @@
 import express from 'express';
 import { GoogleGenAI } from '@google/genai';
 import { requireSupabaseAuth } from './supabaseAuth';
+import {
+  createRateLimiter,
+  envRateLimit,
+  rateLimitWindowMs,
+} from './rateLimit';
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_FIELD_LENGTH = 2000;
@@ -14,7 +19,17 @@ if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
 
 const router = express.Router();
 
-router.post('/assistant/chat', requireSupabaseAuth, async (req, res) => {
+const aiRateLimit = createRateLimiter({
+  name: 'ai',
+  maxRequests: envRateLimit('AI_RATE_LIMIT_PER_WINDOW', 120),
+  windowMs: rateLimitWindowMs(),
+});
+
+router.post(
+  '/assistant/chat',
+  requireSupabaseAuth,
+  aiRateLimit,
+  async (req, res) => {
   try {
     const { prompt, businessContext } = req.body;
 
@@ -59,7 +74,11 @@ Reglas clave:
   }
 });
 
-router.post('/content/generate', requireSupabaseAuth, async (req, res) => {
+router.post(
+  '/content/generate',
+  requireSupabaseAuth,
+  aiRateLimit,
+  async (req, res) => {
   try {
     const {
       contentType,
