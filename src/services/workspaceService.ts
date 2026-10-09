@@ -54,7 +54,8 @@ export const workspaceService = {
       leakedWorkspaceIds: string[];
     }>;
   }> {
-    if (!supabase) throw new Error('Supabase no está configurado.');
+    const client = supabase;
+    if (!client) throw new Error('Supabase no está configurado.');
 
     const workspaces = await this.listWorkspaces();
     const allowedWorkspaceIds = new Set(workspaces.map((item) => item.id));
@@ -79,7 +80,7 @@ export const workspaceService = {
 
     const tables = await Promise.all(
       tableSpecs.map(async (spec) => {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from(spec.table)
           .select(spec.select)
           .limit(500);
