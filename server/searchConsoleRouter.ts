@@ -12,6 +12,7 @@ import {
   getSupabaseUserFromToken,
   requireSupabaseAuth,
 } from './supabaseAuth';
+import { recordUsageEventSafe } from './usageTelemetry';
 
 type SearchConsoleSession = {
   accessToken: string;
@@ -648,7 +649,14 @@ router.post('/query', requireSupabaseAuth, async (req, res) => {
         .json({ error: 'Search Console is not connected' });
     }
 
-    const { siteUrl, startDate, endDate, rowLimit } = req.body;
+    const {
+      siteUrl,
+      startDate,
+      endDate,
+      rowLimit,
+      workspaceId,
+      businessId,
+    } = req.body;
     if (!siteUrl || typeof siteUrl !== 'string') {
       return res
         .status(400)
@@ -714,6 +722,19 @@ router.post('/query', requireSupabaseAuth, async (req, res) => {
           position: Number(row.position || 0),
         }))
       : [];
+
+    recordUsageEventSafe(req, {
+      workspaceId:
+        typeof workspaceId === 'string' ? workspaceId : undefined,
+      businessId:
+        typeof businessId === 'string' ? businessId : undefined,
+      userId: res.locals.authUser?.id,
+      eventType: 'search_console_query',
+      units: 1,
+      metadata: {
+        rowsReturned: rows.length,
+      },
+    });
 
     return res.json({
       rows,
