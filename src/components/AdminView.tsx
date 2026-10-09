@@ -1136,7 +1136,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   </h3>
                   <p className="mt-1 text-xs text-amber-800 leading-5">
                     Para activar login, workspaces, usuarios y persistencia real en AI Studio faltan
-                    <strong> VITE_SUPABASE_URL</strong> y <strong>VITE_SUPABASE_ANON_KEY</strong>.
+                    <strong> VITE_SUPABASE_URL</strong> y <strong>VITE_SUPABASE_PUBLISHABLE_KEY</strong>.
                   </p>
                 </div>
               </div>
