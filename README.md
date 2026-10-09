@@ -57,6 +57,13 @@ Variables:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
+En **Authentication → URL Configuration** del proyecto Supabase, configurar:
+
+- **Site URL**: la URL pública de Visibility AI.
+- **Redirect URLs**: agregar la misma URL pública y cualquier URL de desarrollo autorizada que vaya a usarse para recuperación de contraseña.
+
+El flujo “Olvidé mi contraseña” vuelve a `window.location.origin + window.location.pathname`, por lo que ese destino debe estar permitido por Supabase.
+
 Ejecutar `supabase/schema.sql` una vez en el SQL Editor del proyecto Supabase.
 
 El schema crea perfiles, workspaces, miembros, invitaciones, negocios, auditorías, snapshots de Search Console, oportunidades, tareas y políticas RLS.
