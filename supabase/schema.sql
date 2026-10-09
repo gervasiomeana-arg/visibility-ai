@@ -92,6 +92,19 @@ create table if not exists public.search_console_connections (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.tracked_keywords (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  keyword text not null,
+  source text not null default 'manual'
+    check (source in ('manual')),
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (business_id, keyword)
+);
+
 create table if not exists public.search_console_snapshots (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -187,6 +200,7 @@ alter table public.workspace_invites enable row level security;
 alter table public.businesses enable row level security;
 alter table public.seo_audits enable row level security;
 alter table public.search_console_snapshots enable row level security;
+alter table public.tracked_keywords enable row level security;
 alter table public.search_console_connections enable row level security;
 alter table public.action_tasks enable row level security;
 alter table public.opportunities enable row level security;
@@ -569,3 +583,31 @@ $$;
 
 revoke all on function public.list_workspace_members(uuid) from public;
 grant execute on function public.list_workspace_members(uuid) to authenticated;
+
+
+drop policy if exists "members read tracked keywords" on public.tracked_keywords;
+create policy "members read tracked keywords"
+on public.tracked_keywords
+for select
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "editors write tracked keywords" on public.tracked_keywords;
+create policy "editors write tracked keywords"
+on public.tracked_keywords
+for all
+using (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = tracked_keywords.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+)
+with check (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = tracked_keywords.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+);
