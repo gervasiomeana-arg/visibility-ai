@@ -1,4 +1,5 @@
 import { authService } from './authService';
+import { apiFetchJson } from './apiClient';
 
 export interface SearchConsoleSite {
   siteUrl: string;
@@ -28,46 +29,53 @@ async function authHeaders(extra?: Record<string, string>): Promise<Record<strin
 
 export const searchConsoleService = {
   async status(): Promise<{ configured: boolean; connected: boolean; persistence: string }> {
-    const response = await fetch('/api/search-console/status', {
+    return apiFetchJson<{
+      configured: boolean;
+      connected: boolean;
+      persistence: string;
+    }>('/api/search-console/status', {
       headers: await authHeaders(),
     });
-    if (!response.ok) throw new Error('No se pudo consultar el estado de Search Console.');
-    return response.json();
   },
 
   async connect(returnTo = '/'): Promise<void> {
-    const response = await fetch('/api/search-console/auth/start', {
-      method: 'POST',
-      headers: await authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ returnTo }),
-    });
+    const data = await apiFetchJson<{ authUrl?: string }>(
+      '/api/search-console/auth/start',
+      {
+        method: 'POST',
+        headers: await authHeaders({
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify({ returnTo }),
+      }
+    );
 
-    const data = await response.json();
-    if (!response.ok || !data?.authUrl) {
-      throw new Error(data?.error || 'No se pudo iniciar la conexión con Search Console.');
+    if (!data.authUrl) {
+      throw new Error(
+        'Search Console no devolvió una URL de autorización.'
+      );
     }
 
     window.location.href = data.authUrl;
   },
 
   async disconnect(): Promise<void> {
-    const response = await fetch('/api/search-console/disconnect', {
-      method: 'POST',
-      headers: await authHeaders(),
-    });
-
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data?.error || 'No se pudo desconectar Search Console.');
-    }
+    await apiFetchJson<{ connected: boolean }>(
+      '/api/search-console/disconnect',
+      {
+        method: 'POST',
+        headers: await authHeaders(),
+      }
+    );
   },
 
   async sites(): Promise<SearchConsoleSite[]> {
-    const response = await fetch('/api/search-console/sites', {
-      headers: await authHeaders(),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.error || 'No se pudieron cargar las propiedades de Search Console.');
+    const data = await apiFetchJson<{ sites?: SearchConsoleSite[] }>(
+      '/api/search-console/sites',
+      {
+        headers: await authHeaders(),
+      }
+    );
     return data.sites || [];
   },
 
@@ -79,9 +87,15 @@ export const searchConsoleService = {
 
     const format = (date: Date) => date.toISOString().slice(0, 10);
 
-    const response = await fetch('/api/search-console/query', {
+    return apiFetchJson<{
+      rows: SearchConsoleQueryRow[];
+      startDate: string;
+      endDate: string;
+    }>('/api/search-console/query', {
       method: 'POST',
-      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      headers: await authHeaders({
+        'Content-Type': 'application/json',
+      }),
       body: JSON.stringify({
         siteUrl,
         startDate: format(start),
@@ -89,9 +103,5 @@ export const searchConsoleService = {
         rowLimit: 100,
       }),
     });
-
-    const data = await response.json();
-    if (!response.ok) throw new Error(data?.error || 'No se pudieron cargar las consultas de Search Console.');
-    return data;
   },
 };

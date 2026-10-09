@@ -1,3 +1,5 @@
+import { apiFetchJson } from './apiClient';
+
 export interface ProductionHealth {
   ok: boolean;
   service: string;
@@ -20,14 +22,6 @@ export interface ProductionHealth {
 
 export const productionHealthService = {
   async getStatus(): Promise<ProductionHealth> {
-    const response = await fetch('/api/health', {
-      headers: { accept: 'application/json' },
-    });
-
-    if (!response.ok) {
-      throw new Error('No se pudo consultar el estado del servidor.');
-    }
-
-    return response.json();
+    return apiFetchJson<ProductionHealth>('/api/health');
   },
 };

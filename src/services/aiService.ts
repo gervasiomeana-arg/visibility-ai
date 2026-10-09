@@ -1,18 +1,21 @@
 import { ContentGenerationRequest } from '../types';
 import { authService } from './authService';
+import { apiFetchJson } from './apiClient';
 
 export const aiService = {
   async askAssistant(prompt: string, businessContext?: { name: string; url: string; category: string; city: string; scores?: any }): Promise<string> {
     try {
-      const response = await fetch('/api/assistant/chat', {
-        method: 'POST',
-        headers: await authService.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ prompt, businessContext }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.reply) return data.reply;
-      }
+      const data = await apiFetchJson<{ reply?: string | null }>(
+        '/api/assistant/chat',
+        {
+          method: 'POST',
+          headers: await authService.getAuthorizationHeaders({
+            'Content-Type': 'application/json',
+          }),
+          body: JSON.stringify({ prompt, businessContext }),
+        }
+      );
+      if (data.reply) return data.reply;
     } catch (e) {
       console.warn('API error, using local business assistant engine fallback:', e);
     }
@@ -80,15 +83,17 @@ Sin datos de demanda verificados, puedo sugerir acciones generales para revisar:
 
   async generateContent(req: ContentGenerationRequest): Promise<string> {
     try {
-      const response = await fetch('/api/content/generate', {
-        method: 'POST',
-        headers: await authService.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify(req),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.content) return data.content;
-      }
+      const data = await apiFetchJson<{ content?: string | null }>(
+        '/api/content/generate',
+        {
+          method: 'POST',
+          headers: await authService.getAuthorizationHeaders({
+            'Content-Type': 'application/json',
+          }),
+          body: JSON.stringify(req),
+        }
+      );
+      if (data.content) return data.content;
     } catch (e) {
       console.warn('API error, using fallback content generator:', e);
     }
