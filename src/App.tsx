@@ -70,6 +70,13 @@ export default function App() {
   const [workspaceReady, setWorkspaceReady] = useState(!authService.isConfigured());
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [workspaceEntitlements, setWorkspaceEntitlements] = useState<{
+    planId: Workspace['planId'];
+    maxBusinesses: number;
+    usedBusinesses: number;
+    remainingBusinesses: number;
+    canAddBusiness: boolean;
+  } | null>(null);
   const [legacyMigrationSkipped, setLegacyMigrationSkipped] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
@@ -192,6 +199,28 @@ export default function App() {
       mounted = false;
     };
   }, [authenticated]);
+
+  useEffect(() => {
+    if (!authService.isConfigured() || !activeWorkspace?.id) {
+      setWorkspaceEntitlements(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    workspaceService
+      .getWorkspaceEntitlements(activeWorkspace.id)
+      .then((entitlements) => {
+        if (!cancelled) setWorkspaceEntitlements(entitlements);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkspaceEntitlements(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspace?.id, businesses.length]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,6 +347,9 @@ export default function App() {
   };
 
   const canEditWorkspace = !authService.isConfigured() || activeWorkspace?.role !== 'viewer';
+  const canAddBusiness =
+    !authService.isConfigured() ||
+    workspaceEntitlements?.canAddBusiness === true;
 
   const handleStartAnalysis = (url: string, name?: string, category?: string, city?: string) => {
     if (!canEditWorkspace) return;
@@ -514,7 +546,18 @@ export default function App() {
     timezone?: string;
     subscriptionPlan?: any;
   }) => {
-    if (!canEditWorkspace) return;
+    if (!canEditWorkspace) {
+      throw new Error('Tu rol no permite agregar negocios.');
+    }
+
+    if (authService.isConfigured() && !canAddBusiness) {
+      throw new Error(
+        workspaceEntitlements
+          ? `El plan ${workspaceEntitlements.planId} permite ${workspaceEntitlements.maxBusinesses} negocio${workspaceEntitlements.maxBusinesses === 1 ? '' : 's'} y el cupo ya está completo.`
+          : 'No se pudo confirmar el cupo disponible del plan.'
+      );
+    }
+
     let persistedId: string | undefined;
 
     if (authService.isConfigured() && activeWorkspace?.id) {
@@ -660,8 +703,16 @@ export default function App() {
         businesses={businesses}
         onSelectBusiness={handleSelectBusiness}
         onOpenNewBusinessModal={() => {
-          if (canEditWorkspace) setNewBizModalOpen(true);
+          if (canEditWorkspace && canAddBusiness) {
+            setNewBizModalOpen(true);
+          }
         }}
+        canAddBusiness={canEditWorkspace && canAddBusiness}
+        businessLimitLabel={
+          workspaceEntitlements
+            ? `${workspaceEntitlements.usedBusinesses}/${workspaceEntitlements.maxBusinesses} negocios`
+            : undefined
+        }
         onOpenAssistant={() => {
           setAssistantInitialPrompt('');
           setAssistantOpen(true);
@@ -866,6 +917,16 @@ export default function App() {
         isOpen={newBizModalOpen}
         onClose={() => setNewBizModalOpen(false)}
         onAdd={handleAddNewBusiness}
+        workspacePlanId={activeWorkspace?.planId}
+        entitlement={
+          workspaceEntitlements
+            ? {
+                usedBusinesses: workspaceEntitlements.usedBusinesses,
+                maxBusinesses: workspaceEntitlements.maxBusinesses,
+                canAddBusiness: workspaceEntitlements.canAddBusiness,
+              }
+            : undefined
+        }
       />
     </div>
   );
