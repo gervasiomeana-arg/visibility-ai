@@ -269,7 +269,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 type="button"
                 onClick={handleLoadSearchConsole}
                 disabled={!selectedSite || gscLoading}
-                className="px-4 py-2 rounded-lg bg-indigo-600 disabled:bg-slate-300 text-white font-bold"
+                className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
               >
                 {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
               </button>
@@ -292,7 +292,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <button
                 key={intent}
                 onClick={() => setIntentFilter(intent)}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
                   intentFilter === intent
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -309,10 +309,11 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Filtrar palabra clave..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 text-xs text-slate-900 focus:outline-none focus:ring-indigo-300 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
             />
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           </div>
+        </div>
         </div>
       </div>
 
@@ -337,7 +338,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 const isGoodRank = hasMeasurement && kw.position <= 20;
 
                 return (
-                  <tr key={kw.id} className="hover:bg-slate-50/80/70 transition-colors">
+                  <tr key={kw.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="font-semibold text-slate-900">{kw.keyword}</div>
                       <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
