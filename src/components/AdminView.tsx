@@ -21,9 +21,10 @@ interface AdminViewProps {
   setActiveTab: (tab: ActiveTab) => void;
   onSelectBusiness: (bizId: string) => void;
   workspace?: Workspace | null;
+  onWorkspaceUpdated?: (workspace: Workspace) => void;
 }
 
-export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, onSelectBusiness, workspace }) => {
+export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, onSelectBusiness, workspace, onWorkspaceUpdated }) => {
   const [activeTab, setActiveAdminTab] = useState<'businesses' | 'plans' | 'members' | 'ai-usage' | 'integrations'>('businesses');
   const [members, setMembers] = useState<Array<{ userId: string; role: 'owner' | 'admin' | 'member' | 'viewer' }>>([]);
   const [invites, setInvites] = useState<Array<{ id: string; email: string; role: 'admin' | 'member' | 'viewer'; token: string; expiresAt: string; acceptedAt?: string | null }>>([]);
@@ -32,6 +33,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   const [inviteMessage, setInviteMessage] = useState('');
   const [inviteError, setInviteError] = useState('');
   const canManageMembers = workspace?.role === 'owner' || workspace?.role === 'admin';
+  const [workspaceName, setWorkspaceName] = useState(workspace?.name || '');
+  const [workspaceMessage, setWorkspaceMessage] = useState('');
+  const [workspaceError, setWorkspaceError] = useState('');
+
+  useEffect(() => {
+    setWorkspaceName(workspace?.name || '');
+  }, [workspace?.id, workspace?.name]);
 
   const refreshMembers = async () => {
     if (!workspace?.id) return;
@@ -66,6 +74,23 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       await refreshMembers();
     } catch (error: any) {
       setInviteError(error?.message || 'No se pudo crear la invitación.');
+    }
+  };
+
+  const handleRenameWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace || workspace.role !== 'owner') return;
+
+    setWorkspaceMessage('');
+    setWorkspaceError('');
+
+    try {
+      const updated = await workspaceService.updateWorkspaceName(workspace, workspaceName);
+      setWorkspaceName(updated.name);
+      setWorkspaceMessage('Nombre del workspace actualizado.');
+      onWorkspaceUpdated?.(updated);
+    } catch (error: any) {
+      setWorkspaceError(error?.message || 'No se pudo actualizar el workspace.');
     }
   };
 
@@ -284,6 +309,48 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {activeTab === 'members' && (
         <div className="space-y-4">
+          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                  Workspace actual
+                </span>
+                <h2 className="mt-1 text-base font-bold text-slate-900 font-heading">
+                  {workspace?.name || 'Sin workspace'}
+                </h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  Tu rol: <strong className="text-slate-700">{workspace?.role || 'sin rol'}</strong>
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold uppercase tracking-wider">
+                {workspace?.countryCode || '—'} · {workspace?.planId || '—'}
+              </span>
+            </div>
+
+            {workspace?.role === 'owner' ? (
+              <form onSubmit={handleRenameWorkspace} className="mt-5 flex flex-col sm:flex-row gap-2">
+                <input
+                  value={workspaceName}
+                  onChange={(e) => setWorkspaceName(e.target.value)}
+                  className="flex-1 px-3 py-2.5 rounded-xl ring-1 ring-slate-200 bg-slate-50/70 text-xs focus:outline-none focus:ring-indigo-300"
+                  placeholder="Nombre del workspace"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold"
+                >
+                  Guardar nombre
+                </button>
+              </form>
+            ) : (
+              <p className="mt-4 text-xs text-slate-500">
+                Solo el owner puede cambiar el nombre del workspace.
+              </p>
+            )}
+
+            {workspaceMessage && <p className="mt-2 text-xs font-semibold text-emerald-700">{workspaceMessage}</p>}
+            {workspaceError && <p className="mt-2 text-xs font-semibold text-rose-600">{workspaceError}</p>}
+          </div>
           <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
             <h2 className="text-base font-bold text-slate-900 font-heading">Colaboradores del workspace</h2>
             <p className="mt-1 text-xs text-slate-500">
