@@ -267,12 +267,16 @@ export default function App() {
     storageService.setActiveBusinessId(bizId);
   };
 
+  const canEditWorkspace = !authService.isConfigured() || activeWorkspace?.role !== 'viewer';
+
   const handleStartAnalysis = (url: string, name?: string, category?: string, city?: string) => {
+    if (!canEditWorkspace) return;
     setAnalyzingUrl(url);
     setActiveTab('analyzing');
   };
 
   const handleAnalysisComplete = async (auditResult: SeoAuditResult) => {
+    if (!canEditWorkspace) return;
     // Match existing businesses by normalized hostname to avoid duplicates.
     const getHostname = (value: string) => {
       try {
@@ -459,6 +463,7 @@ export default function App() {
     timezone?: string;
     subscriptionPlan?: any;
   }) => {
+    if (!canEditWorkspace) return;
     let persistedId: string | undefined;
 
     if (authService.isConfigured() && activeWorkspace?.id) {
@@ -483,6 +488,7 @@ export default function App() {
   };
 
   const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
+    if (!canEditWorkspace) return;
     const updated = storageService.updateTaskStatus(activeBusiness.id, taskId, newStatus);
     setActionTasks(updated);
 
@@ -552,7 +558,9 @@ export default function App() {
         activeBusiness={activeBusiness}
         businesses={businesses}
         onSelectBusiness={handleSelectBusiness}
-        onOpenNewBusinessModal={() => setNewBizModalOpen(true)}
+        onOpenNewBusinessModal={() => {
+          if (canEditWorkspace) setNewBizModalOpen(true);
+        }}
         onOpenAssistant={() => {
           setAssistantInitialPrompt('');
           setAssistantOpen(true);
