@@ -6,6 +6,18 @@ import { GoogleGenAI } from '@google/genai';
 import dns from 'dns/promises';
 import net from 'net';
 import crypto from 'crypto';
+import {
+  durableSearchConsoleConfigured,
+  getSearchConsoleRedirectUri,
+  getSearchConsoleTokenKey,
+  getSupabaseConfig,
+  searchConsoleConfigured,
+} from './server/runtimeConfig';
+import {
+  bearerToken,
+  getSupabaseUserFromToken,
+  requireSupabaseAuth,
+} from './server/supabaseAuth';
 
 dotenv.config();
 
@@ -34,58 +46,6 @@ const searchConsoleStates = new Map<string, {
   userId?: string;
   supabaseAccessToken?: string;
 }>();
-
-function getSupabaseConfig() {
-  const url = process.env.VITE_SUPABASE_URL || '';
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
-  return {
-    url,
-    anonKey,
-    configured: Boolean(
-      url &&
-      anonKey &&
-      url !== 'MY_SUPABASE_URL' &&
-      anonKey !== 'MY_SUPABASE_ANON_KEY'
-    ),
-  };
-}
-
-function getSearchConsoleTokenKey(): Buffer | null {
-  const encoded = process.env.SEARCH_CONSOLE_TOKEN_KEY || '';
-  if (!encoded || encoded === 'MY_32_BYTE_BASE64_KEY') return null;
-  try {
-    const key = Buffer.from(encoded, 'base64');
-    return key.length === 32 ? key : null;
-  } catch {
-    return null;
-  }
-}
-
-function durableSearchConsoleConfigured() {
-  return getSupabaseConfig().configured && Boolean(getSearchConsoleTokenKey());
-}
-
-function bearerToken(req: express.Request): string | null {
-  const header = req.headers.authorization || '';
-  if (!header.toLowerCase().startsWith('bearer ')) return null;
-  return header.slice(7).trim() || null;
-}
-
-async function getSupabaseUserFromToken(accessToken: string): Promise<{ id: string; email?: string } | null> {
-  const config = getSupabaseConfig();
-  if (!config.configured) return null;
-
-  const response = await fetch(`${config.url}/auth/v1/user`, {
-    headers: {
-      apikey: config.anonKey,
-      authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) return null;
-  const data: any = await response.json();
-  return data?.id ? { id: data.id, email: data.email } : null;
-}
 
 function encryptToken(value: string): string {
   const key = getSearchConsoleTokenKey();
@@ -245,37 +205,6 @@ async function deleteDurableSearchConsoleSession(
   if (!response.ok) throw new Error('Could not delete Search Console connection');
 }
 
-async function requireSupabaseAuth(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) {
-  const config = getSupabaseConfig();
-  if (!config.configured) {
-    next();
-    return;
-  }
-
-  const token = bearerToken(req);
-  if (!token) {
-    res.status(401).json({ error: 'Authentication required' });
-    return;
-  }
-
-  try {
-    const user = await getSupabaseUserFromToken(token);
-    if (!user) {
-      res.status(401).json({ error: 'Invalid or expired session' });
-      return;
-    }
-
-    res.locals.authUser = user;
-    next();
-  } catch {
-    res.status(401).json({ error: 'Could not validate session' });
-  }
-}
-
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
   return cookieHeader.split(';').reduce<Record<string, string>>((acc, part) => {
@@ -286,16 +215,6 @@ function parseCookies(cookieHeader?: string): Record<string, string> {
     acc[key] = value;
     return acc;
   }, {});
-}
-
-function searchConsoleConfigured() {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.APP_URL);
-}
-
-function getSearchConsoleRedirectUri() {
-  const appUrl = process.env.APP_URL;
-  if (!appUrl) throw new Error('APP_URL is not configured');
-  return new URL('/api/search-console/oauth/callback', appUrl).toString();
 }
 
 function setSearchConsoleSessionCookie(res: express.Response, sessionId: string) {
