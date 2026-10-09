@@ -28,9 +28,9 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
   const isReal = opportunities.length > 0 && realCount === opportunities.length;
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-14">
       {/* Header */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+      <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold mb-2">
@@ -122,7 +122,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
 
               <button
                 onClick={() => onSelectOpportunityForAI(opp)}
-                className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-indigo-200 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer hover:scale-105 active:scale-95"
+                className="px-5 py-3 rounded-xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-indigo-200 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer hover:scale-105 active:scale-95"
               >
                 <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
                 <span>GENERAR CON IA</span>
