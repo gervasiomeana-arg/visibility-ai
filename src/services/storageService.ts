@@ -147,7 +147,9 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_BUSINESSES.map(normalize);
+    return activeStorageScope === 'local'
+      ? INITIAL_BUSINESSES.map(normalize)
+      : [];
   },
 
   getActiveBusinessId(): string {
@@ -436,7 +438,9 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_EXECUTIVE_ISSUES[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_EXECUTIVE_ISSUES[businessId] || []
+      : [];
   },
 
   getSeoAudit(businessId: string): SeoAuditItem[] {
@@ -449,7 +453,7 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_SEO_AUDIT;
+    return activeStorageScope === 'local' ? INITIAL_SEO_AUDIT : [];
   },
 
   saveSeoAudit(businessId: string, items: SeoAuditItem[], meta?: unknown): void {
@@ -491,7 +495,9 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_KEYWORDS[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_KEYWORDS[businessId] || []
+      : [];
   },
 
   saveKeywords(businessId: string, keywords: KeywordItem[]): void {
@@ -595,7 +601,9 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_COMPETITORS[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_COMPETITORS[businessId] || []
+      : [];
   },
 
   buildOpportunitiesFromSeoAudit(business: Business, items: SeoAuditItem[]): Opportunity[] {
@@ -744,7 +752,9 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_OPPORTUNITIES[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_OPPORTUNITIES[businessId] || []
+      : [];
   },
 
   getActionTasks(businessId: string): ActionTask[] {
@@ -767,10 +777,12 @@ export const storageService = {
       // Fallback
     }
 
-    return (INITIAL_ACTION_TASKS[businessId] || []).map((task) => ({
-      ...task,
-      source: 'demo',
-    }));
+    return activeStorageScope === 'local'
+      ? (INITIAL_ACTION_TASKS[businessId] || []).map((task) => ({
+          ...task,
+          source: 'demo',
+        }))
+      : [];
   },
 
   updateTaskStatus(businessId: string, taskId: string, newStatus: TaskStatus): ActionTask[] {
@@ -888,7 +900,9 @@ export const storageService = {
       };
     }
 
-    const demo = INITIAL_EVOLUTION[businessId];
+    const demo = activeStorageScope === 'local'
+      ? INITIAL_EVOLUTION[businessId]
+      : undefined;
     if (demo) return { ...demo, source: 'demo' };
 
     return {
