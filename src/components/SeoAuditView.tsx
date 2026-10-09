@@ -59,10 +59,11 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
   const isRealAudit = items.length > 0 && realCount === items.length;
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-14">
       {/* Header with clear DEMO banner */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="vai-shell">
+        <div className="vai-core vai-panel p-6 sm:p-8 lg:p-9">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold mb-2">
               <Search className="w-3.5 h-3.5 text-indigo-600" />
@@ -93,24 +94,26 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
           <button
             type="button"
             onClick={onReanalyze}
-            className="w-full px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider"
+            className="w-full px-3 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.12em] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
           >
             Volver a analizar
           </button>
           </div>
         </div>
 
+        </div>
+
         {/* Status Counters */}
-        <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+        <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-slate-100/80">
+          <div className="p-3 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Correctos</span>
             <span className="text-lg font-bold text-emerald-600">{okCount} / {items.length}</span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div className="p-3 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Mejorables</span>
             <span className="text-lg font-bold text-amber-600">{warningCount} / {items.length}</span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+          <div className="p-3 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 flex items-center justify-between">
             <span className="text-xs text-slate-600 font-medium">Atención Crítica</span>
             <span className="text-lg font-bold text-rose-600">{errorCount} / {items.length}</span>
           </div>
@@ -124,7 +127,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
                   selectedCategory === cat
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -142,7 +145,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar factor SEO..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 text-xs text-slate-900 focus:outline-none focus:ring-indigo-300 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
             />
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           </div>
@@ -151,11 +154,11 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
 
       {isRealAudit && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <div className="vai-panel rounded-[1.25rem] ring-1 ring-slate-200/60 p-4">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">URL verificada</span>
             <p className="mt-1 text-xs font-semibold text-slate-800 break-all">{auditMeta?.finalUrl || business.url}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <div className="vai-panel rounded-[1.25rem] ring-1 ring-slate-200/60 p-4">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Última auditoría</span>
             <p className="mt-1 text-xs font-semibold text-slate-800">
               {auditMeta?.fetchedAt ? new Date(auditMeta.fetchedAt).toLocaleString('es-AR') : 'Sin fecha registrada'}
@@ -186,12 +189,12 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
           return (
             <div
               key={item.id}
-              className={`bg-white rounded-2xl p-5 border shadow-xs transition-all flex flex-col justify-between ${
+              className={`vai-panel rounded-[1.35rem] p-5 ring-1 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 flex flex-col justify-between ${
                 isError
-                  ? 'border-rose-200 hover:border-rose-300'
+                  ? 'ring-rose-200/80 hover:ring-rose-300'
                   : isWarning
-                  ? 'border-amber-200 hover:border-amber-300'
-                  : 'border-slate-200 hover:border-slate-300'
+                  ? 'ring-amber-200/80 hover:ring-amber-300'
+                  : 'ring-slate-200/70 hover:ring-slate-300'
               }`}
             >
               <div>
@@ -231,7 +234,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+              <div className="mt-4 pt-3 border-t border-slate-100/80 space-y-2">
                 <div className="text-[11px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
                   <strong className="text-slate-900 block mb-0.5">Cómo resolverlo:</strong>
                   <span>{item.solution}</span>
