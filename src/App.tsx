@@ -22,6 +22,7 @@ import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
 import { LoginView } from './components/LoginView';
 import { WorkspaceSetupView } from './components/WorkspaceSetupView';
+import { LegacyMigrationView } from './components/LegacyMigrationView';
 import { authService } from './services/authService';
 import { workspaceService } from './services/workspaceService';
 import { DemoNotice } from './components/DemoNotice';
@@ -67,6 +68,7 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState(!authService.isConfigured());
   const [workspaceReady, setWorkspaceReady] = useState(!authService.isConfigured());
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [legacyMigrationSkipped, setLegacyMigrationSkipped] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
   const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
@@ -534,6 +536,20 @@ export default function App() {
     setAssistantOpen(true);
   };
 
+  const legacyBundles =
+    authService.isConfigured() && activeWorkspace?.id
+      ? storageService.getLegacyMigrationBundles()
+      : [];
+
+  const shouldOfferLegacyMigration =
+    authService.isConfigured() &&
+    Boolean(activeWorkspace?.id) &&
+    workspaceReady &&
+    businesses.length === 0 &&
+    legacyBundles.length > 0 &&
+    !storageService.isLegacyMigrationComplete(activeWorkspace!.id) &&
+    !legacyMigrationSkipped;
+
   if (!authReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">
@@ -560,6 +576,26 @@ export default function App() {
         onCreated={async () => {
           const workspaces = await workspaceService.listWorkspaces();
           setActiveWorkspace(workspaces[0] || null);
+        }}
+      />
+    );
+  }
+
+  if (shouldOfferLegacyMigration && activeWorkspace) {
+    return (
+      <LegacyMigrationView
+        bundles={legacyBundles}
+        onSkip={() => setLegacyMigrationSkipped(true)}
+        onImport={async () => {
+          await workspaceService.importLegacyBundles(activeWorkspace.id, legacyBundles);
+          storageService.markLegacyMigrationComplete(activeWorkspace.id);
+
+          const remoteBusinesses = await workspaceService.listBusinesses(activeWorkspace.id);
+          const scopedBusinesses = storageService.syncBusinessesFromRemote(remoteBusinesses);
+          setBusinesses(scopedBusinesses);
+          const nextId = scopedBusinesses[0]?.id || '';
+          setActiveBusinessId(nextId);
+          if (nextId) storageService.setActiveBusinessId(nextId);
         }}
       />
     );
