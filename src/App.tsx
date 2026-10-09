@@ -276,6 +276,11 @@ export default function App() {
             position: Number(state.searchConsole.position || 0),
             loadedAt: state.searchConsole.created_at,
           });
+          storageService.updateBusinessScores(
+            activeBusiness.id,
+            {},
+            { google: 'partial' }
+          );
         }
 
         if (Array.isArray(state.keywords) && state.keywords.length > 0) {
