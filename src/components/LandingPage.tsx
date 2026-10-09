@@ -18,9 +18,14 @@ import {
 interface LandingPageProps {
   onAnalyze: (url: string, businessName?: string, category?: string, city?: string) => void;
   onSelectPreset: (businessId: string) => void;
+  showPresets?: boolean;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPreset }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({
+  onAnalyze,
+  onSelectPreset,
+  showPresets = true,
+}) => {
   const [urlInput, setUrlInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -165,6 +170,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
           </div>
 
           {/* Quick 1-click Preset Demos */}
+          {showPresets && (
           <div className="mt-12 pt-8 border-t border-slate-200 max-w-3xl mx-auto">
             <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mb-3">
               O probá un diagnóstico ya listo con 1 clic:
@@ -192,6 +198,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
               ))}
             </div>
           </div>
+          )}
         </div>
       </section>
 
