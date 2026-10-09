@@ -790,7 +790,11 @@ export const storageService = {
     const updated = currentTasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
-      const allTasks = stored ? JSON.parse(stored) : { ...INITIAL_ACTION_TASKS };
+      const allTasks = stored
+        ? JSON.parse(stored)
+        : activeStorageScope === 'local'
+        ? { ...INITIAL_ACTION_TASKS }
+        : {};
       allTasks[businessId] = updated;
       localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(allTasks));
     } catch {
