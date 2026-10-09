@@ -21,7 +21,7 @@ import {
   productionHealthService,
 } from '../services/productionHealthService';
 
-const EXPECTED_SCHEMA_VERSION = 7;
+const EXPECTED_SCHEMA_VERSION = 8;
 
 interface AdminViewProps {
   businesses: Business[];
@@ -78,6 +78,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
     }>;
   } | null>(null);
   const [rlsTestError, setRlsTestError] = useState('');
+  const [workspaceEntitlements, setWorkspaceEntitlements] = useState<{
+    planId: Workspace['planId'];
+    maxBusinesses: number;
+    usedBusinesses: number;
+    remainingBusinesses: number;
+    canAddBusiness: boolean;
+  } | null>(null);
   const [usageSummary, setUsageSummary] = useState<{
     periodDays: number;
     seoAudits: number;
@@ -91,6 +98,28 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   useEffect(() => {
     setWorkspaceName(workspace?.name || '');
   }, [workspace?.id, workspace?.name]);
+
+  useEffect(() => {
+    if (!workspace?.id || !authService.isConfigured()) {
+      setWorkspaceEntitlements(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    workspaceService
+      .getWorkspaceEntitlements(workspace.id)
+      .then((entitlements) => {
+        if (!cancelled) setWorkspaceEntitlements(entitlements);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkspaceEntitlements(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace?.id, businesses.length]);
 
   useEffect(() => {
     if (!workspace?.id || !authService.isConfigured()) {
@@ -323,8 +352,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   const plans = BASE_PLANS.map((plan) => ({
     ...plan,
     price: getPlanPrice(plan, workspace?.countryCode || 'AR'),
-    businessesCount: 0,
-    status: 'Activo',
+    businessesCount:
+      workspaceEntitlements?.planId === plan.id
+        ? workspaceEntitlements.usedBusinesses
+        : 0,
+    status:
+      workspaceEntitlements?.planId === plan.id
+        ? 'Plan actual'
+        : 'Disponible',
     popular: plan.id === 'growth',
   }));
 
@@ -355,8 +390,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
         {/* Global KPIs */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800">
           <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Negocios Registrados</span>
-            <span className="text-2xl font-bold font-tabular text-white font-heading mt-0.5 block">{businesses.length}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Negocios del plan</span>
+            <span className="text-2xl font-bold font-tabular text-white font-heading mt-0.5 block">
+              {workspaceEntitlements
+                ? `${workspaceEntitlements.usedBusinesses}/${workspaceEntitlements.maxBusinesses}`
+                : businesses.length}
+            </span>
           </div>
           <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Auditorías · 30 días</span>
@@ -440,7 +479,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             <h2 className="text-base font-bold text-slate-900 font-heading">
               Negocios y Clientes Registrados
             </h2>
-            <span className="text-xs text-slate-500">Aislamiento por workspace</span>
+            <span className="text-xs text-slate-500">
+              {workspaceEntitlements
+                ? `Plan ${workspaceEntitlements.planId} · ${workspaceEntitlements.remainingBusinesses} cupo${workspaceEntitlements.remainingBusinesses === 1 ? '' : 's'} disponible${workspaceEntitlements.remainingBusinesses === 1 ? '' : 's'}`
+                : 'Aislamiento por workspace'}
+            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -520,7 +563,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 </div>
 
                 <p className="text-xs text-indigo-700 font-semibold mb-4">
-                  {p.businessesCount} suscripciones reales
+                  {workspaceEntitlements?.planId === p.id
+                    ? `${workspaceEntitlements.usedBusinesses}/${workspaceEntitlements.maxBusinesses} negocios usados`
+                    : `Hasta ${p.maxBusinesses} negocio${p.maxBusinesses === 1 ? '' : 's'}`}
                 </p>
 
                 <ul className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-100">
