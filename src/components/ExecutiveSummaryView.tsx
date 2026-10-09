@@ -4,10 +4,8 @@ import {
   AlertCircle,
   AlertTriangle,
   CheckCircle2,
-  Filter,
   ArrowRight,
   Sparkles,
-  HelpCircle,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
@@ -44,8 +42,6 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
       : realCount > 0
       ? 'partial'
       : 'demo';
-  const isRealSummary = summarySource === 'real';
-
   const toggleExpand = (id: string) => {
     setExpandedIssueId(expandedIssueId === id ? null : id);
   };
