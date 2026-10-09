@@ -565,9 +565,14 @@ function pageSpeedItems(metrics: any) {
   return items;
 }
 
-export async function buildRealSeoAudit(requestedUrl: string) {
+export async function buildRealSeoAudit(
+  requestedUrl: string,
+  dependencies: { fetchPage?: typeof safeFetch; fetchPageSpeed?: typeof fetchPageSpeedMetrics } = {},
+) {
+  const fetchPage = dependencies.fetchPage || safeFetch;
+  const fetchPageSpeed = dependencies.fetchPageSpeed || fetchPageSpeedMetrics;
   const startedAt = Date.now();
-  const { response, finalUrl } = await safeFetch(requestedUrl);
+  const { response, finalUrl } = await fetchPage(requestedUrl);
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
 
   if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) {
@@ -1141,7 +1146,7 @@ export async function buildRealSeoAudit(requestedUrl: string) {
   let robotsStatus = 0;
   let robotsText = '';
   try {
-    const robotsResult = await safeFetch(`${baseUrl}/robots.txt`, 2);
+    const robotsResult = await fetchPage(`${baseUrl}/robots.txt`, 2);
     robotsStatus = robotsResult.response.status;
     robotsText = await readTextLimited(robotsResult.response);
   } catch {
@@ -1199,7 +1204,7 @@ export async function buildRealSeoAudit(requestedUrl: string) {
   let sitemapStatus = 0;
   let sitemapLooksValid = false;
   try {
-    const sitemapResult = await safeFetch(sitemapUrl, 2);
+    const sitemapResult = await fetchPage(sitemapUrl, 2);
     sitemapStatus = sitemapResult.response.status;
     const sitemapText = await readTextLimited(sitemapResult.response);
     sitemapLooksValid = /<(urlset|sitemapindex)\b/i.test(sitemapText);
@@ -1247,7 +1252,7 @@ export async function buildRealSeoAudit(requestedUrl: string) {
   let pageSpeed: any = null;
   let pageSpeedError: string | null = null;
   try {
-    pageSpeed = await fetchPageSpeedMetrics(finalUrl);
+    pageSpeed = await fetchPageSpeed(finalUrl);
     items.push(...pageSpeedItems(pageSpeed));
   } catch (error: any) {
     pageSpeedError = error?.name === 'AbortError'

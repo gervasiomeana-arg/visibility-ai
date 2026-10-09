@@ -116,7 +116,10 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
               })),
             }
           : undefined,
-      });
+      }, messages.filter((message) => message.id !== 'msg-welcome').map((message) => ({
+        role: message.role,
+        content: message.content,
+      })));
 
       const assistantMsg: ChatMessage = {
         id: `ai-${Date.now()}`,

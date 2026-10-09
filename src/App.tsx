@@ -885,6 +885,7 @@ export default function App() {
 
       {/* Visibility AI Assistant Chat Drawer */}
       <AiAssistantModal
+        key={`${activeBusiness.workspaceId || ''}:${activeBusiness.id}`}
         business={activeBusiness}
         isOpen={assistantOpen}
         onClose={() => setAssistantOpen(false)}

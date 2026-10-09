@@ -1,6 +1,7 @@
 import { ContentGenerationRequest } from '../types';
 import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
+import { AssistantTurn, h1Fallback, normalizeAssistantHistory } from '../../shared/assistantContext';
 
 export const aiService = {
   async askAssistant(
@@ -15,7 +16,8 @@ export const aiService = {
       workspaceId?: string;
       businessId?: string;
       lastAudit?: any;
-    }
+    },
+    history: AssistantTurn[] = []
   ): Promise<string> {
     try {
       const data = await apiFetchJson<{ reply?: string | null }>(
@@ -28,6 +30,7 @@ export const aiService = {
           body: JSON.stringify({
             prompt,
             businessContext,
+            history: normalizeAssistantHistory(history),
             workspaceId: businessContext?.workspaceId,
             businessId: businessContext?.businessId,
           }),
@@ -53,19 +56,8 @@ export const aiService = {
       ? `Para **${biz}** (${desc})`
       : `Para **${biz}**`;
 
-    if (p.includes('h1') || p.includes('encabezado')) {
-      return `${profileIntro}, revisamos la evaluación del encabezado principal:
-
-1. **Dato medido:** No se detectó un H1 en el HTML analizado (0 H1 en la respuesta inicial del servidor).
-2. **Interpretación:** El auditor inspecciona el HTML inicial sin ejecutar scripts de navegador. Si la página utiliza JavaScript en el cliente (como en aplicaciones React/SPA), el contenido podría generarse dinámicamente. No se debe afirmar que Google tampoco lo encuentra, pero contar con un H1 en el HTML inicial asegura un rastreo inmediato y claro.
-3. **Propuesta:** ${
-        isOpenVoley
-          ? 'Agregar un encabezado <h1> visible en el HTML inicial o plantilla del servidor. Borrador propuesto: **"Open Voley: scouting y estadísticas para entrenadores"**.'
-          : 'Agregar un único encabezado <h1> visible en el HTML inicial que resuma la actividad principal.'
-      }
-4. **Cómo comprobarlo:** Abrir "Ver código fuente" (Ctrl+U) o usar cURL sin ejecutar JavaScript y verificar que la etiqueta figure en el marcado recibido.
-5. **Plataforma:** Adaptar la solución a la plataforma confirmada del proyecto (no asumir WordPress o Wix).`;
-    }
+    const h1Reply = h1Fallback(prompt, history, businessContext?.lastAudit?.items || []);
+    if (h1Reply) return h1Reply;
 
     if (p.includes('mejorar primero') || p.includes('prioridad') || p.includes('urgente')) {
       const items = businessContext?.lastAudit?.items || [];
