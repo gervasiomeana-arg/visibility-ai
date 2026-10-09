@@ -64,9 +64,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
+    <header className="sticky top-0 z-40 bg-[rgba(246,248,251,0.82)] backdrop-blur-xl">
       {/* Top Banner for Demo Transparency */}
-      <div className="bg-slate-900 text-slate-300 text-xs py-1.5 px-4">
+      <div className="bg-slate-950 text-slate-300 text-[11px] py-1.5 px-4">
         <div className="max-w-7xl mx-auto flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 font-medium text-amber-300">
@@ -105,15 +105,15 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Main Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-7 py-2">
+        <div className="vai-panel flex items-center justify-between min-h-16 gap-4 rounded-[1.35rem] px-3 sm:px-4 ring-1 ring-slate-200/60">
           {/* Logo & Brand */}
           <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0">
             <button
               onClick={() => setActiveTab('landing')}
               className="flex items-center gap-3 text-left group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center text-white shadow-sm shadow-indigo-200 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 rounded-[0.95rem] bg-slate-950 flex items-center justify-center text-white shadow-[0_10px_22px_rgba(15,23,42,0.18)] group-hover:-translate-y-0.5 transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
                 <Search className="w-5 h-5" />
               </div>
               <div>
@@ -130,7 +130,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="relative">
               <button
                 onClick={() => setBizDropdownOpen(!bizDropdownOpen)}
-                className="flex items-center gap-2 px-2 sm:px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium transition-all min-w-0"
+                className="flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-xl bg-slate-100/70 hover:bg-slate-100 text-slate-700 text-xs font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] min-w-0 ring-1 ring-slate-200/70 active:scale-[0.985]"
               >
                 <Building2 className="w-4 h-4 text-indigo-600 shrink-0" />
                 <div className="text-left max-w-[130px] sm:max-w-[170px] truncate">
@@ -146,7 +146,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                     className="fixed inset-0 z-20"
                     onClick={() => setBizDropdownOpen(false)}
                   />
-                  <div className="absolute left-0 mt-2 w-[min(18rem,calc(100vw-2rem))] bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-30 divide-y divide-slate-100">
+                  <div className="absolute left-0 mt-3 w-[min(19rem,calc(100vw-2rem))] bg-white rounded-[1.4rem] shadow-[0_24px_60px_rgba(15,23,42,0.14)] ring-1 ring-slate-200/70 py-2 z-30 divide-y divide-slate-100 overflow-hidden">
                     <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                       Seleccionar negocio activo
                     </div>
@@ -196,7 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onSignOut && (
               <button
                 onClick={onSignOut}
-                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 text-xs font-semibold"
+                className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-500 hover:text-slate-950 hover:bg-slate-100/80 text-xs font-semibold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98]"
               >
                 <LogOut className="w-4 h-4" />
                 Salir
@@ -205,7 +205,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
             <button
               onClick={onOpenAssistant}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-sm hover:shadow transition-all cursor-pointer"
+              className="group flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-semibold shadow-[0_10px_22px_rgba(15,23,42,0.16)] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer active:scale-[0.985]"
             >
               <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
               <span className="hidden sm:inline">Asistente IA</span>
@@ -224,7 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Desktop Secondary Navigation Bar */}
-        <nav className="hidden lg:flex items-center gap-1 overflow-x-auto py-2 border-t border-slate-100 text-xs font-medium text-slate-600 no-scrollbar">
+        <nav className="hidden lg:flex items-center gap-1 overflow-x-auto pt-2 text-[11px] font-semibold text-slate-500 no-scrollbar">
           {navItems.map((item) => {
             const target = (item.tabId || item.id) as ActiveTab;
             const isActive = activeTab === target;
@@ -233,10 +233,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 key={item.id}
                 onClick={() => setActiveTab(target)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md whitespace-nowrap transition-colors cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl whitespace-nowrap transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
                   isActive
-                    ? 'bg-slate-900 text-white font-semibold shadow-xs'
-                    : 'hover:text-slate-900 hover:bg-slate-100 text-slate-600'
+                    ? 'bg-slate-950 text-white font-semibold shadow-[0_6px_16px_rgba(15,23,42,0.12)]'
+                    : 'hover:text-slate-950 hover:bg-white text-slate-500'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-indigo-300' : 'text-slate-400'}`} />
