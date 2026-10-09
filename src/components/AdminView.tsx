@@ -66,6 +66,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
     checks: Record<string, boolean>;
   } | null>(null);
   const [schemaReadinessError, setSchemaReadinessError] = useState('');
+  const [rlsTestLoading, setRlsTestLoading] = useState(false);
+  const [rlsTestResult, setRlsTestResult] = useState<{
+    ok: boolean;
+    accessibleWorkspaceIds: string[];
+    tables: Array<{
+      table: string;
+      rowsVisible: number;
+      leakedRows: number;
+      leakedWorkspaceIds: string[];
+    }>;
+  } | null>(null);
+  const [rlsTestError, setRlsTestError] = useState('');
 
   useEffect(() => {
     setWorkspaceName(workspace?.name || '');
@@ -252,6 +264,28 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       );
     } finally {
       setSchemaReadinessLoading(false);
+    }
+  };
+
+  const handleRlsIsolationTest = async () => {
+    setRlsTestLoading(true);
+    setRlsTestResult(null);
+    setRlsTestError('');
+
+    try {
+      if (!authService.isConfigured()) {
+        throw new Error('Supabase no está configurado en este entorno.');
+      }
+
+      const result = await workspaceService.runRlsIsolationTest();
+      setRlsTestResult(result);
+    } catch (error: any) {
+      setRlsTestError(
+        error?.message ||
+          'No se pudo completar la prueba de aislamiento RLS.'
+      );
+    } finally {
+      setRlsTestLoading(false);
     }
   };
 
@@ -935,6 +969,102 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                       </>
                     );
                   })()}
+                </div>
+              )}
+            </div>
+          )}
+
+          {productionHealth?.integrations.supabase && (
+            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Seguridad multi-tenant
+                  </span>
+                  <h3 className="mt-1 text-base font-bold text-slate-900 font-heading">
+                    Probar aislamiento RLS
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 max-w-2xl">
+                    Lee datos visibles para la sesión y verifica que ningún registro pertenezca a un workspace fuera de tus membresías. No modifica datos.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRlsIsolationTest}
+                  disabled={rlsTestLoading}
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-all"
+                >
+                  {rlsTestLoading ? 'Probando...' : 'Probar aislamiento RLS'}
+                </button>
+              </div>
+
+              {rlsTestError && (
+                <div className="mt-4 rounded-xl bg-rose-50 ring-1 ring-rose-200 p-4 text-xs text-rose-800">
+                  <p className="font-bold">No se pudo completar la prueba</p>
+                  <p className="mt-1">{rlsTestError}</p>
+                </div>
+              )}
+
+              {rlsTestResult && (
+                <div className="mt-5">
+                  <div className={`rounded-xl p-4 ring-1 ${
+                    rlsTestResult.ok
+                      ? 'bg-emerald-50 ring-emerald-200'
+                      : 'bg-rose-50 ring-rose-200'
+                  }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900">
+                          {rlsTestResult.ok
+                            ? 'Aislamiento RLS correcto'
+                            : 'Posible fuga entre workspaces'}
+                        </p>
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          Workspaces accesibles para esta sesión: {rlsTestResult.accessibleWorkspaceIds.length}
+                        </p>
+                      </div>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                        rlsTestResult.ok ? 'text-emerald-700' : 'text-rose-700'
+                      }`}>
+                        {rlsTestResult.ok ? 'SIN FUGAS' : 'REVISAR RLS'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                    {rlsTestResult.tables.map((table) => (
+                      <div
+                        key={table.table}
+                        className={`rounded-xl px-3 py-3 ring-1 ${
+                          table.leakedRows === 0
+                            ? 'bg-slate-50 ring-slate-200'
+                            : 'bg-rose-50 ring-rose-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[10px] font-bold text-slate-800">
+                            {table.table}
+                          </span>
+                          <span className={`text-[9px] font-bold uppercase ${
+                            table.leakedRows === 0
+                              ? 'text-emerald-700'
+                              : 'text-rose-700'
+                          }`}>
+                            {table.leakedRows === 0 ? 'OK' : `${table.leakedRows} FUGAS`}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[10px] text-slate-500">
+                          Filas visibles: {table.rowsVisible}
+                        </p>
+                        {table.leakedWorkspaceIds.length > 0 && (
+                          <p className="mt-1 text-[9px] text-rose-700 break-all">
+                            Workspace inesperado: {table.leakedWorkspaceIds.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
