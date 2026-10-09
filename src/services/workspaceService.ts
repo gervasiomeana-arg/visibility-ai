@@ -25,6 +25,25 @@ function mapWorkspace(row: any, role?: Workspace['role']): Workspace {
 }
 
 export const workspaceService = {
+  async getSchemaReadiness(): Promise<{
+    schemaVersion: number;
+    schemaLabel: string;
+    checks: Record<string, boolean>;
+  } | null> {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase.rpc('get_visibility_schema_readiness');
+    if (error) throw error;
+    if (!data) return null;
+
+    return data as {
+      schemaVersion: number;
+      schemaLabel: string;
+      checks: Record<string, boolean>;
+    };
+  },
+
+
   async listWorkspaces(): Promise<Workspace[]> {
     if (!supabase) return [];
 
