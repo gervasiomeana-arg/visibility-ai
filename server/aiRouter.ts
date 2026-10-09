@@ -6,6 +6,7 @@ import {
   envRateLimit,
   rateLimitWindowMs,
 } from './rateLimit';
+import { recordUsageEventSafe } from './usageTelemetry';
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_FIELD_LENGTH = 2000;
@@ -31,7 +32,7 @@ router.post(
   aiRateLimit,
   async (req, res) => {
   try {
-    const { prompt, businessContext } = req.body;
+    const { prompt, businessContext, workspaceId, businessId } = req.body;
 
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -65,6 +66,23 @@ Reglas clave:
       },
     });
 
+    const totalTokens = Number(
+      (response as any)?.usageMetadata?.totalTokenCount || 0
+    );
+
+    recordUsageEventSafe(req, {
+      workspaceId:
+        typeof workspaceId === 'string' ? workspaceId : undefined,
+      businessId:
+        typeof businessId === 'string' ? businessId : undefined,
+      userId: res.locals.authUser?.id,
+      eventType: 'ai_assistant',
+      units: totalTokens,
+      metadata: {
+        model: 'gemini-3.8-flash',
+      },
+    });
+
     return res.json({ reply: response.text });
   } catch (error: any) {
     console.error('Error in /api/assistant/chat:', error);
@@ -88,6 +106,8 @@ router.post(
       businessType,
       goal,
       tone,
+      workspaceId,
+      businessId,
     } = req.body;
 
     if (!topic && !keyword) {
@@ -152,6 +172,25 @@ Instrucciones:
       contents: promptText,
       config: {
         temperature: 0.7,
+      },
+    });
+
+    const totalTokens = Number(
+      (response as any)?.usageMetadata?.totalTokenCount || 0
+    );
+
+    recordUsageEventSafe(req, {
+      workspaceId:
+        typeof workspaceId === 'string' ? workspaceId : undefined,
+      businessId:
+        typeof businessId === 'string' ? businessId : undefined,
+      userId: res.locals.authUser?.id,
+      eventType: 'ai_content',
+      units: totalTokens,
+      metadata: {
+        model: 'gemini-3.8-flash',
+        contentType:
+          typeof contentType === 'string' ? contentType : undefined,
       },
     });
 

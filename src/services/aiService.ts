@@ -3,7 +3,18 @@ import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
 
 export const aiService = {
-  async askAssistant(prompt: string, businessContext?: { name: string; url: string; category: string; city: string; scores?: any }): Promise<string> {
+  async askAssistant(
+    prompt: string,
+    businessContext?: {
+      name: string;
+      url: string;
+      category: string;
+      city: string;
+      scores?: any;
+      workspaceId?: string;
+      businessId?: string;
+    }
+  ): Promise<string> {
     try {
       const data = await apiFetchJson<{ reply?: string | null }>(
         '/api/assistant/chat',
@@ -12,7 +23,12 @@ export const aiService = {
           headers: await authService.getAuthorizationHeaders({
             'Content-Type': 'application/json',
           }),
-          body: JSON.stringify({ prompt, businessContext }),
+          body: JSON.stringify({
+            prompt,
+            businessContext,
+            workspaceId: businessContext?.workspaceId,
+            businessId: businessContext?.businessId,
+          }),
         }
       );
       if (data.reply) return data.reply;
@@ -81,7 +97,10 @@ Sin datos de demanda verificados, puedo sugerir acciones generales para revisar:
 ¿Hay algún punto o problema en particular del informe que quieras que revisemos juntos?`;
   },
 
-  async generateContent(req: ContentGenerationRequest): Promise<string> {
+  async generateContent(
+    req: ContentGenerationRequest,
+    context?: { workspaceId?: string; businessId?: string }
+  ): Promise<string> {
     try {
       const data = await apiFetchJson<{ content?: string | null }>(
         '/api/content/generate',
@@ -90,7 +109,11 @@ Sin datos de demanda verificados, puedo sugerir acciones generales para revisar:
           headers: await authService.getAuthorizationHeaders({
             'Content-Type': 'application/json',
           }),
-          body: JSON.stringify(req),
+          body: JSON.stringify({
+            ...req,
+            workspaceId: context?.workspaceId,
+            businessId: context?.businessId,
+          }),
         }
       );
       if (data.content) return data.content;

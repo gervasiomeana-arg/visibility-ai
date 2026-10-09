@@ -86,7 +86,14 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setGscError('');
 
     try {
-      const result = await searchConsoleService.query(selectedSite, 28);
+      const result = await searchConsoleService.query(
+        selectedSite,
+        28,
+        {
+          workspaceId: business.workspaceId,
+          businessId: business.id,
+        }
+      );
       const realKeywords: KeywordItem[] = result.rows.map((row, index) => ({
         id: `gsc-${business.id}-${index}`,
         businessId: business.id,

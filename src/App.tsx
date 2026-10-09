@@ -701,6 +701,7 @@ export default function App() {
         {activeTab === 'analyzing' && (
           <AnalyzingView
             url={analyzingUrl || activeBusiness.url}
+            workspaceId={activeWorkspace?.id}
             onComplete={handleAnalysisComplete}
             onCancel={() => setActiveTab('landing')}
           />

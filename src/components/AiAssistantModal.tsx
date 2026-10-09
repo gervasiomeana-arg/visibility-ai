@@ -85,6 +85,8 @@ Estoy preparado para ayudarte a entender tu diagnóstico digital, qué buscan tu
         category: business.category,
         city: business.city,
         scores: business.scores,
+        workspaceId: business.workspaceId,
+        businessId: business.id,
       });
 
       const assistantMsg: ChatMessage = {
