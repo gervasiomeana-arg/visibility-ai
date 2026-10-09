@@ -1,3 +1,4 @@
+import { performanceSolution, legacyPerformanceMetric } from '../../shared/performanceSolution';
 import {
   Business,
   ExecutiveIssue,
@@ -311,6 +312,23 @@ export function deduplicateAndReconcileTasks(
   // Ensure H1 requirements are fulfilled across all tasks (even loaded from storage / Supabase)
   const reconciled = mergedTasks.map((task) => {
     const fType = extractFindingType(task);
+    const metricValue = task.metricValue || legacyPerformanceMetric(task.quickActionPrompt);
+    const performance = task.source !== 'demo' ? performanceSolution(fType, metricValue) : undefined;
+    if (performance) {
+      return {
+        ...task,
+        ...performance,
+        metricValue,
+        url: task.url || resolvedBiz?.url,
+        stepByStepSolution: [
+          `Por qué importa: ${performance.whyItMatters}`,
+          `Qué se detectó: ${performance.detectedData}`,
+          `Cambio propuesto: ${performance.proposedChange}`,
+          `Cómo comprobarlo: ${performance.howToVerify}`,
+          ...(task.platformNote ? [`Plataforma: ${task.platformNote}`] : []),
+        ],
+      };
+    }
     if (fType === 'h1') {
       const hasManualDomEvidence =
         isVoley ||
@@ -755,6 +773,7 @@ export const storageService = {
           url: business?.url,
           source: 'seo-audit' as const,
           findingType: item.key,
+          metricValue: item.metricValue,
           title: item.title,
           priority,
           status,

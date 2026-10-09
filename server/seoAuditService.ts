@@ -1,3 +1,4 @@
+import { performanceSolution } from '../shared/performanceSolution';
 import dns from 'dns/promises';
 import https from 'https';
 import net from 'net';
@@ -562,7 +563,7 @@ function pageSpeedItems(metrics: any) {
     );
   }
 
-  return items;
+  return items.map((item) => ({ ...item, ...performanceSolution(item.key, item.metricValue) }));
 }
 
 export async function buildRealSeoAudit(

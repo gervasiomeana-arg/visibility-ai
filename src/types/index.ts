@@ -177,6 +177,7 @@ export interface Opportunity {
 }
 
 export interface ActionTask {
+  metricValue?: string;
   id: string;
   businessId: string;
   url?: string;
