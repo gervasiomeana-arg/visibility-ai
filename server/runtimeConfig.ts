@@ -1,15 +1,19 @@
 export function getSupabaseConfig() {
   const url = process.env.VITE_SUPABASE_URL || '';
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+  const publishableKey =
+    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    '';
 
   return {
     url,
-    anonKey,
+    publishableKey,
     configured: Boolean(
       url &&
-      anonKey &&
+      publishableKey &&
       url !== 'MY_SUPABASE_URL' &&
-      anonKey !== 'MY_SUPABASE_ANON_KEY'
+      publishableKey !== 'MY_SUPABASE_PUBLISHABLE_KEY' &&
+      publishableKey !== 'MY_SUPABASE_ANON_KEY'
     ),
   };
 }

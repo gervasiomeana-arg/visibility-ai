@@ -120,7 +120,7 @@ async function supabaseConnectionRequest(
   if (!config.configured) throw new Error('Supabase is not configured');
 
   const headers = new Headers(init.headers || {});
-  headers.set('apikey', config.anonKey);
+  headers.set('apikey', config.publishableKey);
   headers.set('authorization', `Bearer ${accessToken}`);
   if (init.body && !headers.has('content-type')) {
     headers.set('content-type', 'application/json');

@@ -52,10 +52,12 @@ Copiar `.env.example` y completar solo las integraciones que se vayan a activar.
 
 ### Supabase
 
-Variables:
+Variables recomendadas:
 
 - `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+Visibility AI también acepta `VITE_SUPABASE_ANON_KEY` como compatibilidad con proyectos anteriores. Para configuraciones nuevas, usar la publishable key de Supabase.
 
 En **Authentication → URL Configuration** del proyecto Supabase, configurar:
 
