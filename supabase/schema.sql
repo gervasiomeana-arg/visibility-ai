@@ -84,6 +84,18 @@ create table if not exists public.search_console_snapshots (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.opportunities (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  business_id uuid not null references public.businesses(id) on delete cascade,
+  source_key text not null,
+  source text not null default 'seo-audit',
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (business_id, source_key)
+);
+
 create table if not exists public.action_tasks (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -140,6 +152,7 @@ alter table public.businesses enable row level security;
 alter table public.seo_audits enable row level security;
 alter table public.search_console_snapshots enable row level security;
 alter table public.action_tasks enable row level security;
+alter table public.opportunities enable row level security;
 
 drop policy if exists "profiles own row" on public.profiles;
 create policy "profiles own row"
@@ -253,3 +266,11 @@ begin
   return new_workspace_id;
 end;
 $$;
+
+
+drop policy if exists "members access opportunities" on public.opportunities;
+create policy "members access opportunities"
+on public.opportunities
+for all
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
