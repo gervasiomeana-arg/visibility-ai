@@ -36,6 +36,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   const [workspaceName, setWorkspaceName] = useState(workspace?.name || '');
   const [workspaceMessage, setWorkspaceMessage] = useState('');
   const [workspaceError, setWorkspaceError] = useState('');
+  const [memberMessage, setMemberMessage] = useState('');
+  const [memberError, setMemberError] = useState('');
 
   useEffect(() => {
     setWorkspaceName(workspace?.name || '');
@@ -91,6 +93,40 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       onWorkspaceUpdated?.(updated);
     } catch (error: any) {
       setWorkspaceError(error?.message || 'No se pudo actualizar el workspace.');
+    }
+  };
+
+  const handleMemberRoleChange = async (
+    userId: string,
+    role: 'admin' | 'member' | 'viewer'
+  ) => {
+    if (!workspace?.id || workspace.role !== 'owner') return;
+
+    setMemberMessage('');
+    setMemberError('');
+
+    try {
+      await workspaceService.updateMemberRole(workspace.id, userId, role);
+      setMemberMessage('Rol actualizado.');
+      await refreshMembers();
+    } catch (error: any) {
+      setMemberError(error?.message || 'No se pudo actualizar el rol.');
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!workspace?.id || workspace.role !== 'owner') return;
+    if (!window.confirm('¿Quitar este colaborador del workspace?')) return;
+
+    setMemberMessage('');
+    setMemberError('');
+
+    try {
+      await workspaceService.removeMember(workspace.id, userId);
+      setMemberMessage('Colaborador eliminado del workspace.');
+      await refreshMembers();
+    } catch (error: any) {
+      setMemberError(error?.message || 'No se pudo quitar el colaborador.');
     }
   };
 
@@ -400,17 +436,61 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
             <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Miembros activos</div>
             <div className="divide-y divide-slate-100">
-              {members.map((member) => (
-                <div key={member.userId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div>
-                    <p className="font-semibold text-slate-900 break-all">{member.userId}</p>
-                    <p className="text-slate-500">Usuario Supabase</p>
+              {members.map((member) => {
+                const isOwner = member.userId === workspace?.ownerUserId || member.role === 'owner';
+
+                return (
+                  <div key={member.userId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900 break-all">{member.userId}</p>
+                      <p className="text-slate-500">
+                        {isOwner ? 'Owner del workspace' : 'Usuario Supabase'}
+                      </p>
+                    </div>
+
+                    {workspace?.role === 'owner' && !isOwner ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                        <select
+                          value={member.role}
+                          onChange={(e) =>
+                            handleMemberRoleChange(
+                              member.userId,
+                              e.target.value as 'admin' | 'member' | 'viewer'
+                            )
+                          }
+                          className="px-2.5 py-2 rounded-lg bg-slate-50 ring-1 ring-slate-200 text-[11px] font-semibold text-slate-700"
+                          aria-label="Cambiar rol del colaborador"
+                        >
+                          <option value="admin">Admin</option>
+                          <option value="member">Member</option>
+                          <option value="viewer">Viewer</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(member.userId)}
+                          className="px-3 py-2 rounded-lg text-[11px] font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100"
+                        >
+                          Quitar
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="px-2 py-1 rounded bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
+                        {member.role}
+                      </span>
+                    )}
                   </div>
-                  <span className="px-2 py-1 rounded bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
-                    {member.role}
-                  </span>
+                );
+              })}
+              {memberMessage && (
+                <div className="px-4 py-3 text-xs font-semibold text-emerald-700 bg-emerald-50/60">
+                  {memberMessage}
                 </div>
-              ))}
+              )}
+              {memberError && (
+                <div className="px-4 py-3 text-xs font-semibold text-rose-700 bg-rose-50/60">
+                  {memberError}
+                </div>
+              )}
               {members.length === 0 && (
                 <div className="p-5 text-xs text-slate-500">Todavía no hay miembros cargados.</div>
               )}
