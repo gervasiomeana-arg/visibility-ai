@@ -64,7 +64,7 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.BUSINESSES));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(normalize);
+        if (Array.isArray(parsed)) return parsed.map(normalize);
       }
     } catch {
       // Fallback
@@ -76,10 +76,16 @@ export const storageService = {
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTIVE_BUSINESS_ID));
       if (stored) return stored;
+
+      const businessStorage = localStorage.getItem(scopedKey(STORAGE_KEYS.BUSINESSES));
+      if (businessStorage) {
+        const parsed = JSON.parse(businessStorage);
+        if (Array.isArray(parsed) && parsed.length === 0) return '';
+      }
     } catch {
       // Fallback
     }
-    return INITIAL_BUSINESSES[0].id;
+    return activeStorageScope === 'local' ? INITIAL_BUSINESSES[0].id : '';
   },
 
   setActiveBusinessId(id: string): void {
