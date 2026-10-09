@@ -38,37 +38,52 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
   const mediumCount = issues.filter((i) => i.severity === 'medium').length;
   const okCount = issues.filter((i) => i.severity === 'ok').length;
   const realCount = issues.filter((i) => i.source === 'real').length;
-  const isRealSummary = issues.length > 0 && realCount === issues.length;
+  const summarySource =
+    issues.length > 0 && realCount === issues.length
+      ? 'real'
+      : realCount > 0
+      ? 'partial'
+      : 'demo';
+  const isRealSummary = summarySource === 'real';
 
   const toggleExpand = (id: string) => {
     setExpandedIssueId(expandedIssueId === id ? null : id);
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-14">
       {/* Header Banner */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+      <div className="vai-shell">
+        <div className="vai-core vai-panel p-6 sm:p-8 lg:p-9">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold mb-2">
               <FileCheck2 className="w-3.5 h-3.5 text-indigo-600" />
-              <span>{isRealSummary ? 'RESUMEN CON DATOS REALES' : 'RESUMEN DEMO'}</span>
+              <span>
+                {summarySource === 'real'
+                  ? 'RESUMEN CON DATOS REALES'
+                  : summarySource === 'partial'
+                  ? 'RESUMEN PARCIAL'
+                  : 'RESUMEN DEMO'}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
               Resumen Ejecutivo de Visibilidad
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              {isRealSummary ? (
+              {summarySource === 'real' ? (
                 <>Encontramos <strong>{issues.length} hallazgos técnicos verificados</strong> para <strong>{business.name}</strong>, priorizados por severidad e impacto.</>
+              ) : summarySource === 'partial' ? (
+                <>Este resumen combina <strong>{realCount} hallazgos verificados</strong> con elementos todavía identificados como DEMO.</>
               ) : (
-                <>Mostramos <strong>{business.totalOpportunities} oportunidades de ejemplo</strong> para validar cómo se presentará el diagnóstico de <strong>{business.name}</strong> cuando existan fuentes reales.</>
+                <>Esta es una vista demostrativa del diagnóstico de <strong>{business.name}</strong>. Los ítems DEMO no representan mediciones verificadas.</>
               )}
             </p>
           </div>
 
           <button
             onClick={() => setActiveTab('action-plan')}
-            className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-[0.985]"
           >
             <span>IR AL PLAN DE ACCIÓN</span>
             <ArrowRight className="w-4 h-4" />
@@ -99,7 +114,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           >
             <div className="flex items-center gap-1.5 text-xs font-bold">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
-              <span>🔴 Problemas importantes</span>
+              <span>Problemas importantes</span>
             </div>
             <span className="text-xl font-bold font-heading mt-1 block">{highCount}</span>
           </button>
@@ -114,7 +129,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           >
             <div className="flex items-center gap-1.5 text-xs font-bold">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-              <span>🟡 Mejoras recomendadas</span>
+              <span>Mejoras recomendadas</span>
             </div>
             <span className="text-xl font-bold font-heading mt-1 block">{mediumCount}</span>
           </button>
@@ -129,10 +144,11 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           >
             <div className="flex items-center gap-1.5 text-xs font-bold">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <span>🟢 Elementos correctos</span>
+              <span>Elementos correctos</span>
             </div>
             <span className="text-xl font-bold font-heading mt-1 block">{okCount}</span>
           </button>
+        </div>
         </div>
       </div>
 
@@ -152,12 +168,12 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           return (
             <div
               key={issue.id}
-              className={`bg-white rounded-2xl border transition-all shadow-xs ${
+              className={`vai-panel rounded-[1.4rem] ring-1 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
                 isHigh
-                  ? 'border-rose-200 hover:border-rose-300'
+                  ? 'ring-rose-200/80 hover:ring-rose-300'
                   : isMedium
-                  ? 'border-amber-200 hover:border-amber-300'
-                  : 'border-slate-200 hover:border-slate-300'
+                  ? 'ring-amber-200/80 hover:ring-amber-300'
+                  : 'ring-slate-200/70 hover:ring-slate-300'
               }`}
             >
               <div className="p-5 sm:p-6">
@@ -181,10 +197,10 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
                           }`}
                         >
                           {isHigh
-                            ? '🔴 Problema Importante'
+                            ? 'Problema importante'
                             : isMedium
-                            ? '🟡 Mejora Recomendada'
-                            : '🟢 Elemento Correcto'}{issue.source === 'real' ? ' · REAL' : ' · DEMO'}
+                            ? 'Mejora recomendada'
+                            : 'Elemento correcto'}{issue.source === 'real' ? ' · REAL' : ' · DEMO'}
                         </span>
                         <span className="text-xs text-slate-400">·</span>
                         <span className="text-xs font-semibold text-slate-500">
