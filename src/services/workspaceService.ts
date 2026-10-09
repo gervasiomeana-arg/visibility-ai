@@ -295,6 +295,7 @@ export const workspaceService = {
           workspace_id: workspaceId,
           email: email.trim().toLowerCase(),
           role,
+          token: crypto.randomUUID(),
           invited_by: user.id,
           accepted_at: null,
           expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
