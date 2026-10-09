@@ -99,6 +99,30 @@ Cuando Supabase y la clave de cifrado están configurados, los tokens de Search 
 - `npm run lint`: TypeScript `tsc --noEmit`
 - `npm run build`: build de Vite
 
+
+## Arquitectura del backend
+
+El servidor Express funciona como bootstrap y montaje de routers. La lógica está separada por responsabilidad:
+
+- `server/runtimeConfig.ts`: lectura segura de configuración y flags de integraciones.
+- `server/supabaseAuth.ts`: validación de Bearer token y middleware de autenticación.
+- `server/searchConsoleRouter.ts`: OAuth, tokens cifrados, refresh, sitios y consultas de Search Console.
+- `server/seoAuditService.ts`: validación URL/SSRF, fetch seguro, parsing HTML, PageSpeed y armado de auditoría.
+- `server/seoAuditRouter.ts`: endpoint HTTP de auditoría SEO.
+- `server/aiRouter.ts`: asistente IA y generación de contenido.
+- `server/healthRouter.ts`: diagnóstico de despliegue sin exponer secretos.
+- `server.ts`: Express, middlewares, montaje de routers y Vite/static hosting.
+
+Endpoint de diagnóstico:
+
+`GET /api/health`
+
+Devuelve únicamente estado booleano de integraciones, entorno y uptime. Nunca devuelve claves, secretos, tokens ni credenciales.
+
+### Regla arquitectónica
+
+No agregar nueva lógica de negocio directamente en `server.ts`. Las nuevas integraciones deben vivir en un servicio/router específico y montarse desde el bootstrap principal.
+
 ## Seguridad
 
 - RLS por workspace en Supabase.
