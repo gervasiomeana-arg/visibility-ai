@@ -120,6 +120,50 @@ function decryptToken(value: string): string {
   return decrypted.toString('utf8');
 }
 
+type DurableOAuthState = {
+  createdAt: number;
+  returnTo: string;
+  userId: string;
+  supabaseAccessToken: string;
+  nonce: string;
+};
+
+function createDurableOAuthState(payload: Omit<DurableOAuthState, 'nonce'>): string {
+  return encryptToken(
+    JSON.stringify({
+      ...payload,
+      nonce: crypto.randomBytes(16).toString('hex'),
+    })
+  );
+}
+
+async function readDurableOAuthState(state: string): Promise<DurableOAuthState | null> {
+  try {
+    const parsed = JSON.parse(decryptToken(state)) as DurableOAuthState;
+    if (
+      !parsed ||
+      typeof parsed.createdAt !== 'number' ||
+      typeof parsed.returnTo !== 'string' ||
+      typeof parsed.userId !== 'string' ||
+      typeof parsed.supabaseAccessToken !== 'string' ||
+      Date.now() - parsed.createdAt > 10 * 60 * 1000
+    ) {
+      return null;
+    }
+
+    if (!parsed.returnTo.startsWith('/') || parsed.returnTo.startsWith('//')) {
+      return null;
+    }
+
+    const user = await getSupabaseUserFromToken(parsed.supabaseAccessToken);
+    if (!user || user.id !== parsed.userId) return null;
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 async function supabaseConnectionRequest(
   accessToken: string,
   path: string,
@@ -846,16 +890,28 @@ app.post('/api/search-console/auth/start', async (req, res) => {
       supabaseAccessToken = authToken;
     }
 
-    const state = crypto.randomBytes(24).toString('hex');
     const returnToRaw = typeof req.body?.returnTo === 'string' ? req.body.returnTo : '/';
     const returnTo = returnToRaw.startsWith('/') && !returnToRaw.startsWith('//') ? returnToRaw : '/';
 
-    searchConsoleStates.set(state, {
-      createdAt: Date.now(),
-      returnTo,
-      userId,
-      supabaseAccessToken,
-    });
+    let state: string;
+    if (
+      durableSearchConsoleConfigured() &&
+      userId &&
+      supabaseAccessToken
+    ) {
+      state = createDurableOAuthState({
+        createdAt: Date.now(),
+        returnTo,
+        userId,
+        supabaseAccessToken,
+      });
+    } else {
+      state = crypto.randomBytes(24).toString('hex');
+      searchConsoleStates.set(state, {
+        createdAt: Date.now(),
+        returnTo,
+      });
+    }
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID || '');
@@ -875,13 +931,24 @@ app.post('/api/search-console/auth/start', async (req, res) => {
 app.get('/api/search-console/oauth/callback', async (req, res) => {
   const code = typeof req.query.code === 'string' ? req.query.code : '';
   const state = typeof req.query.state === 'string' ? req.query.state : '';
-  const pending = searchConsoleStates.get(state);
+
+  let pending:
+    | { createdAt: number; returnTo: string; userId?: string; supabaseAccessToken?: string }
+    | undefined;
+
+  if (durableSearchConsoleConfigured() && state) {
+    const durableState = await readDurableOAuthState(state);
+    if (durableState) {
+      pending = durableState;
+    }
+  } else if (state) {
+    pending = searchConsoleStates.get(state);
+    if (pending) searchConsoleStates.delete(state);
+  }
 
   if (!code || !pending || Date.now() - pending.createdAt > 10 * 60 * 1000) {
     return res.status(400).send('Search Console authorization could not be validated.');
   }
-
-  searchConsoleStates.delete(state);
 
   try {
     const params = new URLSearchParams({
