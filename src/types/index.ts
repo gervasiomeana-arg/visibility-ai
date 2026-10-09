@@ -168,6 +168,7 @@ export interface Opportunity {
 export interface ActionTask {
   id: string;
   businessId: string;
+  source?: 'demo' | 'seo-audit' | 'manual';
   title: string;
   priority: PriorityLevel;
   status: TaskStatus;
