@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import searchConsoleRouter from './server/searchConsoleRouter';
 import seoAuditRouter from './server/seoAuditRouter';
 import aiRouter from './server/aiRouter';
+import healthRouter from './server/healthRouter';
 
 dotenv.config();
 
@@ -15,6 +16,9 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '100kb' }));
+
+// Health / deployment diagnostics
+app.use('/api/health', healthRouter);
 
 // API Routes
 
