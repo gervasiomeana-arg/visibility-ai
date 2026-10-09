@@ -43,19 +43,23 @@ Si querés, puedo explicarte cómo leer una comparación competitiva cuando esos
     }
 
     if (p.includes('contenido') || p.includes('crear')) {
-      return `El contenido más rentable que deberías crear ya mismo para **${biz}** es:
-- **Página de servicio especializado**: Una sección dedicada a "Turismo familiar y escapadas de fin de semana en ${city}".
-- **Módulo de Preguntas Frecuentes (FAQ)**: Responder dudas clave (estacionamiento, horarios de check-in, políticas de cancelación, mascotas). Esto además hace que la IA de Google y ChatGPT te recomienden como respuesta directa.
-- **Ficha de Google Maps**: 2 publicaciones mensuales destacando comodidades y promociones exclusivas para reservas directas.
+      return `Todavía no tengo evidencia suficiente para afirmar qué contenido será el más rentable para **${biz}**.
 
-Podés ir a la pestaña **Contenido IA** de Visibility AI y generarlo en un clic.`;
+Como punto de partida, podés evaluar:
+- **Una página específica del servicio principal** que responda claramente qué ofrecés y en qué zona trabajás.
+- **Preguntas frecuentes** basadas en dudas reales de tus clientes.
+- **Contenido para tu Perfil de Empresa en Google** cuando esa integración esté conectada.
+
+Estas son recomendaciones generales, no resultados medidos. Cuando tengamos consultas reales de Search Console, puedo priorizarlas según evidencia.`;
     }
 
     if (p.includes('consultas') || p.includes('clientes') || p.includes('reservas')) {
-      return `Para aumentar las consultas y reservas directas sin pagar comisiones:
-1. **Botón flotante de WhatsApp**: Colocá un botón verde de WhatsApp visible en el celular en todo momento. Para negocios locales o turísticos, esto aumenta las consultas entre un 35% y un 50%.
-2. **Llamadas a la acción claras**: En lugar de "Más información", usá botones con verbos atractivos como "Consultar disponibilidad por WhatsApp" o "Reservar con beneficio directo".
-3. **Fotos reales de experiencias**: Mostrá el desayuno, la atención y el confort de las instalaciones.`;
+      return `Para facilitar más consultas directas, podés revisar estas acciones:
+1. **Canal de contacto visible en móvil**: WhatsApp, teléfono o formulario, según cómo prefieran contactarte tus clientes.
+2. **Llamadas a la acción claras**: Explicá exactamente qué sucede al tocar cada botón, por ejemplo "Consultar disponibilidad" o "Pedir presupuesto".
+3. **Evidencia real del servicio**: Fotos propias, casos, testimonios o información concreta que ayude a decidir.
+
+Estas recomendaciones son generales. Visibility AI no debe atribuirles un aumento porcentual hasta contar con medición real antes y después.`;
     }
 
     if (p.includes('problema') || p.includes('explicame') || p.includes('explicar')) {
@@ -66,10 +70,10 @@ Cuando una auditoría esté respaldada por una fuente real, te voy a explicar ca
 
     return `Como asistente de visibilidad para **${biz}** en **${city}**, mi objetivo es ayudarte a conseguir más clientes sin tecnicismos. 
 
-Te sugiero enfocarte en las oportunidades de alta demanda comercial:
-- Publicar la página dedicada a tu servicio estrella.
-- Activar las preguntas frecuentes para responder a dudas antes de que abandonen la web.
-- Mantener activo tu perfil de Google Maps.
+Sin datos de demanda verificados, puedo sugerir acciones generales para revisar:
+- Clarificar la página de tu servicio principal.
+- Responder preguntas frecuentes reales de tus clientes.
+- Mantener actualizado tu Perfil de Empresa en Google cuando esté conectado.
 
 ¿Hay algún punto o problema en particular del informe que quieras que revisemos juntos?`;
   },
