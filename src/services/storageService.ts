@@ -20,6 +20,12 @@ import {
   INITIAL_EVOLUTION,
 } from '../data/mockData';
 
+let activeStorageScope = 'local';
+
+function scopedKey(key: string): string {
+  return activeStorageScope === 'local' ? key : `${key}:${activeStorageScope}`;
+}
+
 const STORAGE_KEYS = {
   BUSINESSES: 'visibility_ai_businesses',
   ACTIVE_BUSINESS_ID: 'visibility_ai_active_id',
@@ -35,33 +41,136 @@ const STORAGE_KEYS = {
   SEARCH_CONSOLE_HISTORY: 'visibility_ai_search_console_history',
 };
 
+export interface LegacyBusinessBundle {
+  business: Business;
+  issues: ExecutiveIssue[];
+  tasks: ActionTask[];
+  keywords: KeywordItem[];
+  opportunities: Opportunity[];
+  seoAudit: SeoAuditItem[];
+  seoMeta: any | null;
+  searchMeta: any | null;
+}
+
 export const storageService = {
-  getBusinesses(): Business[] {
+  getLegacyMigrationBundles(): LegacyBusinessBundle[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.BUSINESSES);
+      const rawBusinesses = localStorage.getItem(STORAGE_KEYS.BUSINESSES);
+      if (!rawBusinesses) return [];
+
+      const businesses = JSON.parse(rawBusinesses);
+      if (!Array.isArray(businesses)) return [];
+
+      const readMap = (key: string) => {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : {};
+        } catch {
+          return {};
+        }
+      };
+
+      const issuesMap = readMap(STORAGE_KEYS.EXECUTIVE_ISSUES);
+      const tasksMap = readMap(STORAGE_KEYS.ACTION_TASKS);
+      const keywordsMap = readMap(STORAGE_KEYS.KEYWORDS);
+      const opportunitiesMap = readMap(STORAGE_KEYS.OPPORTUNITIES);
+      const auditsMap = readMap(STORAGE_KEYS.SEO_AUDITS);
+      const auditMetaMap = readMap(STORAGE_KEYS.SEO_AUDIT_META);
+      const searchMetaMap = readMap(STORAGE_KEYS.SEARCH_CONSOLE_META);
+      const initialIds = new Set(INITIAL_BUSINESSES.map((business) => business.id));
+
+      return businesses
+        .map((business: Business): LegacyBusinessBundle => ({
+          business,
+          issues: Array.isArray(issuesMap[business.id]) ? issuesMap[business.id] : [],
+          tasks: Array.isArray(tasksMap[business.id]) ? tasksMap[business.id] : [],
+          keywords: Array.isArray(keywordsMap[business.id]) ? keywordsMap[business.id] : [],
+          opportunities: Array.isArray(opportunitiesMap[business.id]) ? opportunitiesMap[business.id] : [],
+          seoAudit: Array.isArray(auditsMap[business.id]) ? auditsMap[business.id] : [],
+          seoMeta: auditMetaMap[business.id] || null,
+          searchMeta: searchMetaMap[business.id] || null,
+        }))
+        .filter((bundle: LegacyBusinessBundle) => {
+          const hasRealAudit = bundle.seoAudit.some((item) => item.source === 'real');
+          const hasSearchConsole =
+            Boolean(bundle.searchMeta) ||
+            bundle.keywords.some((keyword) => keyword.source === 'search-console');
+          const userCreatedBusiness = !initialIds.has(bundle.business.id);
+
+          return userCreatedBusiness || hasRealAudit || hasSearchConsole;
+        });
+    } catch {
+      return [];
+    }
+  },
+
+  markLegacyMigrationComplete(workspaceId: string): void {
+    try {
+      localStorage.setItem(`visibility_ai_legacy_migrated:${workspaceId}`, '1');
+    } catch {
+      // Ignore
+    }
+  },
+
+  isLegacyMigrationComplete(workspaceId: string): boolean {
+    try {
+      return localStorage.getItem(`visibility_ai_legacy_migrated:${workspaceId}`) === '1';
+    } catch {
+      return false;
+    }
+  },
+
+  setScope(scope?: string): void {
+    activeStorageScope = scope || 'local';
+  },
+
+  getScope(): string {
+    return activeStorageScope;
+  },
+
+  getBusinesses(): Business[] {
+    const normalize = (business: Business): Business => ({
+      ...business,
+      countryCode: business.countryCode || 'AR',
+      currency: business.currency || 'USD',
+      locale: business.locale || 'es-AR',
+      timezone: business.timezone || 'America/Argentina/Buenos_Aires',
+      subscriptionPlan: business.subscriptionPlan || 'growth',
+    });
+
+    try {
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.BUSINESSES));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed.map(normalize);
       }
     } catch {
       // Fallback
     }
-    return INITIAL_BUSINESSES;
+    return activeStorageScope === 'local'
+      ? INITIAL_BUSINESSES.map(normalize)
+      : [];
   },
 
   getActiveBusinessId(): string {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ACTIVE_BUSINESS_ID);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTIVE_BUSINESS_ID));
       if (stored) return stored;
+
+      const businessStorage = localStorage.getItem(scopedKey(STORAGE_KEYS.BUSINESSES));
+      if (businessStorage) {
+        const parsed = JSON.parse(businessStorage);
+        if (Array.isArray(parsed) && parsed.length === 0) return '';
+      }
     } catch {
       // Fallback
     }
-    return INITIAL_BUSINESSES[0].id;
+    return activeStorageScope === 'local' ? INITIAL_BUSINESSES[0].id : '';
   },
 
   setActiveBusinessId(id: string): void {
     try {
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_BUSINESS_ID, id);
+      localStorage.setItem(scopedKey(STORAGE_KEYS.ACTIVE_BUSINESS_ID), id);
     } catch {
       // Ignore
     }
@@ -73,16 +182,18 @@ export const storageService = {
     return list.find((b) => b.id === activeId) || list[0] || INITIAL_BUSINESSES[0];
   },
 
-  addBusiness(newBiz: Omit<Business, 'id' | 'createdAt' | 'scores' | 'totalOpportunities' | 'problemsCount'>): Business {
+  addBusiness(
+    newBiz: Omit<Business, 'id' | 'createdAt' | 'scores' | 'totalOpportunities' | 'problemsCount'>,
+    explicitId?: string
+  ): Business {
     const businesses = this.getBusinesses();
-    const id = `biz-${Date.now()}`;
-    // Phase 1: deterministic DEMO scores only.
-    // Real scoring will replace this in Phase 2 once measured signals are available.
-    const overall = 65;
-    const google = 70;
-    const seo = 62;
-    const web = 68;
-    const aiVisibility = 55;
+    const id = explicitId || `biz-${Date.now()}`;
+    const isLocalDemo = activeStorageScope === 'local';
+    const overall = isLocalDemo ? 65 : 0;
+    const google = isLocalDemo ? 70 : 0;
+    const seo = isLocalDemo ? 62 : 0;
+    const web = isLocalDemo ? 68 : 0;
+    const aiVisibility = isLocalDemo ? 55 : 0;
 
     const created: Business = {
       ...newBiz,
@@ -102,22 +213,53 @@ export const storageService = {
         web: 'demo',
         aiVisibility: 'demo',
       },
-      totalOpportunities: 12,
-      problemsCount: {
-        high: 3,
-        medium: 6,
-        ok: 8,
-      },
+      totalOpportunities: isLocalDemo ? 12 : 0,
+      problemsCount: isLocalDemo
+        ? { high: 3, medium: 6, ok: 8 }
+        : { high: 0, medium: 0, ok: 0 },
     };
 
     const updated = [created, ...businesses];
     try {
-      localStorage.setItem(STORAGE_KEYS.BUSINESSES, JSON.stringify(updated));
-      localStorage.setItem(STORAGE_KEYS.ACTIVE_BUSINESS_ID, id);
+      localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(updated));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.ACTIVE_BUSINESS_ID), id);
     } catch {
       // Ignore
     }
     return created;
+  },
+
+  syncBusinessesFromRemote(remoteBusinesses: Business[]): Business[] {
+    const localBusinesses = this.getBusinesses();
+    const localById = new Map(localBusinesses.map((business) => [business.id, business]));
+
+    const merged = remoteBusinesses.map((remote) => {
+      const local = localById.get(remote.id);
+      return local
+        ? {
+            ...local,
+            ...remote,
+            scores: local.scores,
+            scoreSources: local.scoreSources,
+            totalOpportunities: local.totalOpportunities,
+            problemsCount: local.problemsCount,
+          }
+        : remote;
+    });
+
+    try {
+      localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(merged));
+      if (merged.length > 0) {
+        const currentActive = this.getActiveBusinessId();
+        if (!merged.some((business) => business.id === currentActive)) {
+          localStorage.setItem(scopedKey(STORAGE_KEYS.ACTIVE_BUSINESS_ID), merged[0].id);
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    return merged;
   },
 
   updateBusinessScores(
@@ -146,7 +288,7 @@ export const storageService = {
 
     businesses[index] = updatedBusiness;
     try {
-      localStorage.setItem(STORAGE_KEYS.BUSINESSES, JSON.stringify(businesses));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(businesses));
     } catch {
       // Ignore
     }
@@ -206,6 +348,7 @@ export const storageService = {
       .map((item) => ({
         id: `task-${businessId}-${item.key}`,
         businessId,
+        source: 'seo-audit',
         title: item.title,
         priority: item.status === 'error' ? 'URGENTE' : item.impact === 'Alto' ? 'IMPORTANTE' : 'RECOMENDADO',
         status: 'pendiente',
@@ -228,16 +371,19 @@ export const storageService = {
 
   saveActionTasks(businessId: string, tasks: ActionTask[]): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ACTION_TASKS);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
       const parsed = stored ? JSON.parse(stored) : {};
       const previous: ActionTask[] = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
       const statusById = new Map(previous.map((task) => [task.id, task.status]));
 
       parsed[businessId] = tasks.map((task) => ({
         ...task,
+        source:
+          task.source ||
+          (task.id.startsWith(`task-${businessId}-`) ? 'seo-audit' : 'demo'),
         status: statusById.get(task.id) || task.status,
       }));
-      localStorage.setItem(STORAGE_KEYS.ACTION_TASKS, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(parsed));
     } catch {
       // Ignore
     }
@@ -261,7 +407,7 @@ export const storageService = {
 
     businesses[index] = updatedBusiness;
     try {
-      localStorage.setItem(STORAGE_KEYS.BUSINESSES, JSON.stringify(businesses));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(businesses));
     } catch {
       // Ignore
     }
@@ -270,10 +416,10 @@ export const storageService = {
 
   saveIssues(businessId: string, issues: ExecutiveIssue[]): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.EXECUTIVE_ISSUES);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.EXECUTIVE_ISSUES));
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = issues;
-      localStorage.setItem(STORAGE_KEYS.EXECUTIVE_ISSUES, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.EXECUTIVE_ISSUES), JSON.stringify(parsed));
     } catch {
       // Ignore
     }
@@ -281,7 +427,7 @@ export const storageService = {
 
   getIssues(businessId: string): ExecutiveIssue[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.EXECUTIVE_ISSUES);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.EXECUTIVE_ISSUES));
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed[businessId]) return parsed[businessId];
@@ -289,12 +435,14 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_EXECUTIVE_ISSUES[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_EXECUTIVE_ISSUES[businessId] || []
+      : [];
   },
 
   getSeoAudit(businessId: string): SeoAuditItem[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SEO_AUDITS);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEO_AUDITS));
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed[businessId])) return parsed[businessId];
@@ -302,21 +450,21 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_SEO_AUDIT;
+    return activeStorageScope === 'local' ? INITIAL_SEO_AUDIT : [];
   },
 
   saveSeoAudit(businessId: string, items: SeoAuditItem[], meta?: unknown): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SEO_AUDITS);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEO_AUDITS));
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = items;
-      localStorage.setItem(STORAGE_KEYS.SEO_AUDITS, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.SEO_AUDITS), JSON.stringify(parsed));
 
       if (meta !== undefined) {
-        const storedMeta = localStorage.getItem(STORAGE_KEYS.SEO_AUDIT_META);
+        const storedMeta = localStorage.getItem(scopedKey(STORAGE_KEYS.SEO_AUDIT_META));
         const parsedMeta = storedMeta ? JSON.parse(storedMeta) : {};
         parsedMeta[businessId] = meta;
-        localStorage.setItem(STORAGE_KEYS.SEO_AUDIT_META, JSON.stringify(parsedMeta));
+        localStorage.setItem(scopedKey(STORAGE_KEYS.SEO_AUDIT_META), JSON.stringify(parsedMeta));
       }
     } catch {
       // Ignore
@@ -325,7 +473,7 @@ export const storageService = {
 
   getSeoAuditMeta(businessId: string): any | null {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SEO_AUDIT_META);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEO_AUDIT_META));
       if (!stored) return null;
       const parsed = JSON.parse(stored);
       return parsed[businessId] || null;
@@ -336,7 +484,7 @@ export const storageService = {
 
   getKeywords(businessId: string): KeywordItem[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.KEYWORDS);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.KEYWORDS));
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed[businessId]) return parsed[businessId];
@@ -344,15 +492,17 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_KEYWORDS[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_KEYWORDS[businessId] || []
+      : [];
   },
 
   saveKeywords(businessId: string, keywords: KeywordItem[]): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.KEYWORDS);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.KEYWORDS));
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = keywords;
-      localStorage.setItem(STORAGE_KEYS.KEYWORDS, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.KEYWORDS), JSON.stringify(parsed));
     } catch {
       // Ignore
     }
@@ -372,10 +522,10 @@ export const storageService = {
     }
   ): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_META);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_META));
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = meta;
-      localStorage.setItem(STORAGE_KEYS.SEARCH_CONSOLE_META, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_META), JSON.stringify(parsed));
     } catch {
       // Ignore
     }
@@ -392,7 +542,7 @@ export const storageService = {
     }
   ): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY));
       const parsed = stored ? JSON.parse(stored) : {};
       const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
       const pointDay = new Date(point.loadedAt).toISOString().slice(0, 10);
@@ -404,7 +554,7 @@ export const storageService = {
         .sort((a: any, b: any) => new Date(a.loadedAt).getTime() - new Date(b.loadedAt).getTime())
         .slice(-24);
 
-      localStorage.setItem(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY), JSON.stringify(parsed));
     } catch {
       // Ignore
     }
@@ -418,7 +568,7 @@ export const storageService = {
     position: number;
   }> {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY));
       if (!stored) return [];
       const parsed = JSON.parse(stored);
       return Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
@@ -429,7 +579,7 @@ export const storageService = {
 
   getSearchConsoleMeta(businessId: string): any | null {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.SEARCH_CONSOLE_META);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_META));
       if (!stored) return null;
       const parsed = JSON.parse(stored);
       return parsed[businessId] || null;
@@ -440,7 +590,7 @@ export const storageService = {
 
   getCompetitors(businessId: string): Competitor[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.COMPETITORS);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.COMPETITORS));
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed[businessId]) return parsed[businessId];
@@ -448,7 +598,9 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_COMPETITORS[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_COMPETITORS[businessId] || []
+      : [];
   },
 
   buildOpportunitiesFromSeoAudit(business: Business, items: SeoAuditItem[]): Opportunity[] {
@@ -489,7 +641,7 @@ export const storageService = {
     incoming: Opportunity[]
   ): Opportunity[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
       const parsed = stored ? JSON.parse(stored) : {};
       const current: Opportunity[] = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
       const preserved = current.filter(
@@ -497,13 +649,13 @@ export const storageService = {
       );
       const combined = [...incoming, ...preserved].slice(0, 20);
       parsed[businessId] = combined;
-      localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES), JSON.stringify(parsed));
 
       const businesses = this.getBusinesses();
       const index = businesses.findIndex((business) => business.id === businessId);
       if (index >= 0) {
         businesses[index] = { ...businesses[index], totalOpportunities: combined.length };
-        localStorage.setItem(STORAGE_KEYS.BUSINESSES, JSON.stringify(businesses));
+        localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(businesses));
       }
 
       return combined;
@@ -578,10 +730,10 @@ export const storageService = {
 
   saveOpportunities(businessId: string, opportunities: Opportunity[]): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = opportunities;
-      localStorage.setItem(STORAGE_KEYS.OPPORTUNITIES, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES), JSON.stringify(parsed));
     } catch {
       // Ignore
     }
@@ -589,7 +741,7 @@ export const storageService = {
 
   getOpportunities(businessId: string): Opportunity[] {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.OPPORTUNITIES);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed[businessId]) return parsed[businessId];
@@ -597,30 +749,51 @@ export const storageService = {
     } catch {
       // Fallback
     }
-    return INITIAL_OPPORTUNITIES[businessId] || [];
+    return activeStorageScope === 'local'
+      ? INITIAL_OPPORTUNITIES[businessId] || []
+      : [];
   },
 
   getActionTasks(businessId: string): ActionTask[] {
+    const normalize = (task: ActionTask): ActionTask => ({
+      ...task,
+      source:
+        task.source ||
+        (task.id.startsWith(`task-${businessId}-`) ? 'seo-audit' : 'demo'),
+    });
+
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ACTION_TASKS);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed[businessId]) return parsed[businessId];
+        if (Array.isArray(parsed[businessId])) {
+          return parsed[businessId].map(normalize);
+        }
       }
     } catch {
       // Fallback
     }
-    return INITIAL_ACTION_TASKS[businessId] || [];
+
+    return activeStorageScope === 'local'
+      ? (INITIAL_ACTION_TASKS[businessId] || []).map((task) => ({
+          ...task,
+          source: 'demo',
+        }))
+      : [];
   },
 
   updateTaskStatus(businessId: string, taskId: string, newStatus: TaskStatus): ActionTask[] {
     const currentTasks = this.getActionTasks(businessId);
     const updated = currentTasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.ACTION_TASKS);
-      const allTasks = stored ? JSON.parse(stored) : { ...INITIAL_ACTION_TASKS };
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
+      const allTasks = stored
+        ? JSON.parse(stored)
+        : activeStorageScope === 'local'
+        ? { ...INITIAL_ACTION_TASKS }
+        : {};
       allTasks[businessId] = updated;
-      localStorage.setItem(STORAGE_KEYS.ACTION_TASKS, JSON.stringify(allTasks));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(allTasks));
     } catch {
       // Ignore
     }
@@ -638,7 +811,7 @@ export const storageService = {
     }
   ): void {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.AUDIT_HISTORY);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.AUDIT_HISTORY));
       const parsed = stored ? JSON.parse(stored) : {};
       const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
 
@@ -651,7 +824,7 @@ export const storageService = {
         .sort((a: any, b: any) => new Date(a.auditedAt).getTime() - new Date(b.auditedAt).getTime())
         .slice(-24);
 
-      localStorage.setItem(STORAGE_KEYS.AUDIT_HISTORY, JSON.stringify(parsed));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.AUDIT_HISTORY), JSON.stringify(parsed));
     } catch {
       // Ignore
     }
@@ -665,7 +838,7 @@ export const storageService = {
     unresolvedIssues: number;
   }> {
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.AUDIT_HISTORY);
+      const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.AUDIT_HISTORY));
       if (!stored) return [];
       const parsed = JSON.parse(stored);
       return Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
@@ -728,7 +901,9 @@ export const storageService = {
       };
     }
 
-    const demo = INITIAL_EVOLUTION[businessId];
+    const demo = activeStorageScope === 'local'
+      ? INITIAL_EVOLUTION[businessId]
+      : undefined;
     if (demo) return { ...demo, source: 'demo' };
 
     return {

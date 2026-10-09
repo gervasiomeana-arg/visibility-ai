@@ -1,10 +1,11 @@
 import { SeoAuditResult } from '../types';
+import { authService } from './authService';
 
 export const seoAuditService = {
   async audit(url: string): Promise<SeoAuditResult> {
     const response = await fetch('/api/seo/audit', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authService.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ url }),
     });
 

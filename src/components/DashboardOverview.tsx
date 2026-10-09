@@ -60,54 +60,52 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const unresolvedIssues = highIssues.length + mediumIssues.length;
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-7 sm:space-y-8 pb-14">
       {/* Top Welcome & Business Header */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>{scoreSources.seo === 'real' || scoreSources.web === 'real' ? 'DIAGNÓSTICO CON DATOS REALES' : 'DIAGNÓSTICO DEMO'}</span>
-            <span className="text-slate-300">·</span>
-            <span className="text-slate-500">{business.category}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-            {business.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
-            <a
-              href={business.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 text-slate-700 hover:text-indigo-600 font-medium underline"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>{business.url}</span>
-              <ExternalLink className="w-3 h-3 text-slate-400" />
-            </a>
-            <span>·</span>
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              {business.city}, {business.country}
-            </span>
-          </div>
-        </div>
+      <div className="vai-shell">
+        <div className="vai-core vai-panel p-6 sm:p-8 lg:p-9 flex flex-col md:flex-row md:items-center justify-between gap-7">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-indigo-600 mb-2 tracking-[0.08em] uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>{scoreSources.seo === 'real' || scoreSources.web === 'real' ? 'Diagnóstico con datos reales' : 'Diagnóstico demo'}</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-slate-500 normal-case tracking-normal">{business.category}</span>
+            </div>
 
-        {/* Global Score Card */}
-        <div className="bg-slate-900 text-white rounded-2xl p-5 sm:p-6 flex items-center gap-6 shrink-0 shadow-md">
-          <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Puntuación General
-            </span>
-            <span className="text-xs text-slate-300 font-bold block mt-0.5">
-              VISIBILIDAD DIGITAL
-            </span>
-            <p className="text-[11px] text-emerald-400 font-medium mt-1">
-              {labelForSource(scoreSources.overall)}
-            </p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-slate-950 font-heading tracking-[-0.04em] text-balance">
+              {business.name}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-slate-500">
+              <a
+                href={business.url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-slate-700 hover:text-indigo-600 font-medium"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span className="truncate max-w-[16rem] sm:max-w-md">{business.url}</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </a>
+              <span className="text-slate-300">·</span>
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                {business.city}, {business.country}
+              </span>
+            </div>
           </div>
-          <div className="relative flex items-center justify-center">
-            <div className="w-20 h-20 rounded-full border-4 border-slate-700 flex items-center justify-center bg-slate-800">
-              <div className="text-center">
+
+          <div className="w-full md:w-auto bg-slate-950 text-white rounded-[1.4rem] p-5 sm:p-6 flex items-center justify-between md:justify-start gap-6 shrink-0 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-white/10">
+            <div>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.14em] block">
+                Visibilidad digital
+              </span>
+              <p className="text-[11px] text-emerald-400 font-medium mt-2">
+                {labelForSource(scoreSources.overall)}
+              </p>
+            </div>
+            <div className="w-20 h-20 rounded-full ring-[6px] ring-white/8 flex items-center justify-center bg-white/[0.06]">
+              <div className="text-center font-tabular">
                 <span className="text-3xl font-black text-white font-heading">
                   {scores.overall}
                 </span>
@@ -133,7 +131,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Google / Search Console */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-indigo-200 transition-all">
+          <div className="vai-panel rounded-[1.35rem] p-5 ring-1 ring-slate-200/60 hover:-translate-y-0.5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
             <div className="flex items-center justify-between">
               <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                 <Globe className="w-5 h-5" />
@@ -174,7 +172,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           {/* SEO */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-indigo-200 transition-all">
+          <div className="vai-panel rounded-[1.35rem] p-5 ring-1 ring-slate-200/60 hover:-translate-y-0.5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
             <div className="flex items-center justify-between">
               <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
                 <Search className="w-5 h-5" />
@@ -201,7 +199,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           {/* Web */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-indigo-200 transition-all">
+          <div className="vai-panel rounded-[1.35rem] p-5 ring-1 ring-slate-200/60 hover:-translate-y-0.5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
             <div className="flex items-center justify-between">
               <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                 <BarChart3 className="w-5 h-5" />
@@ -228,7 +226,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           {/* Visibilidad IA */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:border-indigo-200 transition-all relative overflow-hidden">
+          <div className="vai-panel rounded-[1.35rem] p-5 ring-1 ring-slate-200/60 hover:-translate-y-0.5 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] relative overflow-hidden">
             <div className="flex items-center justify-between">
               <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                 <Sparkles className="w-5 h-5" />
@@ -289,10 +287,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/10">
           <button
             onClick={() => setActiveTab('executive-summary')}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] text-left"
           >
             <div>
-              <span className="text-xs font-semibold text-rose-300 block">🔴 Problemas importantes</span>
+              <span className="text-xs font-semibold text-rose-300 block">Problemas importantes</span>
               <span className="text-[11px] text-slate-400">{isRealDiagnosis ? 'Hallazgos reales de alto impacto' : 'Ejemplos de alto impacto'}</span>
             </div>
             <span className="text-lg font-black text-rose-400">{highIssues.length}</span>
@@ -300,10 +298,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
           <button
             onClick={() => setActiveTab('executive-summary')}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] text-left"
           >
             <div>
-              <span className="text-xs font-semibold text-amber-300 block">🟡 Mejoras recomendadas</span>
+              <span className="text-xs font-semibold text-amber-300 block">Mejoras recomendadas</span>
               <span className="text-[11px] text-slate-400">{isRealDiagnosis ? 'Hallazgos reales a mejorar' : 'Ejemplos de mejora'}</span>
             </div>
             <span className="text-lg font-black text-amber-400">{mediumIssues.length}</span>
@@ -311,10 +309,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
 
           <button
             onClick={() => setActiveTab('executive-summary')}
-            className="flex items-center justify-between p-3.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-left"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-white/5 hover:bg-white/10 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] text-left"
           >
             <div>
-              <span className="text-xs font-semibold text-emerald-300 block">🟢 Elementos correctos</span>
+              <span className="text-xs font-semibold text-emerald-300 block">Elementos correctos</span>
               <span className="text-[11px] text-slate-400">{isRealDiagnosis ? 'Señales verificadas correctas' : 'Ejemplos positivos'}</span>
             </div>
             <span className="text-lg font-black text-emerald-400">{okIssues.length}</span>
@@ -325,7 +323,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* Two Columns: Top Critical Issues & Quick Action Prompts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Urgent Issues Preview */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs">
+        <div className="vai-panel rounded-[1.5rem] p-6 ring-1 ring-slate-200/60">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-5 h-5 text-rose-600" />
@@ -352,7 +350,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             {highIssues.slice(0, 3).map((issue) => (
               <div
                 key={issue.id}
-                className="p-3.5 rounded-xl border border-rose-100 bg-rose-50/50 hover:bg-rose-50 transition-colors"
+                className="p-3.5 rounded-xl border border-rose-100 bg-rose-50/50 hover:bg-rose-50 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
               >
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="text-xs font-bold text-slate-900 leading-snug">
@@ -374,7 +372,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         {/* Next actions / Commercial demo */}
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs flex flex-col justify-between">
+        <div className="vai-panel rounded-[1.5rem] p-6 ring-1 ring-slate-200/60 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -397,7 +395,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                   <button
                     key={issue.id}
                     onClick={() => setActiveTab('action-plan')}
-                    className="w-full text-left p-3.5 rounded-xl border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/30 transition-colors"
+                    className="w-full text-left p-3.5 rounded-xl border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
                   >
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${issue.severity === 'high' ? 'text-rose-700' : 'text-amber-700'}`}>
                       {issue.severity === 'high' ? 'URGENTE' : 'MEJORA'}

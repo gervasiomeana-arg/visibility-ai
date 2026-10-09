@@ -20,6 +20,12 @@ import { MonthlyReportView } from './components/MonthlyReportView';
 import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
+import { LoginView } from './components/LoginView';
+import { WorkspaceSetupView } from './components/WorkspaceSetupView';
+import { LegacyMigrationView } from './components/LegacyMigrationView';
+import { PasswordResetView } from './components/PasswordResetView';
+import { authService } from './services/authService';
+import { workspaceService } from './services/workspaceService';
 import { DemoNotice } from './components/DemoNotice';
 import { storageService } from './services/storageService';
 import {
@@ -35,10 +41,37 @@ import {
   TaskStatus,
   ContentGenerationRequest,
   SeoAuditResult,
+  Workspace,
 } from './types';
 import { Sparkles } from 'lucide-react';
 
+const EMPTY_BUSINESS: Business = {
+  id: 'no-business',
+  name: 'Sin negocios todavía',
+  url: 'https://example.com',
+  category: 'Pendiente',
+  city: '',
+  country: '',
+  countryCode: 'AR',
+  currency: 'USD',
+  locale: 'es-AR',
+  timezone: 'America/Argentina/Buenos_Aires',
+  subscriptionPlan: 'growth',
+  createdAt: '',
+  scores: { overall: 0, google: 0, seo: 0, web: 0, aiVisibility: 0 },
+  scoreSources: { overall: 'demo', google: 'demo', seo: 'demo', web: 'demo', aiVisibility: 'demo' },
+  totalOpportunities: 0,
+  problemsCount: { high: 0, medium: 0, ok: 0 },
+};
+
 export default function App() {
+  const [authReady, setAuthReady] = useState(!authService.isConfigured());
+  const [authenticated, setAuthenticated] = useState(!authService.isConfigured());
+  const [workspaceReady, setWorkspaceReady] = useState(!authService.isConfigured());
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  const [legacyMigrationSkipped, setLegacyMigrationSkipped] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
   const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
@@ -58,7 +91,7 @@ export default function App() {
 
   // Active business entity
   const activeBusiness =
-    businesses.find((b) => b.id === activeBusinessId) || businesses[0];
+    businesses.find((b) => b.id === activeBusinessId) || businesses[0] || EMPTY_BUSINESS;
 
   // Specific data for the active business
   const issues = storageService.getIssues(activeBusiness.id);
@@ -73,6 +106,206 @@ export default function App() {
   );
   const evolution = storageService.getEvolution(activeBusiness.id);
 
+  useEffect(() => {
+    if (!authService.isConfigured()) return;
+
+    let mounted = true;
+    authService.getSession()
+      .then((session) => {
+        if (!mounted) return;
+        setAuthenticated(Boolean(session));
+        setAuthReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setAuthenticated(false);
+        setAuthReady(true);
+      });
+
+    const unsubscribe = authService.onAuthStateChange((session, event) => {
+      if (!mounted) return;
+      setAuthenticated(Boolean(session));
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+      }
+      setAuthReady(true);
+    });
+
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authService.isConfigured() || !authenticated) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const inviteToken = params.get('invite');
+    if (!inviteToken) return;
+
+    workspaceService.acceptInvite(inviteToken)
+      .then(async (acceptedWorkspaceId) => {
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+        const nextWorkspaces = await workspaceService.listWorkspaces();
+        setWorkspaces(nextWorkspaces);
+        setActiveWorkspace(
+          nextWorkspaces.find((workspace) => workspace.id === acceptedWorkspaceId) ||
+          nextWorkspaces[0] ||
+          null
+        );
+        setWorkspaceReady(true);
+      })
+      .catch(() => {
+        // Invalid, expired or mismatched invitation remains unaccepted.
+      });
+  }, [authenticated]);
+
+  useEffect(() => {
+    if (!authService.isConfigured() || !authenticated) {
+      if (!authService.isConfigured()) setWorkspaceReady(true);
+      return;
+    }
+
+    let mounted = true;
+    setWorkspaceReady(false);
+
+    workspaceService.listWorkspaces()
+      .then((nextWorkspaces) => {
+        if (!mounted) return;
+        setWorkspaces(nextWorkspaces);
+        setActiveWorkspace((current) =>
+          nextWorkspaces.find((workspace) => workspace.id === current?.id) ||
+          nextWorkspaces[0] ||
+          null
+        );
+        setWorkspaceReady(true);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setActiveWorkspace(null);
+        setWorkspaceReady(true);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [authenticated]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (authService.isConfigured() && activeWorkspace?.id) {
+      storageService.setScope(activeWorkspace.id);
+      setBusinesses([]);
+      setActiveBusinessId('');
+      setActionTasks([]);
+
+      workspaceService.listBusinesses(activeWorkspace.id)
+        .then((remoteBusinesses) => {
+          if (cancelled) return;
+          const scopedBusinesses = storageService.syncBusinessesFromRemote(remoteBusinesses);
+          setBusinesses(scopedBusinesses);
+          const scopedActiveId = storageService.getActiveBusinessId();
+          setActiveBusinessId(
+            scopedBusinesses.find((business) => business.id === scopedActiveId)?.id ||
+            scopedBusinesses[0]?.id ||
+            ''
+          );
+        })
+        .catch(() => {
+          if (cancelled) return;
+          const scopedBusinesses = storageService.getBusinesses();
+          setBusinesses(scopedBusinesses);
+          const scopedActiveId = storageService.getActiveBusinessId();
+          setActiveBusinessId(
+            scopedBusinesses.find((business) => business.id === scopedActiveId)?.id ||
+            scopedBusinesses[0]?.id ||
+            ''
+          );
+        });
+    } else if (!authService.isConfigured()) {
+      storageService.setScope();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeWorkspace?.id]);
+
+  useEffect(() => {
+    if (!authService.isConfigured() || !activeWorkspace?.id || activeBusiness.id === 'no-business') return;
+
+    workspaceService.loadBusinessState(activeWorkspace.id, activeBusiness.id)
+      .then((state) => {
+        if (state.audit?.payload) {
+          const payload = state.audit.payload;
+          if (Array.isArray(payload.items)) {
+            storageService.saveSeoAudit(activeBusiness.id, payload.items, payload.meta || undefined);
+          }
+          if (Array.isArray(payload.issues)) {
+            storageService.saveIssues(activeBusiness.id, payload.issues);
+          }
+          if (payload.scores) {
+            storageService.updateBusinessScores(
+              activeBusiness.id,
+              payload.scores,
+              payload.scoreSources || {}
+            );
+          }
+        }
+
+        if (Array.isArray(state.tasks) && state.tasks.length > 0) {
+          storageService.saveActionTasks(activeBusiness.id, state.tasks);
+          setActionTasks(storageService.getActionTasks(activeBusiness.id));
+        }
+
+        if (Array.isArray(state.opportunities)) {
+          storageService.saveOpportunities(activeBusiness.id, state.opportunities);
+        }
+
+        if (state.searchConsole) {
+          storageService.saveSearchConsoleMeta(activeBusiness.id, {
+            siteUrl: state.searchConsole.site_url,
+            startDate: state.searchConsole.period_start,
+            endDate: state.searchConsole.period_end,
+            clicks: state.searchConsole.clicks,
+            impressions: state.searchConsole.impressions,
+            ctr: Number(state.searchConsole.ctr || 0),
+            position: Number(state.searchConsole.position || 0),
+            loadedAt: state.searchConsole.created_at,
+          });
+          storageService.updateBusinessScores(
+            activeBusiness.id,
+            {},
+            { google: 'partial' }
+          );
+        }
+
+        if (Array.isArray(state.keywords) && state.keywords.length > 0) {
+          storageService.saveKeywords(activeBusiness.id, state.keywords);
+        }
+
+        if (Array.isArray(state.auditHistory)) {
+          state.auditHistory.forEach((point) => {
+            storageService.saveAuditHistoryPoint(activeBusiness.id, point);
+          });
+        }
+
+        if (Array.isArray(state.searchHistory)) {
+          state.searchHistory.forEach((point) => {
+            storageService.saveSearchConsoleHistoryPoint(activeBusiness.id, point);
+          });
+        }
+
+        setBusinesses(storageService.getBusinesses());
+      })
+      .catch(() => {
+        // Local workspace cache remains available as fallback.
+      });
+  }, [activeWorkspace?.id, activeBusiness.id]);
+
   // Keep action tasks synced when activeBusiness changes
   useEffect(() => {
     setActionTasks(storageService.getActionTasks(activeBusiness.id));
@@ -84,12 +317,16 @@ export default function App() {
     storageService.setActiveBusinessId(bizId);
   };
 
+  const canEditWorkspace = !authService.isConfigured() || activeWorkspace?.role !== 'viewer';
+
   const handleStartAnalysis = (url: string, name?: string, category?: string, city?: string) => {
+    if (!canEditWorkspace) return;
     setAnalyzingUrl(url);
     setActiveTab('analyzing');
   };
 
-  const handleAnalysisComplete = (auditResult: SeoAuditResult) => {
+  const handleAnalysisComplete = async (auditResult: SeoAuditResult) => {
+    if (!canEditWorkspace) return;
     // Match existing businesses by normalized hostname to avoid duplicates.
     const getHostname = (value: string) => {
       try {
@@ -99,7 +336,7 @@ export default function App() {
         return value.toLowerCase();
       }
     };
-    const analyzedHost = getHostname(analyzingUrl);
+    const analyzedHost = getHostname(auditResult.requestedUrl);
     const existing = businesses.find((b) => getHostname(b.url) === analyzedHost);
     let targetBusinessId: string;
     if (existing) {
@@ -115,13 +352,38 @@ export default function App() {
         deducedName = 'Mi Negocio';
       }
 
-      const created = storageService.addBusiness({
-        url: analyzingUrl,
+      const marketCountry = activeWorkspace?.countryCode === 'CL'
+        ? 'Chile'
+        : activeWorkspace?.countryCode === 'MX'
+        ? 'México'
+        : activeWorkspace?.countryCode === 'ES'
+        ? 'España'
+        : activeWorkspace?.countryCode === 'CO'
+        ? 'Colombia'
+        : activeWorkspace?.countryCode === 'US'
+        ? 'Estados Unidos'
+        : 'Argentina';
+
+      const businessDraft = {
+        url: auditResult.requestedUrl,
         name: deducedName,
         category: 'Pendiente de definir',
         city: 'Pendiente de definir',
-        country: 'Argentina',
-      });
+        country: marketCountry,
+        countryCode: activeWorkspace?.countryCode || 'AR',
+        currency: activeWorkspace?.currency || 'USD',
+        locale: activeWorkspace?.locale || 'es-AR',
+        timezone: activeWorkspace?.timezone || 'America/Argentina/Buenos_Aires',
+        subscriptionPlan: activeWorkspace?.planId || 'growth',
+        workspaceId: activeWorkspace?.id,
+      };
+
+      let persistedId: string | undefined;
+      if (authService.isConfigured() && activeWorkspace?.id) {
+        persistedId = await workspaceService.createBusiness(activeWorkspace.id, businessDraft);
+      }
+
+      const created = storageService.addBusiness(businessDraft, persistedId);
       setBusinesses(storageService.getBusinesses());
       handleSelectBusiness(created.id);
       targetBusinessId = created.id;
@@ -175,13 +437,56 @@ export default function App() {
         }
       );
 
+      const unresolvedIssues = realIssues.filter((issue) => issue.severity !== 'ok').length;
+
       storageService.saveAuditHistoryPoint(targetBusinessId!, {
         auditedAt: auditResult.fetchedAt,
         overallScore: overall,
         seoScore,
         webScore: pageSpeedScore,
-        unresolvedIssues: realIssues.filter((issue) => issue.severity !== 'ok').length,
+        unresolvedIssues,
       });
+
+      if (authService.isConfigured() && activeWorkspace?.id) {
+        const currentOpportunities = storageService.getOpportunities(targetBusinessId!);
+        await Promise.all([
+          workspaceService.saveSeoAudit({
+            workspaceId: activeWorkspace.id,
+            businessId: targetBusinessId!,
+            requestedUrl: auditResult.requestedUrl,
+            finalUrl: auditResult.finalUrl,
+            httpStatus: auditResult.httpStatus,
+            responseTimeMs: auditResult.responseTimeMs,
+            seoScore,
+            webScore: pageSpeedScore,
+            overallScore: overall,
+            unresolvedIssues,
+            payload: {
+              items: auditResult.items,
+              issues: realIssues,
+              meta: {
+                requestedUrl: auditResult.requestedUrl,
+                finalUrl: auditResult.finalUrl,
+                fetchedAt: auditResult.fetchedAt,
+                httpStatus: auditResult.httpStatus,
+                responseTimeMs: auditResult.responseTimeMs,
+                pageSpeed: auditResult.pageSpeed || null,
+                pageSpeedError: auditResult.pageSpeedError || null,
+              },
+              scores: { seo: nextSeo, web: nextWeb, overall },
+              scoreSources: {
+                seo: seoScore !== null ? 'real' : 'demo',
+                web: pageSpeedScore !== null ? 'real' : 'demo',
+                overall: verifiedValues.length ? 'partial' : 'demo',
+              },
+            },
+          }),
+          workspaceService.upsertActionTasks(activeWorkspace.id, targetBusinessId!, realTasks),
+          workspaceService.upsertOpportunities(activeWorkspace.id, targetBusinessId!, currentOpportunities),
+        ]).catch(() => {
+          // Keep local cache when remote persistence is temporarily unavailable.
+        });
+      }
 
       setBusinesses(storageService.getBusinesses());
     }
@@ -192,12 +497,41 @@ export default function App() {
   };
 
   const handleSelectPreset = (presetId: string) => {
+    if (authService.isConfigured()) return;
     handleSelectBusiness(presetId);
     setActiveTab('dashboard');
   };
 
-  const handleAddNewBusiness = (biz: { name: string; url: string; category: string; city: string; country: string }) => {
-    const created = storageService.addBusiness(biz);
+  const handleAddNewBusiness = async (biz: {
+    name: string;
+    url: string;
+    category: string;
+    city: string;
+    country: string;
+    countryCode?: any;
+    currency?: any;
+    locale?: any;
+    timezone?: string;
+    subscriptionPlan?: any;
+  }) => {
+    if (!canEditWorkspace) return;
+    let persistedId: string | undefined;
+
+    if (authService.isConfigured() && activeWorkspace?.id) {
+      persistedId = await workspaceService.createBusiness(activeWorkspace.id, {
+        ...biz,
+        workspaceId: activeWorkspace.id,
+      });
+    }
+
+    const created = storageService.addBusiness(
+      {
+        ...biz,
+        workspaceId: activeWorkspace?.id,
+      },
+      persistedId
+    );
+
     setBusinesses(storageService.getBusinesses());
     handleSelectBusiness(created.id);
     setAnalyzingUrl(biz.url);
@@ -205,8 +539,17 @@ export default function App() {
   };
 
   const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
+    if (!canEditWorkspace) return;
     const updated = storageService.updateTaskStatus(activeBusiness.id, taskId, newStatus);
     setActionTasks(updated);
+
+    if (authService.isConfigured() && activeWorkspace?.id && activeBusiness.id !== 'no-business') {
+      workspaceService
+        .upsertActionTasks(activeWorkspace.id, activeBusiness.id, updated)
+        .catch(() => {
+          // Local cache remains authoritative until remote sync succeeds.
+        });
+    }
   };
 
   const handleSelectOpportunityForAI = (opp: Opportunity) => {
@@ -226,6 +569,87 @@ export default function App() {
     setAssistantOpen(true);
   };
 
+  const legacyBundles =
+    authService.isConfigured() && activeWorkspace?.id
+      ? storageService.getLegacyMigrationBundles()
+      : [];
+
+  const shouldOfferLegacyMigration =
+    authService.isConfigured() &&
+    Boolean(activeWorkspace?.id) &&
+    workspaceReady &&
+    businesses.length === 0 &&
+    legacyBundles.length > 0 &&
+    !storageService.isLegacyMigrationComplete(activeWorkspace!.id) &&
+    !legacyMigrationSkipped;
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Cargando Visibility AI...
+      </div>
+    );
+  }
+
+  if (!authenticated) {
+    return <LoginView onAuthenticated={() => setAuthenticated(true)} />;
+  }
+
+  if (passwordRecovery) {
+    return (
+      <PasswordResetView
+        onComplete={() => {
+          setPasswordRecovery(false);
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
+  }
+
+  if (authService.isConfigured() && !workspaceReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">
+        Cargando espacio de trabajo...
+      </div>
+    );
+  }
+
+  if (authService.isConfigured() && workspaceReady && !activeWorkspace) {
+    return (
+      <WorkspaceSetupView
+        onCreated={async (workspaceId) => {
+          const nextWorkspaces = await workspaceService.listWorkspaces();
+          setWorkspaces(nextWorkspaces);
+          setActiveWorkspace(
+            nextWorkspaces.find((workspace) => workspace.id === workspaceId) ||
+            nextWorkspaces[0] ||
+            null
+          );
+        }}
+      />
+    );
+  }
+
+  if (shouldOfferLegacyMigration && activeWorkspace) {
+    return (
+      <LegacyMigrationView
+        bundles={legacyBundles}
+        onSkip={() => setLegacyMigrationSkipped(true)}
+        onImport={async () => {
+          await workspaceService.importLegacyBundles(activeWorkspace.id, legacyBundles);
+          storageService.markLegacyMigrationComplete(activeWorkspace.id);
+
+          const remoteBusinesses = await workspaceService.listBusinesses(activeWorkspace.id);
+          const scopedBusinesses = storageService.syncBusinessesFromRemote(remoteBusinesses);
+          setBusinesses(scopedBusinesses);
+          const nextId = scopedBusinesses[0]?.id || '';
+          setActiveBusinessId(nextId);
+          if (nextId) storageService.setActiveBusinessId(nextId);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500 selection:text-white">
       {/* Navbar (displayed on all screens; has link to landing) */}
@@ -235,11 +659,32 @@ export default function App() {
         activeBusiness={activeBusiness}
         businesses={businesses}
         onSelectBusiness={handleSelectBusiness}
-        onOpenNewBusinessModal={() => setNewBizModalOpen(true)}
+        onOpenNewBusinessModal={() => {
+          if (canEditWorkspace) setNewBizModalOpen(true);
+        }}
         onOpenAssistant={() => {
           setAssistantInitialPrompt('');
           setAssistantOpen(true);
         }}
+        workspaceName={activeWorkspace?.name}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspace?.id}
+        onSelectWorkspace={(workspaceId) => {
+          const nextWorkspace = workspaces.find((workspace) => workspace.id === workspaceId) || null;
+          setLegacyMigrationSkipped(false);
+          setActiveWorkspace(nextWorkspace);
+          setActiveTab('dashboard');
+        }}
+        onSignOut={
+          authService.isConfigured()
+            ? async () => {
+                await authService.signOut();
+                setAuthenticated(false);
+                setWorkspaces([]);
+                setActiveWorkspace(null);
+              }
+            : undefined
+        }
       />
 
       {/* Main Content Area */}
@@ -248,6 +693,8 @@ export default function App() {
           <LandingPage
             onAnalyze={handleStartAnalysis}
             onSelectPreset={handleSelectPreset}
+            showPresets={!authService.isConfigured()}
+            analysisEnabled={canEditWorkspace}
           />
         )}
 
@@ -275,7 +722,7 @@ export default function App() {
                 }}
                 onGenerateOpportunity={(oppId) => {
                   const opp = opportunities.find((o) => o.id === oppId) || opportunities[0];
-                  handleSelectOpportunityForAI(opp);
+                  if (opp) handleSelectOpportunityForAI(opp);
                 }}
               />
             )}
@@ -381,6 +828,8 @@ export default function App() {
                 businesses={businesses}
                 setActiveTab={setActiveTab}
                 onSelectBusiness={handleSelectBusiness}
+                workspace={activeWorkspace}
+                onWorkspaceUpdated={setActiveWorkspace}
               />
             )}
           </div>

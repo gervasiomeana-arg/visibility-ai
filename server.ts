@@ -28,7 +28,253 @@ type SearchConsoleSession = {
 };
 
 const searchConsoleSessions = new Map<string, SearchConsoleSession>();
-const searchConsoleStates = new Map<string, { createdAt: number; returnTo: string }>();
+const searchConsoleStates = new Map<string, {
+  createdAt: number;
+  returnTo: string;
+  userId?: string;
+  supabaseAccessToken?: string;
+}>();
+
+function getSupabaseConfig() {
+  const url = process.env.VITE_SUPABASE_URL || '';
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || '';
+  return {
+    url,
+    anonKey,
+    configured: Boolean(
+      url &&
+      anonKey &&
+      url !== 'MY_SUPABASE_URL' &&
+      anonKey !== 'MY_SUPABASE_ANON_KEY'
+    ),
+  };
+}
+
+function getSearchConsoleTokenKey(): Buffer | null {
+  const encoded = process.env.SEARCH_CONSOLE_TOKEN_KEY || '';
+  if (!encoded || encoded === 'MY_32_BYTE_BASE64_KEY') return null;
+  try {
+    const key = Buffer.from(encoded, 'base64');
+    return key.length === 32 ? key : null;
+  } catch {
+    return null;
+  }
+}
+
+function durableSearchConsoleConfigured() {
+  return getSupabaseConfig().configured && Boolean(getSearchConsoleTokenKey());
+}
+
+function bearerToken(req: express.Request): string | null {
+  const header = req.headers.authorization || '';
+  if (!header.toLowerCase().startsWith('bearer ')) return null;
+  return header.slice(7).trim() || null;
+}
+
+async function getSupabaseUserFromToken(accessToken: string): Promise<{ id: string; email?: string } | null> {
+  const config = getSupabaseConfig();
+  if (!config.configured) return null;
+
+  const response = await fetch(`${config.url}/auth/v1/user`, {
+    headers: {
+      apikey: config.anonKey,
+      authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!response.ok) return null;
+  const data: any = await response.json();
+  return data?.id ? { id: data.id, email: data.email } : null;
+}
+
+function encryptToken(value: string): string {
+  const key = getSearchConsoleTokenKey();
+  if (!key) throw new Error('Search Console token encryption is not configured');
+
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  return [iv, tag, encrypted].map((part) => part.toString('base64url')).join('.');
+}
+
+function decryptToken(value: string): string {
+  const key = getSearchConsoleTokenKey();
+  if (!key) throw new Error('Search Console token encryption is not configured');
+
+  const [ivPart, tagPart, dataPart] = value.split('.');
+  if (!ivPart || !tagPart || !dataPart) throw new Error('Invalid encrypted token');
+
+  const decipher = crypto.createDecipheriv(
+    'aes-256-gcm',
+    key,
+    Buffer.from(ivPart, 'base64url')
+  );
+  decipher.setAuthTag(Buffer.from(tagPart, 'base64url'));
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(dataPart, 'base64url')),
+    decipher.final(),
+  ]);
+
+  return decrypted.toString('utf8');
+}
+
+type DurableOAuthState = {
+  createdAt: number;
+  returnTo: string;
+  userId: string;
+  supabaseAccessToken: string;
+  nonce: string;
+};
+
+function createDurableOAuthState(payload: Omit<DurableOAuthState, 'nonce'>): string {
+  return encryptToken(
+    JSON.stringify({
+      ...payload,
+      nonce: crypto.randomBytes(16).toString('hex'),
+    })
+  );
+}
+
+async function readDurableOAuthState(state: string): Promise<DurableOAuthState | null> {
+  try {
+    const parsed = JSON.parse(decryptToken(state)) as DurableOAuthState;
+    if (
+      !parsed ||
+      typeof parsed.createdAt !== 'number' ||
+      typeof parsed.returnTo !== 'string' ||
+      typeof parsed.userId !== 'string' ||
+      typeof parsed.supabaseAccessToken !== 'string' ||
+      Date.now() - parsed.createdAt > 10 * 60 * 1000
+    ) {
+      return null;
+    }
+
+    if (!parsed.returnTo.startsWith('/') || parsed.returnTo.startsWith('//')) {
+      return null;
+    }
+
+    const user = await getSupabaseUserFromToken(parsed.supabaseAccessToken);
+    if (!user || user.id !== parsed.userId) return null;
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function supabaseConnectionRequest(
+  accessToken: string,
+  path: string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const config = getSupabaseConfig();
+  if (!config.configured) throw new Error('Supabase is not configured');
+
+  const headers = new Headers(init.headers || {});
+  headers.set('apikey', config.anonKey);
+  headers.set('authorization', `Bearer ${accessToken}`);
+  if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
+
+  return fetch(`${config.url}/rest/v1/${path}`, {
+    ...init,
+    headers,
+  });
+}
+
+async function saveDurableSearchConsoleSession(
+  userId: string,
+  supabaseAccessToken: string,
+  session: SearchConsoleSession
+): Promise<void> {
+  const body = {
+    user_id: userId,
+    access_token_ciphertext: encryptToken(session.accessToken),
+    refresh_token_ciphertext: session.refreshToken ? encryptToken(session.refreshToken) : null,
+    expires_at: new Date(session.expiresAt).toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const response = await supabaseConnectionRequest(
+    supabaseAccessToken,
+    'search_console_connections?on_conflict=user_id',
+    {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(body),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Could not persist Search Console connection (HTTP ${response.status})`);
+  }
+}
+
+async function loadDurableSearchConsoleSession(
+  userId: string,
+  supabaseAccessToken: string
+): Promise<SearchConsoleSession | null> {
+  const response = await supabaseConnectionRequest(
+    supabaseAccessToken,
+    `search_console_connections?user_id=eq.${encodeURIComponent(userId)}&select=access_token_ciphertext,refresh_token_ciphertext,expires_at&limit=1`
+  );
+
+  if (!response.ok) throw new Error('Could not load Search Console connection');
+
+  const rows: any[] = await response.json();
+  const row = rows[0];
+  if (!row) return null;
+
+  return {
+    accessToken: decryptToken(row.access_token_ciphertext),
+    refreshToken: row.refresh_token_ciphertext ? decryptToken(row.refresh_token_ciphertext) : undefined,
+    expiresAt: new Date(row.expires_at).getTime(),
+  };
+}
+
+async function deleteDurableSearchConsoleSession(
+  userId: string,
+  supabaseAccessToken: string
+): Promise<void> {
+  const response = await supabaseConnectionRequest(
+    supabaseAccessToken,
+    `search_console_connections?user_id=eq.${encodeURIComponent(userId)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) throw new Error('Could not delete Search Console connection');
+}
+
+async function requireSupabaseAuth(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  const config = getSupabaseConfig();
+  if (!config.configured) {
+    next();
+    return;
+  }
+
+  const token = bearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const user = await getSupabaseUserFromToken(token);
+    if (!user) {
+      res.status(401).json({ error: 'Invalid or expired session' });
+      return;
+    }
+
+    res.locals.authUser = user;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Could not validate session' });
+  }
+}
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
@@ -90,7 +336,35 @@ async function refreshSearchConsoleToken(session: SearchConsoleSession): Promise
   };
 }
 
-async function getSearchConsoleSession(req: express.Request): Promise<{ id: string; session: SearchConsoleSession } | null> {
+async function getSearchConsoleSession(
+  req: express.Request
+): Promise<{ id: string; session: SearchConsoleSession; userId?: string; supabaseAccessToken?: string } | null> {
+  const authToken = bearerToken(req);
+
+  if (durableSearchConsoleConfigured() && authToken) {
+    const user = await getSupabaseUserFromToken(authToken);
+    if (!user) return null;
+
+    try {
+      const existing = await loadDurableSearchConsoleSession(user.id, authToken);
+      if (!existing) return null;
+
+      const refreshed = await refreshSearchConsoleToken(existing);
+      if (refreshed.accessToken !== existing.accessToken || refreshed.expiresAt !== existing.expiresAt) {
+        await saveDurableSearchConsoleSession(user.id, authToken, refreshed);
+      }
+
+      return {
+        id: user.id,
+        session: refreshed,
+        userId: user.id,
+        supabaseAccessToken: authToken,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   const sessionId = parseCookies(req.headers.cookie).visibility_gsc_session;
   if (!sessionId) return null;
 
@@ -611,16 +885,16 @@ if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
 // API Routes
 
 // Google Search Console OAuth + read-only data (Phase 2)
-app.get('/api/search-console/status', async (req, res) => {
+app.get('/api/search-console/status', requireSupabaseAuth, async (req, res) => {
   const active = await getSearchConsoleSession(req);
   return res.json({
     configured: searchConsoleConfigured(),
     connected: Boolean(active),
-    persistence: 'session',
+    persistence: durableSearchConsoleConfigured() ? 'supabase-encrypted' : 'session',
   });
 });
 
-app.get('/api/search-console/auth/start', (req, res) => {
+app.post('/api/search-console/auth/start', requireSupabaseAuth, async (req, res) => {
   try {
     if (!searchConsoleConfigured()) {
       return res.status(503).json({
@@ -629,10 +903,46 @@ app.get('/api/search-console/auth/start', (req, res) => {
       });
     }
 
-    const state = crypto.randomBytes(24).toString('hex');
-    const returnToRaw = typeof req.query.returnTo === 'string' ? req.query.returnTo : '/';
+    let userId: string | undefined;
+    let supabaseAccessToken: string | undefined;
+
+    if (durableSearchConsoleConfigured()) {
+      const authToken = bearerToken(req);
+      if (!authToken) {
+        return res.status(401).json({ error: 'Supabase authentication is required' });
+      }
+
+      const user = await getSupabaseUserFromToken(authToken);
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid Supabase session' });
+      }
+
+      userId = user.id;
+      supabaseAccessToken = authToken;
+    }
+
+    const returnToRaw = typeof req.body?.returnTo === 'string' ? req.body.returnTo : '/';
     const returnTo = returnToRaw.startsWith('/') && !returnToRaw.startsWith('//') ? returnToRaw : '/';
-    searchConsoleStates.set(state, { createdAt: Date.now(), returnTo });
+
+    let state: string;
+    if (
+      durableSearchConsoleConfigured() &&
+      userId &&
+      supabaseAccessToken
+    ) {
+      state = createDurableOAuthState({
+        createdAt: Date.now(),
+        returnTo,
+        userId,
+        supabaseAccessToken,
+      });
+    } else {
+      state = crypto.randomBytes(24).toString('hex');
+      searchConsoleStates.set(state, {
+        createdAt: Date.now(),
+        returnTo,
+      });
+    }
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID || '');
@@ -643,7 +953,7 @@ app.get('/api/search-console/auth/start', (req, res) => {
     authUrl.searchParams.set('prompt', 'consent');
     authUrl.searchParams.set('state', state);
 
-    return res.redirect(authUrl.toString());
+    return res.json({ authUrl: authUrl.toString() });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Could not start Search Console OAuth' });
   }
@@ -652,13 +962,24 @@ app.get('/api/search-console/auth/start', (req, res) => {
 app.get('/api/search-console/oauth/callback', async (req, res) => {
   const code = typeof req.query.code === 'string' ? req.query.code : '';
   const state = typeof req.query.state === 'string' ? req.query.state : '';
-  const pending = searchConsoleStates.get(state);
+
+  let pending:
+    | { createdAt: number; returnTo: string; userId?: string; supabaseAccessToken?: string }
+    | undefined;
+
+  if (durableSearchConsoleConfigured() && state) {
+    const durableState = await readDurableOAuthState(state);
+    if (durableState) {
+      pending = durableState;
+    }
+  } else if (state) {
+    pending = searchConsoleStates.get(state);
+    if (pending) searchConsoleStates.delete(state);
+  }
 
   if (!code || !pending || Date.now() - pending.createdAt > 10 * 60 * 1000) {
     return res.status(400).send('Search Console authorization could not be validated.');
   }
-
-  searchConsoleStates.delete(state);
 
   try {
     const params = new URLSearchParams({
@@ -680,13 +1001,46 @@ app.get('/api/search-console/oauth/callback', async (req, res) => {
     }
 
     const tokenData: any = await tokenResponse.json();
-    const sessionId = crypto.randomBytes(24).toString('hex');
-    searchConsoleSessions.set(sessionId, {
+    let refreshToken: string | undefined = tokenData.refresh_token;
+
+    if (
+      durableSearchConsoleConfigured() &&
+      pending.userId &&
+      pending.supabaseAccessToken &&
+      !refreshToken
+    ) {
+      try {
+        const previousSession = await loadDurableSearchConsoleSession(
+          pending.userId,
+          pending.supabaseAccessToken
+        );
+        refreshToken = previousSession?.refreshToken;
+      } catch {
+        // A previous connection is optional; continue with Google's response.
+      }
+    }
+
+    const session: SearchConsoleSession = {
       accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
+      refreshToken,
       expiresAt: Date.now() + Number(tokenData.expires_in || 3600) * 1000,
-    });
-    setSearchConsoleSessionCookie(res, sessionId);
+    };
+
+    if (
+      durableSearchConsoleConfigured() &&
+      pending.userId &&
+      pending.supabaseAccessToken
+    ) {
+      await saveDurableSearchConsoleSession(
+        pending.userId,
+        pending.supabaseAccessToken,
+        session
+      );
+    } else {
+      const sessionId = crypto.randomBytes(24).toString('hex');
+      searchConsoleSessions.set(sessionId, session);
+      setSearchConsoleSessionCookie(res, sessionId);
+    }
 
     const target = new URL(pending.returnTo, process.env.APP_URL).toString();
     return res.redirect(target);
@@ -696,10 +1050,23 @@ app.get('/api/search-console/oauth/callback', async (req, res) => {
   }
 });
 
-app.post('/api/search-console/disconnect', async (req, res) => {
-  const cookies = parseCookies(req.headers.cookie);
-  if (cookies.visibility_gsc_session) {
-    searchConsoleSessions.delete(cookies.visibility_gsc_session);
+app.post('/api/search-console/disconnect', requireSupabaseAuth, async (req, res) => {
+  const authToken = bearerToken(req);
+
+  if (durableSearchConsoleConfigured() && authToken) {
+    const user = await getSupabaseUserFromToken(authToken);
+    if (!user) return res.status(401).json({ error: 'Invalid Supabase session' });
+
+    try {
+      await deleteDurableSearchConsoleSession(user.id, authToken);
+    } catch (error: any) {
+      return res.status(502).json({ error: error.message || 'Could not disconnect Search Console' });
+    }
+  } else {
+    const cookies = parseCookies(req.headers.cookie);
+    if (cookies.visibility_gsc_session) {
+      searchConsoleSessions.delete(cookies.visibility_gsc_session);
+    }
   }
 
   const appUrl = process.env.APP_URL || '';
@@ -711,7 +1078,7 @@ app.post('/api/search-console/disconnect', async (req, res) => {
   return res.json({ connected: false });
 });
 
-app.get('/api/search-console/sites', async (req, res) => {
+app.get('/api/search-console/sites', requireSupabaseAuth, async (req, res) => {
   try {
     const active = await getSearchConsoleSession(req);
     if (!active) return res.status(401).json({ error: 'Search Console is not connected' });
@@ -735,7 +1102,7 @@ app.get('/api/search-console/sites', async (req, res) => {
   }
 });
 
-app.post('/api/search-console/query', async (req, res) => {
+app.post('/api/search-console/query', requireSupabaseAuth, async (req, res) => {
   try {
     const active = await getSearchConsoleSession(req);
     if (!active) return res.status(401).json({ error: 'Search Console is not connected' });
@@ -792,7 +1159,7 @@ app.post('/api/search-console/query', async (req, res) => {
 
 
 // Real technical SEO audit (Phase 2)
-app.post('/api/seo/audit', async (req, res) => {
+app.post('/api/seo/audit', requireSupabaseAuth, async (req, res) => {
   try {
     const { url } = req.body;
     if (!url || typeof url !== 'string') {
@@ -813,7 +1180,7 @@ app.post('/api/seo/audit', async (req, res) => {
   }
 });
 
-app.post('/api/assistant/chat', async (req, res) => {
+app.post('/api/assistant/chat', requireSupabaseAuth, async (req, res) => {
   try {
     const { prompt, businessContext } = req.body;
     if (!prompt || typeof prompt !== 'string') {
@@ -854,7 +1221,7 @@ Reglas clave:
   }
 });
 
-app.post('/api/content/generate', async (req, res) => {
+app.post('/api/content/generate', requireSupabaseAuth, async (req, res) => {
   try {
     const { contentType, topic, keyword, city, businessType, goal, tone } = req.body;
     if (!topic && !keyword) {

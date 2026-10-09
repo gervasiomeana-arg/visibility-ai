@@ -1,10 +1,23 @@
 import React, { useState } from 'react';
 import { Building2, Globe, MapPin, Tag, X, ArrowRight } from 'lucide-react';
+import { MARKET_CONFIGS, getMarket } from '../config/markets';
+import { SubscriptionPlanId, SupportedCountryCode } from '../types';
 
 interface NewBusinessModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (biz: { name: string; url: string; category: string; city: string; country: string }) => void;
+  onAdd: (biz: {
+    name: string;
+    url: string;
+    category: string;
+    city: string;
+    country: string;
+    countryCode: SupportedCountryCode;
+    currency: string;
+    locale: string;
+    timezone: string;
+    subscriptionPlan: SubscriptionPlanId;
+  }) => void | Promise<void>;
 }
 
 export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
@@ -16,12 +29,13 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Hotelería y Turismo');
   const [city, setCity] = useState('');
-  const [country, setCountry] = useState('Argentina');
+  const [countryCode, setCountryCode] = useState<SupportedCountryCode>('AR');
+  const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlanId>('growth');
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim()) return;
 
@@ -50,12 +64,19 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
     }
 
     setErrorMsg('');
-    onAdd({
+    const market = getMarket(countryCode);
+
+    await onAdd({
       url: normalizedUrl,
       name: deducedName,
       category,
       city: city.trim(),
-      country,
+      country: market.country,
+      countryCode: market.countryCode,
+      currency: market.currency,
+      locale: market.locale,
+      timezone: market.timezone,
+      subscriptionPlan,
     });
 
     onClose();
@@ -147,6 +168,42 @@ export const NewBusinessModal: React.FC<NewBusinessModalProps> = ({
                 placeholder="Ej: Mar del Plata"
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">
+                País / Mercado
+              </label>
+              <select
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value as SupportedCountryCode)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900 bg-white"
+              >
+                {MARKET_CONFIGS.map((market) => (
+                  <option key={market.countryCode} value={market.countryCode}>
+                    {market.country}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">
+                Plan inicial
+              </label>
+              <select
+                value={subscriptionPlan}
+                onChange={(e) => setSubscriptionPlan(e.target.value as SubscriptionPlanId)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900 bg-white"
+              >
+                <option value="diagnostic">Diagnóstico</option>
+                <option value="monitor">Visibility Monitor</option>
+                <option value="growth">Visibility Growth</option>
+                <option value="pro">Visibility PRO</option>
+                <option value="agency">Agency</option>
+              </select>
             </div>
           </div>
 

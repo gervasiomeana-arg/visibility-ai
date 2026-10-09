@@ -1,14 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
   Calendar,
   CheckCircle2,
-  Users,
-  Search,
-  Eye,
-  MessageSquare,
 } from 'lucide-react';
 import { MonthlyEvolution, Business, ActiveTab } from '../types';
 
@@ -18,103 +12,277 @@ interface EvolutionViewProps {
   setActiveTab: (tab: ActiveTab) => void;
 }
 
+type MetricKey =
+  | 'visibility'
+  | 'googlePositions'
+  | 'estimatedVisits'
+  | 'consultations'
+  | 'fixedProblems'
+  | 'searchImpressions'
+  | 'searchClicks'
+  | 'searchCtr'
+  | 'searchPositions';
+
 export const EvolutionView: React.FC<EvolutionViewProps> = ({
   business,
   evolution,
   setActiveTab,
 }) => {
-  const [selectedMetric, setSelectedMetric] = useState<
-    'visibility' | 'googlePositions' | 'estimatedVisits' | 'consultations' | 'fixedProblems' | 'searchImpressions' | 'searchClicks' | 'searchCtr' | 'searchPositions'
-  >('visibility');
+  const [selectedMetric, setSelectedMetric] = useState<MetricKey>('visibility');
 
   const { months, monthComparison } = evolution;
   const isRealHistory = evolution.source === 'real';
+  const searchMonths = evolution.searchMonths || [];
+  const searchPositions = evolution.searchPositions || [];
 
-  const metricConfigs = {
+  const hasTechnicalComparison = isRealHistory && evolution.visibility.length >= 2;
+  const hasSearchPositionComparison = isRealHistory && searchPositions.length >= 2;
+  const hasSolvedProblemsSeries = isRealHistory && evolution.fixedProblems.length > 0;
+
+  const averagePositionDelta = hasSearchPositionComparison
+    ? Number((searchPositions[0] - searchPositions[searchPositions.length - 1]).toFixed(1))
+    : null;
+
+  const solvedProblems = hasSolvedProblemsSeries
+    ? evolution.fixedProblems[evolution.fixedProblems.length - 1]
+    : null;
+
+  const metricConfigs: Record<MetricKey, {
+    label: string;
+    values: number[];
+    unit: string;
+    gradient: string;
+    description: string;
+    lowerIsBetter?: boolean;
+    source: 'AUDITORÍAS' | 'SEARCH CONSOLE' | 'DEMO';
+  }> = {
     visibility: {
-      label: 'Visibilidad Digital',
+      label: isRealHistory ? 'Score técnico derivado' : 'Visibilidad Digital',
       values: evolution.visibility,
       unit: '/100',
-      color: 'indigo',
       gradient: 'from-indigo-500 to-blue-600',
-      description: 'Puntuación integral de presencia en Google, SEO y Web.',
+      description: isRealHistory
+        ? 'Score derivado de las señales técnicas verificadas disponibles. No representa por sí solo toda la visibilidad de mercado.'
+        : 'Puntuación DEMO de visibilidad digital.',
+      source: isRealHistory ? 'AUDITORÍAS' : 'DEMO',
     },
     googlePositions: {
       label: 'Posición Promedio en Google',
       values: evolution.googlePositions,
-      unit: 'º lugar',
-      color: 'emerald',
+      unit: 'posición',
       gradient: 'from-emerald-500 to-teal-600',
-      description: 'Promedio de ranking en las 8 palabras clave estratégicas (menor es mejor).',
+      description: 'Métrica DEMO. No se presenta como real sin una fuente de ranking.',
+      lowerIsBetter: true,
+      source: 'DEMO',
     },
     estimatedVisits: {
       label: 'Visitas Mensuales Estimadas',
       values: evolution.estimatedVisits,
       unit: 'visitas',
-      color: 'blue',
       gradient: 'from-blue-500 to-cyan-600',
-      description: 'Tráfico orgánico estimado proveniente de Google Search y Maps.',
+      description: 'Métrica DEMO. Visibility AI no estima tráfico real sin una fuente conectada.',
+      source: 'DEMO',
     },
     consultations: {
-      label: 'Consultas y Reservas Recibidas',
+      label: 'Consultas y Reservas',
       values: evolution.consultations,
       unit: 'consultas',
-      color: 'purple',
       gradient: 'from-purple-500 to-indigo-600',
-      description: 'Clicks en WhatsApp, llamadas y formularios de contacto.',
+      description: 'Métrica DEMO. Requiere analítica, CRM o una fuente de conversiones para ser real.',
+      source: 'DEMO',
     },
     fixedProblems: {
-      label: 'Problemas Solucionados',
+      label: 'Problemas técnicos resueltos',
       values: evolution.fixedProblems,
       unit: 'resueltos',
-      color: 'amber',
       gradient: 'from-amber-500 to-orange-600',
-      description: 'Optimizaciones técnicas y de contenido aplicadas.',
+      description: isRealHistory
+        ? 'Cantidad derivada de la reducción de hallazgos técnicos pendientes entre auditorías.'
+        : 'Métrica DEMO de problemas solucionados.',
+      source: isRealHistory ? 'AUDITORÍAS' : 'DEMO',
     },
     searchImpressions: {
       label: 'Impresiones en Google',
       values: evolution.searchImpressions || [],
       unit: 'impresiones',
-      color: 'blue',
       gradient: 'from-blue-500 to-indigo-600',
       description: 'Impresiones verificadas desde Google Search Console.',
+      source: 'SEARCH CONSOLE',
     },
     searchClicks: {
       label: 'Clics desde Google',
       values: evolution.searchClicks || [],
       unit: 'clics',
-      color: 'emerald',
       gradient: 'from-emerald-500 to-teal-600',
       description: 'Clics orgánicos verificados desde Google Search Console.',
+      source: 'SEARCH CONSOLE',
     },
     searchCtr: {
       label: 'CTR en Google',
       values: evolution.searchCtr || [],
       unit: '% CTR',
-      color: 'purple',
       gradient: 'from-purple-500 to-indigo-600',
-      description: 'Porcentaje de clics sobre impresiones en Google Search Console.',
+      description: 'Porcentaje de clics sobre impresiones reportado por Google Search Console.',
+      source: 'SEARCH CONSOLE',
     },
     searchPositions: {
       label: 'Posición Media Search Console',
-      values: evolution.searchPositions || [],
+      values: searchPositions,
       unit: 'posición',
-      color: 'slate',
       gradient: 'from-slate-500 to-slate-700',
-      description: 'Posición media real reportada por Google Search Console. Menor es mejor.',
+      description: 'Posición media reportada por Google Search Console. En esta métrica, un valor menor es mejor.',
+      lowerIsBetter: true,
+      source: 'SEARCH CONSOLE',
     },
   };
 
-  const currentConfig = metricConfigs[selectedMetric];
-  const isSearchMetric = selectedMetric === 'searchImpressions' || selectedMetric === 'searchClicks' || selectedMetric === 'searchCtr' || selectedMetric === 'searchPositions';
-  const currentMonths = isSearchMetric ? (evolution.searchMonths || []) : months;
-  const hasHistory = currentMonths.length > 0 && currentConfig.values.length > 0;
-  const maxVal = hasHistory ? Math.max(...currentConfig.values, 1) * 1.15 : 1;
+  const availableMetricKeys = useMemo(
+    () =>
+      (Object.keys(metricConfigs) as MetricKey[]).filter((key) => {
+        if (!isRealHistory) return true;
+        return metricConfigs[key].values.length > 0;
+      }),
+    [
+      isRealHistory,
+      evolution.visibility,
+      evolution.googlePositions,
+      evolution.estimatedVisits,
+      evolution.consultations,
+      evolution.fixedProblems,
+      evolution.searchImpressions,
+      evolution.searchClicks,
+      evolution.searchCtr,
+      searchPositions,
+    ]
+  );
+
+  const effectiveSelectedMetric = availableMetricKeys.includes(selectedMetric)
+    ? selectedMetric
+    : availableMetricKeys[0] || 'visibility';
+
+  const currentConfig = metricConfigs[effectiveSelectedMetric];
+  const isSearchMetric = effectiveSelectedMetric.startsWith('search');
+  const currentMonths = isSearchMetric ? searchMonths : months;
+  const plottedCount = Math.min(currentMonths.length, currentConfig.values.length);
+  const plottedMonths = currentMonths.slice(-plottedCount);
+  const plottedValues = currentConfig.values.slice(-plottedCount);
+  const hasHistory = plottedCount > 0;
+  const maxVal = hasHistory ? Math.max(...plottedValues, 1) * 1.15 : 1;
+
+  const firstValue = plottedValues[0];
+  const lastValue = plottedValues[plottedValues.length - 1];
+  const hasComparison = plottedValues.length >= 2;
+  const delta = hasComparison ? lastValue - firstValue : 0;
+  const improved = hasComparison
+    ? currentConfig.lowerIsBetter
+      ? lastValue < firstValue
+      : lastValue > firstValue
+    : false;
+  const unchanged = hasComparison && lastValue === firstValue;
+
+  const comparisonLabel = !hasComparison
+    ? 'Todavía no hay dos mediciones para comparar'
+    : unchanged
+    ? 'Sin cambio respecto del inicio'
+    : currentConfig.lowerIsBetter
+    ? improved
+      ? 'Mejoró: la posición media bajó'
+      : 'Empeoró: la posición media subió'
+    : delta > 0
+    ? 'Subió respecto del inicio'
+    : 'Bajó respecto del inicio';
+
+  const comparisonClass = !hasComparison || unchanged
+    ? 'text-slate-500'
+    : improved
+    ? 'text-emerald-600'
+    : currentConfig.lowerIsBetter
+    ? 'text-rose-600'
+    : delta > 0
+    ? 'text-emerald-600'
+    : 'text-rose-600';
+
+  const summaryCards = isRealHistory
+    ? [
+        {
+          label: 'Cambio score técnico',
+          value: hasTechnicalComparison
+            ? `${monthComparison.visibilityChangePercent > 0 ? '+' : ''}${monthComparison.visibilityChangePercent}%`
+            : '—',
+          source: hasTechnicalComparison ? 'AUDITORÍAS' : 'SIN SERIE',
+          tone: 'indigo',
+        },
+        {
+          label: 'Cambio posición media',
+          value: averagePositionDelta !== null
+            ? `${averagePositionDelta > 0 ? '+' : ''}${averagePositionDelta}`
+            : '—',
+          source: averagePositionDelta !== null ? 'SEARCH CONSOLE' : 'SIN SERIE',
+          tone: 'emerald',
+        },
+        {
+          label: 'Problemas resueltos',
+          value: solvedProblems !== null ? String(solvedProblems) : '—',
+          source: solvedProblems !== null ? 'AUDITORÍAS' : 'SIN SERIE',
+          tone: 'amber',
+        },
+        {
+          label: 'Nuevas oportunidades',
+          value: '—',
+          source: 'SIN SERIE',
+          tone: 'purple',
+        },
+        {
+          label: 'Consultas / conversiones',
+          value: '—',
+          source: 'SIN FUENTE',
+          tone: 'blue',
+        },
+      ]
+    : [
+        {
+          label: 'Visibilidad',
+          value: `+${monthComparison.visibilityChangePercent}%`,
+          source: 'DEMO',
+          tone: 'indigo',
+        },
+        {
+          label: 'Posiciones ganadas',
+          value: `+${monthComparison.improvedPositionsCount}`,
+          source: 'DEMO',
+          tone: 'emerald',
+        },
+        {
+          label: 'Problemas resueltos',
+          value: String(monthComparison.solvedProblemsCount),
+          source: 'DEMO',
+          tone: 'amber',
+        },
+        {
+          label: 'Nuevas oportunidades',
+          value: String(monthComparison.newOpportunitiesCount),
+          source: 'DEMO',
+          tone: 'purple',
+        },
+        {
+          label: 'Consultas totales',
+          value: String(monthComparison.consultationsTotal),
+          source: 'DEMO',
+          tone: 'blue',
+        },
+      ];
+
+  const toneClasses: Record<string, string> = {
+    indigo: 'bg-indigo-50/60 ring-indigo-100 text-indigo-950',
+    emerald: 'bg-emerald-50/60 ring-emerald-100 text-emerald-950',
+    amber: 'bg-amber-50/60 ring-amber-100 text-amber-950',
+    purple: 'bg-purple-50/60 ring-purple-100 text-purple-950',
+    blue: 'bg-blue-50/60 ring-blue-100 text-blue-950',
+  };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+    <div className="space-y-6 pb-14">
+      <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
@@ -126,186 +294,163 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
               {isRealHistory
-                ? <>Historial construido a partir de auditorías verificadas de <strong>{business.name}</strong>.</>
+                ? <>Historial construido con auditorías técnicas y Search Console disponibles para <strong>{business.name}</strong>. Cada métrica indica su fuente.</>
                 : <>Vista DEMO de cómo se mostrará el seguimiento histórico de <strong>{business.name}</strong>.</>}
             </p>
           </div>
 
           <button
             onClick={() => setActiveTab('monthly-report')}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all shrink-0 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider transition-all shrink-0 cursor-pointer"
           >
             Ver informe mensual
           </button>
         </div>
 
-        {/* Month-over-Month Comparison Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-6 border-t border-slate-100">
-          <div className="p-3 rounded-xl bg-indigo-50/60 border border-indigo-100 text-left">
-            <span className="text-[10px] uppercase font-bold text-indigo-700 block">
-              Visibilidad
-            </span>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-lg font-bold text-indigo-950 font-heading">
-                +{monthComparison.visibilityChangePercent}%
+          {summaryCards.map((card, index) => (
+            <div
+              key={card.label}
+              className={`p-3 rounded-xl ring-1 text-left ${toneClasses[card.tone]} ${
+                index === summaryCards.length - 1 ? 'col-span-2 sm:col-span-1' : ''
+              }`}
+            >
+              <span className="text-[10px] uppercase font-bold opacity-75 block">
+                {card.label}
               </span>
-              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-            </div>
-            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-left">
-            <span className="text-[10px] uppercase font-bold text-emerald-700 block">
-              Posiciones ganadas
-            </span>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-lg font-bold text-emerald-950 font-heading">
-                +{monthComparison.improvedPositionsCount}
+              <span className="text-lg font-bold font-heading mt-1 block font-tabular">
+                {card.value}
               </span>
-              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-            </div>
-            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 text-left">
-            <span className="text-[10px] uppercase font-bold text-amber-700 block">
-              Problemas resueltos
-            </span>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-lg font-bold text-amber-950 font-heading">
-                {monthComparison.solvedProblemsCount}
-              </span>
-              <CheckCircle2 className="w-4 h-4 text-amber-600" />
-            </div>
-            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-100 text-left">
-            <span className="text-[10px] uppercase font-bold text-purple-700 block">
-              Nuevas oportunidades
-            </span>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-lg font-bold text-purple-950 font-heading">
-                {monthComparison.newOpportunitiesCount}
+              <span className="text-[9px] text-slate-500 font-bold tracking-wider block mt-1">
+                {card.source}
               </span>
             </div>
-            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
-          </div>
-
-          <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-left col-span-2 sm:col-span-1">
-            <span className="text-[10px] uppercase font-bold text-blue-700 block">
-              Consultas totales
-            </span>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-lg font-bold text-blue-950 font-heading">
-                {monthComparison.consultationsTotal}
-              </span>
-              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
-            </div>
-            <span className="text-[10px] text-slate-500">{isRealHistory ? 'REAL' : 'DEMO'}</span>
-          </div>
+          ))}
         </div>
       </div>
 
       {!hasHistory && (
-        <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
-          <h2 className="text-base font-bold text-slate-900">Sin historial todavía</h2>
+        <div className="rounded-2xl ring-1 ring-slate-200 bg-white p-8 text-center">
+          <h2 className="text-base font-bold text-slate-900">Sin historial para esta métrica</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Este negocio todavía no tiene mediciones históricas. La evolución aparecerá cuando existan análisis reales guardados en el tiempo.
+            Seleccioná otra métrica o generá nuevas mediciones. Visibility AI no completará huecos con estimaciones no verificadas.
           </p>
         </div>
       )}
 
-      {/* Metric Selector Buttons */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
-        {Object.entries(metricConfigs)
-          .filter(([key, cfg]) => !isRealHistory || cfg.values.length > 0)
-          .map(([key, cfg]) => {
-          const isSelected = selectedMetric === key;
-          return (
-            <button
-              key={key}
-              onClick={() => setSelectedMetric(key as any)}
-              className={`px-4 py-2 rounded-xl whitespace-nowrap font-semibold transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-              }`}
+      {availableMetricKeys.length > 0 && (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs">
+          {availableMetricKeys.map((key) => {
+            const config = metricConfigs[key];
+            const isSelected = effectiveSelectedMetric === key;
+
+            return (
+              <button
+                key={key}
+                onClick={() => setSelectedMetric(key)}
+                className={`px-4 py-2 rounded-xl whitespace-nowrap font-semibold transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-slate-950 text-white shadow-xs'
+                    : 'bg-white ring-1 ring-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {config.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {hasHistory && (
+        <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 font-heading">
+                Evolución: {currentConfig.label}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
+                {currentConfig.description}
+              </p>
+              <span className="mt-2 inline-flex text-[9px] font-bold tracking-[0.12em] uppercase text-indigo-600">
+                Fuente: {currentConfig.source}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg ring-1 ring-slate-200">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>
+                {plottedCount} medición{plottedCount === 1 ? '' : 'es'}
+              </span>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto pb-2">
+            <div
+              className="flex items-end gap-3 sm:gap-5 h-64 border-b border-slate-200 px-2 sm:px-4"
+              style={{ minWidth: `${Math.max(520, plottedCount * 84)}px` }}
             >
-              {cfg.label}
-            </button>
-          );
-        })}
-      </div>
+              {plottedMonths.map((month, idx) => {
+                const value = plottedValues[idx];
+                const heightPercent = Math.max(12, Math.round((value / maxVal) * 100));
+                const isLast = idx === plottedMonths.length - 1;
 
-      {/* Main Chart Card */}
-      {hasHistory && <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900 font-heading">
-              Evolución: {currentConfig.label}
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {currentConfig.description}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>{isRealHistory ? `${currentMonths.length} medición${currentMonths.length === 1 ? '' : 'es'} real${currentMonths.length === 1 ? '' : 'es'}` : '6 meses de ejemplo'}</span>
-          </div>
-        </div>
-
-        {/* Visual Bar & Line Graphic (Clean Responsive SVG/HTML) */}
-        <div className="pt-6 pb-2">
-          <div className="grid grid-cols-6 gap-3 sm:gap-6 items-end h-56 border-b border-slate-200 px-2 sm:px-6">
-            {currentMonths.map((month, idx) => {
-              const val = currentConfig.values[idx];
-              const heightPercent = Math.max(15, Math.round((val / maxVal) * 100));
-              const isLast = idx === months.length - 1;
-
-              return (
-                <div key={month} className="flex flex-col items-center h-full justify-end group">
-                  {/* Tooltip / value */}
-                  <span className="text-[11px] font-bold text-slate-700 mb-2 group-hover:scale-110 transition-transform">
-                    {val.toLocaleString('es-AR')}
-                    <span className="text-[9px] text-slate-400 block -mt-0.5 text-center font-normal">
-                      {currentConfig.unit}
+                return (
+                  <div
+                    key={`${month}-${idx}`}
+                    className="flex-1 min-w-[56px] max-w-[84px] flex flex-col items-center h-full justify-end group"
+                  >
+                    <span className="text-[11px] font-bold text-slate-700 mb-2 font-tabular">
+                      {value.toLocaleString('es-AR')}
+                      <span className="text-[9px] text-slate-400 block -mt-0.5 text-center font-normal">
+                        {currentConfig.unit}
+                      </span>
                     </span>
-                  </span>
 
-                  {/* Bar */}
-                  <div className="w-full max-w-[48px] bg-slate-100 rounded-t-xl overflow-hidden flex flex-col justify-end p-0.5">
-                    <div
-                      className={`w-full rounded-t-lg transition-all duration-700 bg-gradient-to-t ${
-                        isLast
-                          ? currentConfig.gradient
-                          : 'from-slate-400 to-slate-500 group-hover:from-indigo-500 group-hover:to-blue-600'
-                      }`}
-                      style={{ height: `${heightPercent}%` }}
-                    />
+                    <div className="w-full max-w-[48px] h-[150px] bg-slate-100 rounded-t-xl overflow-hidden flex flex-col justify-end p-0.5">
+                      <div
+                        className={`w-full rounded-t-lg transition-all duration-700 bg-gradient-to-t ${
+                          isLast
+                            ? currentConfig.gradient
+                            : 'from-slate-300 to-slate-500 group-hover:from-indigo-400 group-hover:to-blue-500'
+                        }`}
+                        style={{ height: `${heightPercent}%` }}
+                      />
+                    </div>
+
+                    <span className={`text-[10px] mt-3 font-semibold whitespace-nowrap ${
+                      isLast ? 'text-indigo-600' : 'text-slate-500'
+                    }`}>
+                      {month}
+                    </span>
                   </div>
+                );
+              })}
+            </div>
+          </div>
 
-                  {/* Month Label */}
-                  <span className={`text-xs mt-3 font-semibold ${isLast ? 'text-indigo-600 font-bold' : 'text-slate-500'}`}>
-                    {month}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
+            <span>
+              Punto de partida:{' '}
+              <strong>{firstValue} {currentConfig.unit}</strong> ({plottedMonths[0]})
+              {' → '}
+              Estado actual:{' '}
+              <strong>{lastValue} {currentConfig.unit}</strong> ({plottedMonths[plottedMonths.length - 1]})
+            </span>
+            <span className={`font-bold ${comparisonClass}`}>
+              {comparisonLabel}
+            </span>
           </div>
         </div>
+      )}
 
-        {/* Summary Footer */}
-        <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
-          <span>
-            Punto de partida: <strong>{currentConfig.values[0]} {currentConfig.unit}</strong> ({currentMonths[0]}) → Estado actual: <strong>{currentConfig.values[currentConfig.values.length - 1]} {currentConfig.unit}</strong> ({currentMonths[currentMonths.length - 1]})
-          </span>
-          <span className={`font-bold ${currentConfig.values[currentConfig.values.length - 1] >= currentConfig.values[0] ? 'text-emerald-600' : 'text-rose-600'}`}>
-            {currentConfig.values[currentConfig.values.length - 1] >= currentConfig.values[0] ? 'Mejora respecto del inicio ↑' : 'Descenso respecto del inicio ↓'}
-          </span>
+      {isRealHistory && solvedProblems !== null && solvedProblems > 0 && (
+        <div className="rounded-xl bg-emerald-50/70 ring-1 ring-emerald-200 px-4 py-3 flex items-start gap-3 text-xs text-emerald-900">
+          <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5 text-emerald-600" />
+          <p>
+            Se registran <strong>{solvedProblems}</strong> hallazgo{solvedProblems === 1 ? '' : 's'} técnico{solvedProblems === 1 ? '' : 's'} menos respecto de la primera auditoría guardada.
+          </p>
         </div>
-      </div>}
+      )}
     </div>
   );
 };
