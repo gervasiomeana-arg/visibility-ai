@@ -96,7 +96,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
   const plans = BASE_PLANS.map((plan) => ({
     ...plan,
-    price: getPlanPrice(plan, 'AR'),
+    price: getPlanPrice(plan, workspace?.countryCode || 'AR'),
     businessesCount: 0,
     status: 'Activo',
     popular: plan.id === 'growth',
@@ -177,7 +177,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
           }`}
         >
-          Planes y Suscripciones (4)
+          Planes y Suscripciones ({plans.length})
         </button>
         <button
           onClick={() => setActiveAdminTab('ai-usage')}
@@ -232,7 +232,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                     <td className="py-3.5 px-4 text-slate-600">{biz.city}</td>
                     <td className="py-3.5 px-4 text-center">
                       <span className="font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                        DEMO {biz.scores.overall}/100
+                        {biz.scoreSources?.overall === 'real'
+                          ? 'REAL'
+                          : biz.scoreSources?.overall === 'partial'
+                          ? 'PARCIAL'
+                          : 'DEMO'} {biz.scores.overall}/100
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-right">
