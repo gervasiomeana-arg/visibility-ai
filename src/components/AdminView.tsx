@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Business, ActiveTab, Workspace } from '../types';
 import { workspaceService } from '../services/workspaceService';
+import { authService } from '../services/authService';
 import { BASE_PLANS, getPlanPrice } from '../config/markets';
 import {
   ProductionHealth,
@@ -50,6 +51,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   const [productionHealth, setProductionHealth] = useState<ProductionHealth | null>(null);
   const [productionHealthLoading, setProductionHealthLoading] = useState(false);
   const [productionHealthError, setProductionHealthError] = useState('');
+  const [persistenceTestLoading, setPersistenceTestLoading] = useState(false);
+  const [persistenceTestResult, setPersistenceTestResult] = useState<{
+    ok: boolean;
+    message: string;
+    businessesCount?: number;
+  } | null>(null);
 
   useEffect(() => {
     setWorkspaceName(workspace?.name || '');
@@ -166,6 +173,50 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       await refreshMembers();
     } catch (error: any) {
       setMemberError(error?.message || 'No se pudo quitar el colaborador.');
+    }
+  };
+
+  const handlePersistenceTest = async () => {
+    setPersistenceTestLoading(true);
+    setPersistenceTestResult(null);
+
+    try {
+      if (!authService.isConfigured()) {
+        throw new Error('Supabase no está configurado en este entorno.');
+      }
+
+      const session = await authService.getSession();
+      if (!session?.user?.id) {
+        throw new Error('No hay una sesión Supabase válida.');
+      }
+
+      if (!workspace?.id) {
+        throw new Error('No hay un workspace activo para validar.');
+      }
+
+      const nextWorkspaces = await workspaceService.listWorkspaces();
+      const hasWorkspaceAccess = nextWorkspaces.some(
+        (item) => item.id === workspace.id
+      );
+
+      if (!hasWorkspaceAccess) {
+        throw new Error('La sesión no tiene acceso al workspace actual.');
+      }
+
+      const remoteBusinesses = await workspaceService.listBusinesses(workspace.id);
+
+      setPersistenceTestResult({
+        ok: true,
+        message: 'Sesión, workspace y lectura RLS validados correctamente.',
+        businessesCount: remoteBusinesses.length,
+      });
+    } catch (error: any) {
+      setPersistenceTestResult({
+        ok: false,
+        message: error?.message || 'La prueba de persistencia falló.',
+      });
+    } finally {
+      setPersistenceTestLoading(false);
     }
   };
 
@@ -754,6 +805,62 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {productionHealth?.integrations.supabase && (
+            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Prueba no destructiva
+                  </span>
+                  <h3 className="mt-1 text-base font-bold text-slate-900 font-heading">
+                    Validar sesión y persistencia Supabase
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 max-w-2xl">
+                    Comprueba sesión autenticada, acceso al workspace y lectura real de negocios bajo RLS. No crea ni modifica datos.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePersistenceTest}
+                  disabled={persistenceTestLoading}
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-all"
+                >
+                  {persistenceTestLoading ? 'Probando...' : 'Probar persistencia'}
+                </button>
+              </div>
+
+              {persistenceTestResult && (
+                <div className={`mt-4 rounded-xl p-4 ring-1 ${
+                  persistenceTestResult.ok
+                    ? 'bg-emerald-50 ring-emerald-200 text-emerald-800'
+                    : 'bg-rose-50 ring-rose-200 text-rose-800'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    {persistenceTestResult.ok ? (
+                      <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    )}
+                    <div>
+                      <p className="text-xs font-bold">
+                        {persistenceTestResult.ok ? 'Prueba superada' : 'Prueba fallida'}
+                      </p>
+                      <p className="mt-1 text-xs">
+                        {persistenceTestResult.message}
+                      </p>
+                      {persistenceTestResult.ok && typeof persistenceTestResult.businessesCount === 'number' && (
+                        <p className="mt-1 text-[10px] font-semibold">
+                          Negocios leídos desde Supabase: {persistenceTestResult.businessesCount}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
