@@ -522,3 +522,38 @@ drop trigger if exists protect_workspace_owner_membership_trigger on public.work
 create trigger protect_workspace_owner_membership_trigger
 before insert or update or delete on public.workspace_members
 for each row execute procedure public.protect_workspace_owner_membership();
+
+
+create or replace function public.list_workspace_members(target_workspace uuid)
+returns table (
+  user_id uuid,
+  email text,
+  full_name text,
+  role text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    wm.user_id,
+    p.email,
+    p.full_name,
+    wm.role
+  from public.workspace_members wm
+  left join public.profiles p on p.id = wm.user_id
+  where wm.workspace_id = target_workspace
+    and public.is_workspace_member(target_workspace)
+  order by
+    case wm.role
+      when 'owner' then 1
+      when 'admin' then 2
+      when 'member' then 3
+      else 4
+    end,
+    coalesce(p.email, wm.user_id::text);
+$$;
+
+revoke all on function public.list_workspace_members(uuid) from public;
+grant execute on function public.list_workspace_members(uuid) to authenticated;
