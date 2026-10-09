@@ -100,7 +100,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
 
           {/* Subtitle */}
           <p className="mt-5 text-base sm:text-lg lg:text-xl text-slate-600 max-w-2xl mx-auto font-normal leading-relaxed">
-            Visibility AI reunirá datos de tu web y fuentes conectadas para mostrarte qué mejorar y dónde están tus oportunidades. Esta versión todavía funciona como DEMO.
+            Visibility AI combina auditoría técnica real, PageSpeed, Search Console y módulos claramente identificados como DEMO para mostrarte qué mejorar sin mezclar hechos con estimaciones.
           </p>
 
           {/* Search Box Form */}
@@ -230,7 +230,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
                 Visibility AI prepara tu diagnóstico.
               </h3>
               <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
-                En esta versión mostramos el recorrido del producto. Las conexiones reales con Google, PageSpeed y otras fuentes se incorporan por etapas.
+                La auditoría técnica, PageSpeed y Search Console pueden aportar datos reales cuando están configurados. Lo que todavía no tenga una fuente verificable se muestra como DEMO.
               </p>
             </div>
 
@@ -243,7 +243,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
                 Recibís oportunidades y acciones.
               </h3>
               <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Te mostramos problemas concretos en lenguaje humano, qué hace tu competencia y cómo generar contenido con IA para superarlos.
+                Te mostramos problemas y oportunidades en lenguaje humano. La comparación competitiva solo se presentará como real cuando exista una fuente verificable.
               </p>
             </div>
           </div>
@@ -264,14 +264,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
               Las agencias y herramientas tradicionales te inundan con términos como <em>canonical tags</em>, <em>crawl budget</em> y gráficos indescifrables.
             </p>
             <p className="mt-3 text-sm text-slate-600 leading-relaxed">
-              En <strong>Visibility AI</strong> transformamos cada hallazgo técnico en una decisión de negocio: <em>¿cuántos clientes te estás perdiendo? ¿qué busca la gente en tu ciudad? ¿qué botón tenés que agregar para que te escriban por WhatsApp?</em>
+              En <strong>Visibility AI</strong> transformamos cada hallazgo verificable en una decisión de negocio: <em>¿qué problema conviene corregir primero? ¿qué consultas reales muestran interés? ¿qué acción puede mejorar la experiencia de contacto?</em>
             </p>
 
             <div className="mt-6 space-y-3">
               <div className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <span className="text-xs sm:text-sm text-slate-700 font-medium">
-                  <strong>Puntuación 0 a 100:</strong> Diagnóstico global rápido para saber si estás visible.
+                  <strong>Puntuación 0 a 100:</strong> Resumen derivado de las señales disponibles, con su fuente claramente indicada.
                 </span>
               </div>
               <div className="flex items-start gap-3">
