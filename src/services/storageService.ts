@@ -41,7 +41,85 @@ const STORAGE_KEYS = {
   SEARCH_CONSOLE_HISTORY: 'visibility_ai_search_console_history',
 };
 
+export interface LegacyBusinessBundle {
+  business: Business;
+  issues: ExecutiveIssue[];
+  tasks: ActionTask[];
+  keywords: KeywordItem[];
+  opportunities: Opportunity[];
+  seoAudit: SeoAuditItem[];
+  seoMeta: any | null;
+  searchMeta: any | null;
+}
+
 export const storageService = {
+  getLegacyMigrationBundles(): LegacyBusinessBundle[] {
+    try {
+      const rawBusinesses = localStorage.getItem(STORAGE_KEYS.BUSINESSES);
+      if (!rawBusinesses) return [];
+
+      const businesses = JSON.parse(rawBusinesses);
+      if (!Array.isArray(businesses)) return [];
+
+      const readMap = (key: string) => {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : {};
+        } catch {
+          return {};
+        }
+      };
+
+      const issuesMap = readMap(STORAGE_KEYS.EXECUTIVE_ISSUES);
+      const tasksMap = readMap(STORAGE_KEYS.ACTION_TASKS);
+      const keywordsMap = readMap(STORAGE_KEYS.KEYWORDS);
+      const opportunitiesMap = readMap(STORAGE_KEYS.OPPORTUNITIES);
+      const auditsMap = readMap(STORAGE_KEYS.SEO_AUDITS);
+      const auditMetaMap = readMap(STORAGE_KEYS.SEO_AUDIT_META);
+      const searchMetaMap = readMap(STORAGE_KEYS.SEARCH_CONSOLE_META);
+      const initialIds = new Set(INITIAL_BUSINESSES.map((business) => business.id));
+
+      return businesses
+        .map((business: Business): LegacyBusinessBundle => ({
+          business,
+          issues: Array.isArray(issuesMap[business.id]) ? issuesMap[business.id] : [],
+          tasks: Array.isArray(tasksMap[business.id]) ? tasksMap[business.id] : [],
+          keywords: Array.isArray(keywordsMap[business.id]) ? keywordsMap[business.id] : [],
+          opportunities: Array.isArray(opportunitiesMap[business.id]) ? opportunitiesMap[business.id] : [],
+          seoAudit: Array.isArray(auditsMap[business.id]) ? auditsMap[business.id] : [],
+          seoMeta: auditMetaMap[business.id] || null,
+          searchMeta: searchMetaMap[business.id] || null,
+        }))
+        .filter((bundle: LegacyBusinessBundle) => {
+          const hasRealAudit = bundle.seoAudit.some((item) => item.source === 'real');
+          const hasSearchConsole =
+            Boolean(bundle.searchMeta) ||
+            bundle.keywords.some((keyword) => keyword.source === 'search-console');
+          const userCreatedBusiness = !initialIds.has(bundle.business.id);
+
+          return userCreatedBusiness || hasRealAudit || hasSearchConsole;
+        });
+    } catch {
+      return [];
+    }
+  },
+
+  markLegacyMigrationComplete(workspaceId: string): void {
+    try {
+      localStorage.setItem(`visibility_ai_legacy_migrated:${workspaceId}`, '1');
+    } catch {
+      // Ignore
+    }
+  },
+
+  isLegacyMigrationComplete(workspaceId: string): boolean {
+    try {
+      return localStorage.getItem(`visibility_ai_legacy_migrated:${workspaceId}`) === '1';
+    } catch {
+      return false;
+    }
+  },
+
   setScope(scope?: string): void {
     activeStorageScope = scope || 'local';
   },
