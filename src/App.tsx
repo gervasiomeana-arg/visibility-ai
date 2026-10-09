@@ -465,6 +465,14 @@ export default function App() {
   const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
     const updated = storageService.updateTaskStatus(activeBusiness.id, taskId, newStatus);
     setActionTasks(updated);
+
+    if (authService.isConfigured() && activeWorkspace?.id && activeBusiness.id !== 'no-business') {
+      workspaceService
+        .upsertActionTasks(activeWorkspace.id, activeBusiness.id, updated)
+        .catch(() => {
+          // Local cache remains authoritative until remote sync succeeds.
+        });
+    }
   };
 
   const handleSelectOpportunityForAI = (opp: Opportunity) => {
