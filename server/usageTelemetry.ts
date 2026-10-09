@@ -43,7 +43,7 @@ export async function recordUsageEvent(
     {
       method: 'POST',
       headers: {
-        apikey: config.anonKey,
+        apikey: config.publishableKey,
         authorization: `Bearer ${accessToken}`,
         'content-type': 'application/json',
         Prefer: 'return=minimal',
