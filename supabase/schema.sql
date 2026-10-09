@@ -219,11 +219,31 @@ with check (
 );
 
 drop policy if exists "members access businesses" on public.businesses;
-create policy "members access businesses"
+create policy "members read businesses"
+on public.businesses
+for select
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "editors write businesses" on public.businesses;
+create policy "editors write businesses"
 on public.businesses
 for all
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = businesses.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+)
+with check (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = businesses.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+);
 
 drop policy if exists "members access seo audits" on public.seo_audits;
 create policy "members access seo audits"
@@ -240,11 +260,31 @@ using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
 
 drop policy if exists "members access action tasks" on public.action_tasks;
-create policy "members access action tasks"
+create policy "members read action tasks"
+on public.action_tasks
+for select
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "editors write action tasks" on public.action_tasks;
+create policy "editors write action tasks"
 on public.action_tasks
 for all
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = action_tasks.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+)
+with check (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = action_tasks.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+);
 
 create or replace function public.create_workspace_with_owner(
   workspace_name text,
@@ -284,11 +324,31 @@ $$;
 
 
 drop policy if exists "members access opportunities" on public.opportunities;
-create policy "members access opportunities"
+create policy "members read opportunities"
+on public.opportunities
+for select
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "editors write opportunities" on public.opportunities;
+create policy "editors write opportunities"
 on public.opportunities
 for all
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = opportunities.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+)
+with check (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = opportunities.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+);
 
 
 drop policy if exists "workspace owners manage invites" on public.workspace_invites;
