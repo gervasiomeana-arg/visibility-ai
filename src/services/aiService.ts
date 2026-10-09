@@ -1,11 +1,12 @@
 import { ContentGenerationRequest } from '../types';
+import { authService } from './authService';
 
 export const aiService = {
   async askAssistant(prompt: string, businessContext?: { name: string; url: string; category: string; city: string; scores?: any }): Promise<string> {
     try {
       const response = await fetch('/api/assistant/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authService.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ prompt, businessContext }),
       });
       if (response.ok) {
@@ -77,7 +78,7 @@ Te sugiero enfocarte en las oportunidades de alta demanda comercial:
     try {
       const response = await fetch('/api/content/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authService.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(req),
       });
       if (response.ok) {
