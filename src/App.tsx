@@ -249,6 +249,22 @@ export default function App() {
           });
         }
 
+        if (Array.isArray(state.keywords) && state.keywords.length > 0) {
+          storageService.saveKeywords(activeBusiness.id, state.keywords);
+        }
+
+        if (Array.isArray(state.auditHistory)) {
+          state.auditHistory.forEach((point) => {
+            storageService.saveAuditHistoryPoint(activeBusiness.id, point);
+          });
+        }
+
+        if (Array.isArray(state.searchHistory)) {
+          state.searchHistory.forEach((point) => {
+            storageService.saveSearchConsoleHistoryPoint(activeBusiness.id, point);
+          });
+        }
+
         setBusinesses(storageService.getBusinesses());
       })
       .catch(() => {
