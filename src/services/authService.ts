@@ -59,11 +59,22 @@ export const authService = {
     return data.user;
   },
 
-  async signUp(email: string, password: string): Promise<User | null> {
+  async signUp(email: string, password: string): Promise<{
+    user: User | null;
+    session: Session | null;
+    identitiesCount: number | null;
+  }> {
     if (!supabase) throw new Error('Supabase no está configurado.');
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
-    return data.user;
+
+    return {
+      user: data.user,
+      session: data.session,
+      identitiesCount: Array.isArray(data.user?.identities)
+        ? data.user!.identities!.length
+        : null,
+    };
   },
 
   async requestPasswordReset(email: string): Promise<void> {
