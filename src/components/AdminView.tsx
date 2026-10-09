@@ -26,7 +26,12 @@ interface AdminViewProps {
 
 export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, onSelectBusiness, workspace, onWorkspaceUpdated }) => {
   const [activeTab, setActiveAdminTab] = useState<'businesses' | 'plans' | 'members' | 'ai-usage' | 'integrations'>('businesses');
-  const [members, setMembers] = useState<Array<{ userId: string; role: 'owner' | 'admin' | 'member' | 'viewer' }>>([]);
+  const [members, setMembers] = useState<Array<{
+    userId: string;
+    email?: string | null;
+    fullName?: string | null;
+    role: 'owner' | 'admin' | 'member' | 'viewer';
+  }>>([]);
   const [invites, setInvites] = useState<Array<{ id: string; email: string; role: 'admin' | 'member' | 'viewer'; token: string; expiresAt: string; acceptedAt?: string | null }>>([]);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'viewer'>('member');
@@ -442,10 +447,17 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 return (
                   <div key={member.userId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                     <div className="min-w-0">
-                      <p className="font-semibold text-slate-900 break-all">{member.userId}</p>
-                      <p className="text-slate-500">
-                        {isOwner ? 'Owner del workspace' : 'Usuario Supabase'}
+                      <p className="font-semibold text-slate-900 truncate">
+                        {member.fullName || member.email || member.userId}
                       </p>
+                      <p className="text-slate-500 truncate">
+                        {member.email || (isOwner ? 'Owner del workspace' : member.userId)}
+                      </p>
+                      {isOwner && member.email && (
+                        <p className="text-[10px] font-semibold text-indigo-600 mt-0.5">
+                          Owner del workspace
+                        </p>
+                      )}
                     </div>
 
                     {workspace?.role === 'owner' && !isOwner ? (
