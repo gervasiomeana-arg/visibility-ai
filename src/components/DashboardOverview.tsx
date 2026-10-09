@@ -64,50 +64,48 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* Top Welcome & Business Header */}
       <div className="vai-shell">
         <div className="vai-core vai-panel p-6 sm:p-8 lg:p-9 flex flex-col md:flex-row md:items-center justify-between gap-7">
-          <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>{scoreSources.seo === 'real' || scoreSources.web === 'real' ? 'DIAGNÓSTICO CON DATOS REALES' : 'DIAGNÓSTICO DEMO'}</span>
-            <span className="text-slate-300">·</span>
-            <span className="text-slate-500">{business.category}</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-slate-950 font-heading tracking-[-0.04em] text-balance">
-            {business.name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
-            <a
-              href={business.url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 text-slate-700 hover:text-indigo-600 font-medium underline"
-            >
-              <Globe className="w-3.5 h-3.5" />
-              <span>{business.url}</span>
-              <ExternalLink className="w-3 h-3 text-slate-400" />
-            </a>
-            <span>·</span>
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              {business.city}, {business.country}
-            </span>
-          </div>
-        </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-indigo-600 mb-2 tracking-[0.08em] uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span>{scoreSources.seo === 'real' || scoreSources.web === 'real' ? 'Diagnóstico con datos reales' : 'Diagnóstico demo'}</span>
+              <span className="text-slate-300">·</span>
+              <span className="text-slate-500 normal-case tracking-normal">{business.category}</span>
+            </div>
 
-        {/* Global Score Card */}
-        <div className="bg-slate-950 text-white rounded-[1.4rem] p-5 sm:p-6 flex items-center gap-6 shrink-0 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-white/10">
-          <div>
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-              Puntuación General
-            </span>
-            <span className="text-xs text-slate-300 font-bold block mt-0.5">
-              VISIBILIDAD DIGITAL
-            </span>
-            <p className="text-[11px] text-emerald-400 font-medium mt-1">
-              {labelForSource(scoreSources.overall)}
-            </p>
+            <h1 className="text-3xl sm:text-4xl font-bold text-slate-950 font-heading tracking-[-0.04em] text-balance">
+              {business.name}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-slate-500">
+              <a
+                href={business.url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-slate-700 hover:text-indigo-600 font-medium"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span className="truncate max-w-[16rem] sm:max-w-md">{business.url}</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </a>
+              <span className="text-slate-300">·</span>
+              <span className="flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                {business.city}, {business.country}
+              </span>
+            </div>
           </div>
-          <div className="relative flex items-center justify-center">
+
+          <div className="bg-slate-950 text-white rounded-[1.4rem] p-5 sm:p-6 flex items-center gap-6 shrink-0 shadow-[0_20px_50px_rgba(15,23,42,0.18)] ring-1 ring-white/10">
+            <div>
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.14em] block">
+                Visibilidad digital
+              </span>
+              <p className="text-[11px] text-emerald-400 font-medium mt-2">
+                {labelForSource(scoreSources.overall)}
+              </p>
+            </div>
             <div className="w-20 h-20 rounded-full ring-[6px] ring-white/8 flex items-center justify-center bg-white/[0.06]">
-              <div className="text-center">
+              <div className="text-center font-tabular">
                 <span className="text-3xl font-black text-white font-heading">
                   {scores.overall}
                 </span>
