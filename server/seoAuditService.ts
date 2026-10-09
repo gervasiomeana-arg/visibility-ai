@@ -5,7 +5,7 @@ import net from 'net';
 const MAX_HTML_BYTES = 2 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10000;
 
-function isDisallowedIp(address: string): boolean {
+export function isDisallowedIp(address: string): boolean {
   if (net.isIPv4(address)) {
     const parts = address.split('.').map(Number);
     const [a, b, c] = parts;
@@ -56,7 +56,7 @@ type ResolvedHttpsTarget = {
   }>;
 };
 
-async function resolvePublicHttpsTarget(
+export async function resolvePublicHttpsTarget(
   rawUrl: string
 ): Promise<ResolvedHttpsTarget> {
   const url = new URL(rawUrl);
