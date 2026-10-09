@@ -484,21 +484,27 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $
 declare
   workspace_owner uuid;
 begin
-  select owner_user_id
-  into workspace_owner
-  from public.workspaces
-  where id = coalesce(new.workspace_id, old.workspace_id);
-
   if tg_op = 'DELETE' then
+    select owner_user_id
+    into workspace_owner
+    from public.workspaces
+    where id = old.workspace_id;
+
     if old.user_id = workspace_owner then
       raise exception 'Workspace owner membership cannot be removed';
     end if;
+
     return old;
   end if;
+
+  select owner_user_id
+  into workspace_owner
+  from public.workspaces
+  where id = new.workspace_id;
 
   if new.role = 'owner' and new.user_id <> workspace_owner then
     raise exception 'Only the workspace owner can have owner role';
@@ -510,7 +516,7 @@ begin
 
   return new;
 end;
-$$;
+$;
 
 drop trigger if exists protect_workspace_owner_membership_trigger on public.workspace_members;
 create trigger protect_workspace_owner_membership_trigger
