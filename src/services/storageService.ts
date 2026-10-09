@@ -349,6 +349,7 @@ export const storageService = {
       .map((item) => ({
         id: `task-${businessId}-${item.key}`,
         businessId,
+        source: 'seo-audit',
         title: item.title,
         priority: item.status === 'error' ? 'URGENTE' : item.impact === 'Alto' ? 'IMPORTANTE' : 'RECOMENDADO',
         status: 'pendiente',
@@ -378,6 +379,9 @@ export const storageService = {
 
       parsed[businessId] = tasks.map((task) => ({
         ...task,
+        source:
+          task.source ||
+          (task.id.startsWith(`task-${businessId}-`) ? 'seo-audit' : 'demo'),
         status: statusById.get(task.id) || task.status,
       }));
       localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(parsed));
@@ -744,16 +748,29 @@ export const storageService = {
   },
 
   getActionTasks(businessId: string): ActionTask[] {
+    const normalize = (task: ActionTask): ActionTask => ({
+      ...task,
+      source:
+        task.source ||
+        (task.id.startsWith(`task-${businessId}-`) ? 'seo-audit' : 'demo'),
+    });
+
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed[businessId]) return parsed[businessId];
+        if (Array.isArray(parsed[businessId])) {
+          return parsed[businessId].map(normalize);
+        }
       }
     } catch {
       // Fallback
     }
-    return INITIAL_ACTION_TASKS[businessId] || [];
+
+    return (INITIAL_ACTION_TASKS[businessId] || []).map((task) => ({
+      ...task,
+      source: 'demo',
+    }));
   },
 
   updateTaskStatus(businessId: string, taskId: string, newStatus: TaskStatus): ActionTask[] {
