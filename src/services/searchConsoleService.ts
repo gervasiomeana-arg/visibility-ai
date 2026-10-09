@@ -1,3 +1,5 @@
+import { authService } from './authService';
+
 export interface SearchConsoleSite {
   siteUrl: string;
   permissionLevel: string;
@@ -11,23 +13,59 @@ export interface SearchConsoleQueryRow {
   position: number;
 }
 
+async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
+  const headers: Record<string, string> = { ...(extra || {}) };
+
+  if (authService.isConfigured()) {
+    const session = await authService.getSession();
+    if (session?.access_token) {
+      headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  }
+
+  return headers;
+}
+
 export const searchConsoleService = {
   async status(): Promise<{ configured: boolean; connected: boolean; persistence: string }> {
-    const response = await fetch('/api/search-console/status');
+    const response = await fetch('/api/search-console/status', {
+      headers: await authHeaders(),
+    });
     if (!response.ok) throw new Error('No se pudo consultar el estado de Search Console.');
     return response.json();
   },
 
-  connect(returnTo = '/'): void {
-    window.location.href = `/api/search-console/auth/start?returnTo=${encodeURIComponent(returnTo)}`;
+  async connect(returnTo = '/'): Promise<void> {
+    const response = await fetch('/api/search-console/auth/start', {
+      method: 'POST',
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ returnTo }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data?.authUrl) {
+      throw new Error(data?.error || 'No se pudo iniciar la conexión con Search Console.');
+    }
+
+    window.location.href = data.authUrl;
   },
 
   async disconnect(): Promise<void> {
-    await fetch('/api/search-console/disconnect', { method: 'POST' });
+    const response = await fetch('/api/search-console/disconnect', {
+      method: 'POST',
+      headers: await authHeaders(),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data?.error || 'No se pudo desconectar Search Console.');
+    }
   },
 
   async sites(): Promise<SearchConsoleSite[]> {
-    const response = await fetch('/api/search-console/sites');
+    const response = await fetch('/api/search-console/sites', {
+      headers: await authHeaders(),
+    });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || 'No se pudieron cargar las propiedades de Search Console.');
     return data.sites || [];
@@ -43,7 +81,7 @@ export const searchConsoleService = {
 
     const response = await fetch('/api/search-console/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         siteUrl,
         startDate: format(start),
