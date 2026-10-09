@@ -690,6 +690,73 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             )}
           </div>
 
+          {productionHealth && (
+            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Checklist de readiness
+                  </span>
+                  <h3 className="mt-1 text-base font-bold text-slate-900 font-heading">
+                    {productionHealth.readiness.coreSaasReady
+                      ? 'Base SaaS lista para pruebas reales'
+                      : 'Todavía hay requisitos bloqueantes'}
+                  </h3>
+                </div>
+
+                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                  productionHealth.readiness.coreSaasReady
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-amber-50 text-amber-700'
+                }`}>
+                  {productionHealth.readiness.coreSaasReady
+                    ? 'CORE READY'
+                    : 'BLOQUEADO'}
+                </span>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-2xl bg-slate-50/80 ring-1 ring-slate-200/70 p-4">
+                  <p className="text-xs font-bold text-slate-900">Bloqueantes</p>
+                  <div className="mt-3 space-y-2">
+                    {productionHealth.readiness.blockers.length === 0 ? (
+                      <div className="flex items-center gap-2 text-xs text-emerald-700">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>No hay bloqueantes del core SaaS.</span>
+                      </div>
+                    ) : (
+                      productionHealth.readiness.blockers.map((item) => (
+                        <div key={item} className="flex items-center gap-2 text-xs text-amber-800">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>{item}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-slate-50/80 ring-1 ring-slate-200/70 p-4">
+                  <p className="text-xs font-bold text-slate-900">Opcionales / siguientes pasos</p>
+                  <div className="mt-3 space-y-2">
+                    {productionHealth.readiness.optionalMissing.length === 0 ? (
+                      <div className="flex items-center gap-2 text-xs text-emerald-700">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Las integraciones opcionales principales están configuradas.</span>
+                      </div>
+                    ) : (
+                      productionHealth.readiness.optionalMissing.map((item) => (
+                        <div key={item} className="flex items-center gap-2 text-xs text-slate-600">
+                          <Cpu className="w-4 h-4 text-slate-400" />
+                          <span>{item}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {productionHealth && !productionHealth.integrations.supabase && (
             <div className="rounded-[1.45rem] bg-amber-50 ring-1 ring-amber-200 p-5">
               <div className="flex items-start gap-3">
