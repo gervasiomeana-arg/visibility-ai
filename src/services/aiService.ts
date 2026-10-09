@@ -99,55 +99,48 @@ Sin datos de demanda verificados, puedo sugerir acciones generales para revisar:
     if (contentType === 'web_page') {
       return `# ${keyword ? keyword.toUpperCase() : topic} EN ${city.toUpperCase()}
 
-## Disfrutá de la mejor experiencia en ${city} pensada para vos y tu familia
+## Borrador editable para una página comercial
 
-¿Buscás el lugar ideal para relajarte y disfrutar sin preocupaciones? En nuestro establecimiento combinamos la calidez de la mejor atención con todas las comodidades que necesitás para que tu estadía sea inolvidable.
+Este texto es una propuesta de redacción y **no debe publicarse sin validar los datos del negocio**.
 
----
+### Presentación
+Si buscás ${keyword || topic} en ${city}, acá podés explicar de forma clara qué ofrece ${businessType || 'tu negocio'}, a quién está dirigido y por qué conviene consultarte.
 
-### ¿Por qué elegirnos en ${city}?
+### Qué conviene incluir
+- El servicio principal y sus características reales.
+- Zona de atención o ubicación.
+- Diferenciales que puedas comprobar.
+- Horarios, condiciones y medios de contacto verificados.
+- Fotos propias, casos o testimonios autorizados.
 
-- **Ubicación inmejorable:** A pocos minutos de las principales atracciones y playas, permitiéndote moverte con total comodidad.
-- **Espacios diseñados para el confort:** Habitaciones amplias, luminosas y totalmente equipadas para descansar como en casa.
-- **Atención personalizada:** Nuestro equipo está a tu disposición las 24 horas para resolver cualquier necesidad.
-- **Desayuno artesanal:** Comenzá cada día con productos frescos, opciones saludables y sabores caseros.
+### Próximo paso
+**Consultanos para recibir información, disponibilidad o presupuesto.**
 
----
-
-### Comodidades y Servicios incluidos:
-✓ Conexión Wi-Fi de alta velocidad en todas las instalaciones  
-✓ Estacionamiento seguro y monitoreado  
-✓ Asesoramiento turístico y recomendaciones de paseos  
-✓ Piscina climatizada y áreas de descanso  
-
----
-
-### Consultá disponibilidad hoy mismo
-No dejes tu descanso para último momento. Reservando de forma directa a través de nuestra web o WhatsApp obtenés el mejor precio garantizado y beneficios exclusivos.
-
-👉 **[Escribinos por WhatsApp y reservá tu lugar hoy mismo]**`;
+> Antes de publicar: reemplazá este borrador con información confirmada del negocio y eliminá cualquier afirmación que no puedas verificar.`;
     }
 
     if (contentType === 'faq') {
       return `### Preguntas Frecuentes sobre ${businessType} en ${city}
 
-**1. ¿Cuáles son los horarios de ingreso (Check-in) y salida (Check-out)?**
-El horario de ingreso es a partir de las 14:00 hs y la salida es hasta las 10:30 hs. Si llegás antes o querés quedarte unas horas más, contamos con custodia de equipaje sin costo adicional para que sigas disfrutando.
+Este es un borrador de estructura. Completá cada respuesta únicamente con información real del negocio.
 
-**2. ¿Cuentan con estacionamiento para vehículos?**
-Sí, disponemos de cocheras cubiertas y monitoreadas las 24 hs dentro del predio. Te sugerimos solicitar tu espacio al momento de confirmar la reserva.
+**1. ¿Qué servicios ofrecen?**
+Describí acá los servicios efectivamente disponibles.
 
-**3. ¿Cómo funciona el servicio de desayuno?**
-Ofrecemos desayuno buffet completo todas las mañanas de 7:30 a 10:30 hs, con pastelería artesanal, frutas frescas, infusiones y opciones aptas para celíacos previa consulta.
+**2. ¿Dónde están ubicados o qué zona atienden?**
+Indicá dirección, cobertura o modalidad de atención verificada.
 
-**4. ¿Aceptan mascotas?**
-Aceptamos mascotas de porte pequeño bajo consulta previa y en habitaciones seleccionadas para garantizar el bienestar de todos nuestros huéspedes.
+**3. ¿Cuáles son los horarios?**
+Agregá días y horarios reales.
 
-**5. ¿Cuáles son los medios de pago aceptados?**
-Aceptamos transferencias bancarias, tarjetas de crédito y débito, y pagos en efectivo con promociones especiales por reserva directa.
+**4. ¿Cómo puedo consultar o reservar?**
+Incluí los canales de contacto que realmente utilicen.
 
-**6. ¿Cómo llegar desde los principales accesos de ${city}?**
-Nos encontramos en una zona estratégica de muy fácil acceso tanto en vehículo particular como en transporte público o taxi desde la terminal.`;
+**5. ¿Qué medios de pago aceptan?**
+Mencioná solo los medios de pago confirmados.
+
+**6. ¿Hay políticas o condiciones importantes?**
+Explicá cancelaciones, requisitos, tiempos de entrega u otras condiciones reales según corresponda.`;
     }
 
     if (contentType === 'seo_meta') {
@@ -166,31 +159,31 @@ Descubrí el mejor servicio de ${keyword} en ${city}. Confort, ubicación privil
     }
 
     if (contentType === 'google_post') {
-      return `🌊 ¡Planeá tu próxima escapada a ${city}! ☀️
+      return `📍 ${businessType} en ${city}
 
-¿Buscando un respiro de la rutina? Te esperamos con todo listo para que disfrutes de unos días inolvidables:
+Borrador para una publicación de Google:
 
-✨ Habitaciones confortables con vistas privilegiadas  
-🥐 Desayuno buffet artesanal incluido todas las mañanas  
-🏊‍♂️ Pileta climatizada para relajarte a cualquier hora  
-🚗 Cochera privada para tu total tranquilidad  
+¿Querés conocer más sobre ${topic || keyword || 'nuestro servicio'}?
 
-📅 Aprovechá nuestros paquetes especiales de fin de semana con late check-out sin cargo.
+Podés usar esta publicación para contar una novedad, promoción o servicio **realmente disponible**, sumar una foto propia y cerrar con una llamada a la acción clara.
 
-📲 Consultanos por mensaje directo o tocá el botón para chatear por WhatsApp con nosotros. ¡Los cupos son limitados!
+📲 Contactanos para recibir información actualizada.
 
-#${city.replace(/\s+/g, '')} #Turismo #Escapada #Descanso #Promociones`;
+Antes de publicar, verificá precios, promociones, horarios, disponibilidad y cualquier beneficio mencionado.`;
     }
 
     // Default general article
-    return `### Guía Exclusiva: ${topic} en ${city}
+    return `### Borrador: ${topic} en ${city}
 
-Cuando se trata de buscar ${keyword} en ${city}, contar con información clara y confiable marca toda la diferencia. En este artículo te contamos todo lo que necesitás tener en cuenta para tomar la mejor decisión:
+Este contenido es una propuesta editable. No contiene datos medidos ni características verificadas del negocio.
 
-1. **Ubicación y accesibilidad:** Estar cerca de lo importante te ahorra tiempo y traslados.
-2. **Servicios incluidos sin sorpresas:** Verificá que cuente con todos los servicios esenciales para tu comodidad.
-3. **Atención y respaldo:** La calidez humana y la rapidez de respuesta son el verdadero diferencial.
+Para desarrollar un artículo útil sobre **${keyword || topic}**, conviene incluir:
 
-¿Querés saber más o reservar tu lugar? Contactanos hoy mismo.`;
+1. Información concreta que responda la intención de búsqueda.
+2. Datos reales del negocio, servicio o zona.
+3. Preguntas frecuentes tomadas de consultas verdaderas de clientes.
+4. Una llamada a la acción coherente con el objetivo: ${goal || 'generar una consulta'}.
+
+Antes de publicar, verificá todos los datos y adaptá el texto a la voz real del negocio.`;
   },
 };
