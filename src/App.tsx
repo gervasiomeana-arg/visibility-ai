@@ -68,6 +68,7 @@ export default function App() {
   const [authReady, setAuthReady] = useState(!authService.isConfigured());
   const [authenticated, setAuthenticated] = useState(!authService.isConfigured());
   const [workspaceReady, setWorkspaceReady] = useState(!authService.isConfigured());
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [legacyMigrationSkipped, setLegacyMigrationSkipped] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
@@ -144,11 +145,16 @@ export default function App() {
     if (!inviteToken) return;
 
     workspaceService.acceptInvite(inviteToken)
-      .then(async () => {
+      .then(async (acceptedWorkspaceId) => {
         const cleanUrl = window.location.pathname + window.location.hash;
         window.history.replaceState({}, '', cleanUrl);
-        const workspaces = await workspaceService.listWorkspaces();
-        setActiveWorkspace(workspaces[0] || null);
+        const nextWorkspaces = await workspaceService.listWorkspaces();
+        setWorkspaces(nextWorkspaces);
+        setActiveWorkspace(
+          nextWorkspaces.find((workspace) => workspace.id === acceptedWorkspaceId) ||
+          nextWorkspaces[0] ||
+          null
+        );
         setWorkspaceReady(true);
       })
       .catch(() => {
@@ -166,9 +172,14 @@ export default function App() {
     setWorkspaceReady(false);
 
     workspaceService.listWorkspaces()
-      .then((workspaces) => {
+      .then((nextWorkspaces) => {
         if (!mounted) return;
-        setActiveWorkspace(workspaces[0] || null);
+        setWorkspaces(nextWorkspaces);
+        setActiveWorkspace((current) =>
+          nextWorkspaces.find((workspace) => workspace.id === current?.id) ||
+          nextWorkspaces[0] ||
+          null
+        );
         setWorkspaceReady(true);
       })
       .catch(() => {
@@ -590,8 +601,13 @@ export default function App() {
     return (
       <WorkspaceSetupView
         onCreated={async () => {
-          const workspaces = await workspaceService.listWorkspaces();
-          setActiveWorkspace(workspaces[0] || null);
+          const nextWorkspaces = await workspaceService.listWorkspaces();
+          setWorkspaces(nextWorkspaces);
+          setActiveWorkspace(
+            nextWorkspaces.find((workspace) => workspace.id === workspaceId) ||
+            nextWorkspaces[0] ||
+            null
+          );
         }}
       />
     );
@@ -634,11 +650,20 @@ export default function App() {
           setAssistantOpen(true);
         }}
         workspaceName={activeWorkspace?.name}
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspace?.id}
+        onSelectWorkspace={(workspaceId) => {
+          const nextWorkspace = workspaces.find((workspace) => workspace.id === workspaceId) || null;
+          setLegacyMigrationSkipped(false);
+          setActiveWorkspace(nextWorkspace);
+          setActiveTab('dashboard');
+        }}
         onSignOut={
           authService.isConfigured()
             ? async () => {
                 await authService.signOut();
                 setAuthenticated(false);
+                setWorkspaces([]);
                 setActiveWorkspace(null);
               }
             : undefined
