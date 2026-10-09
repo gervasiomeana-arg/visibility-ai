@@ -44,6 +44,36 @@ export const workspaceService = {
   },
 
 
+  async getWorkspaceEntitlements(
+    workspaceId: string
+  ): Promise<{
+    planId: SubscriptionPlanId;
+    maxBusinesses: number;
+    usedBusinesses: number;
+    remainingBusinesses: number;
+    canAddBusiness: boolean;
+  } | null> {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase.rpc(
+      'get_workspace_entitlements',
+      {
+        target_workspace: workspaceId,
+      }
+    );
+
+    if (error) throw error;
+    if (!data) return null;
+
+    return {
+      planId: data.planId as SubscriptionPlanId,
+      maxBusinesses: Number(data.maxBusinesses || 0),
+      usedBusinesses: Number(data.usedBusinesses || 0),
+      remainingBusinesses: Number(data.remainingBusinesses || 0),
+      canAddBusiness: Boolean(data.canAddBusiness),
+    };
+  },
+
   async getUsageSummary(
     workspaceId: string,
     periodDays = 30
