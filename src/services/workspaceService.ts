@@ -400,6 +400,54 @@ export const workspaceService = {
     return data || null;
   },
 
+  async syncManualKeywords(
+    workspaceId: string,
+    businessId: string,
+    keywords: any[]
+  ): Promise<void> {
+    if (!supabase) return;
+
+    const manualKeywords = keywords.filter((keyword) => keyword.source === 'manual');
+
+    const { error: deleteError } = await supabase
+      .from('tracked_keywords')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId);
+
+    if (deleteError) throw deleteError;
+    if (manualKeywords.length === 0) return;
+
+    const rows = manualKeywords.map((keyword) => ({
+      workspace_id: workspaceId,
+      business_id: businessId,
+      keyword: keyword.keyword,
+      source: 'manual',
+      payload: keyword,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('tracked_keywords')
+      .upsert(rows, { onConflict: 'business_id,keyword' });
+
+    if (error) throw error;
+  },
+
+  async loadManualKeywords(workspaceId: string, businessId: string): Promise<any[]> {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('tracked_keywords')
+      .select('payload')
+      .eq('workspace_id', workspaceId)
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return (data || []).map((row: any) => row.payload);
+  },
+
   async saveSearchConsoleSnapshot(params: {
     workspaceId: string;
     businessId: string;
@@ -504,6 +552,7 @@ export const workspaceService = {
       opportunitiesResult,
       searchResult,
       searchHistoryResult,
+      manualKeywords,
     ] = await Promise.all([
       this.loadLatestSeoAudit(workspaceId, businessId),
       supabase
@@ -540,6 +589,7 @@ export const workspaceService = {
         .eq('business_id', businessId)
         .order('created_at', { ascending: true })
         .limit(24),
+      this.loadManualKeywords(workspaceId, businessId),
     ]);
 
     if (auditHistoryResult.error) throw auditHistoryResult.error;
@@ -569,9 +619,12 @@ export const workspaceService = {
         ctr: Number(row.ctr || 0),
         position: Number(row.position || 0),
       })),
-      keywords: Array.isArray(latestSearch?.payload?.keywords)
-        ? latestSearch.payload.keywords
-        : [],
+      keywords: [
+        ...(Array.isArray(latestSearch?.payload?.keywords)
+          ? latestSearch.payload.keywords
+          : []),
+        ...manualKeywords,
+      ],
     };
   },
 
