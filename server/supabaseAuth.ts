@@ -20,7 +20,7 @@ export async function getSupabaseUserFromToken(
 
   const response = await fetch(`${config.url}/auth/v1/user`, {
     headers: {
-      apikey: config.anonKey,
+      apikey: config.publishableKey,
       authorization: `Bearer ${accessToken}`,
     },
   });
