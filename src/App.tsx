@@ -23,6 +23,7 @@ import { NewBusinessModal } from './components/NewBusinessModal';
 import { LoginView } from './components/LoginView';
 import { WorkspaceSetupView } from './components/WorkspaceSetupView';
 import { LegacyMigrationView } from './components/LegacyMigrationView';
+import { PasswordResetView } from './components/PasswordResetView';
 import { authService } from './services/authService';
 import { workspaceService } from './services/workspaceService';
 import { DemoNotice } from './components/DemoNotice';
@@ -69,6 +70,7 @@ export default function App() {
   const [workspaceReady, setWorkspaceReady] = useState(!authService.isConfigured());
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [legacyMigrationSkipped, setLegacyMigrationSkipped] = useState(false);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
   const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
@@ -119,9 +121,12 @@ export default function App() {
         setAuthReady(true);
       });
 
-    const unsubscribe = authService.onAuthStateChange((session) => {
+    const unsubscribe = authService.onAuthStateChange((session, event) => {
       if (!mounted) return;
       setAuthenticated(Boolean(session));
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+      }
       setAuthReady(true);
     });
 
@@ -560,6 +565,17 @@ export default function App() {
 
   if (!authenticated) {
     return <LoginView onAuthenticated={() => setAuthenticated(true)} />;
+  }
+
+  if (passwordRecovery) {
+    return (
+      <PasswordResetView
+        onComplete={() => {
+          setPasswordRecovery(false);
+          window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
   }
 
   if (authService.isConfigured() && !workspaceReady) {
