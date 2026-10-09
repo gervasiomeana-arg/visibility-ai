@@ -497,6 +497,7 @@ export default function App() {
   };
 
   const handleSelectPreset = (presetId: string) => {
+    if (authService.isConfigured()) return;
     handleSelectBusiness(presetId);
     setActiveTab('dashboard');
   };
@@ -692,6 +693,7 @@ export default function App() {
           <LandingPage
             onAnalyze={handleStartAnalysis}
             onSelectPreset={handleSelectPreset}
+            showPresets={!authService.isConfigured()}
           />
         )}
 
