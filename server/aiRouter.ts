@@ -7,6 +7,7 @@ import {
   rateLimitWindowMs,
 } from './rateLimit';
 import { recordUsageEventSafe } from './usageTelemetry';
+import { normalizeAssistantHistory } from '../shared/assistantContext';
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_FIELD_LENGTH = 2000;
@@ -32,7 +33,7 @@ router.post(
   aiRateLimit,
   async (req, res) => {
   try {
-    const { prompt, businessContext, workspaceId, businessId } = req.body;
+    const { prompt, businessContext, workspaceId, businessId, history } = req.body;
 
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Prompt is required' });
@@ -73,7 +74,11 @@ PRINCIPIOS OBLIGATORIOS Y REGLAS DE RESPUESTA:
   - NO afirmes que Google tampoco lo encuentra (Googlebot procesa JavaScript en una fase posterior, aunque disponer del H1 en el HTML inicial sigue siendo la mejor práctica para velocidad y rastreo confiable).
 
 4. ESTRUCTURA DE SOLUCIONES Y PLATAFORMAS:
-- Cuando el usuario pregunte cómo solucionar un problema o pida una recomendación técnica, estructura tu respuesta cubriendo con claridad:
+- Responde primero al pedido concreto. Si solicita un primer paso sencillo o comprobar sin modificar, da solo una comprobación breve y no propongas cambios ni repitas una guía completa.
+- Usa el historial para mantener continuidad. Las comprobaciones aportadas por el usuario se identifican como tales, no como mediciones propias.
+- Si el usuario confirmó que el H1 existe en el DOM renderizado, no recomiendes agregar otro. Revisa su texto y la evidencia de renderizado/indexación antes de evaluar SSR o prerenderizado; no son una obligación derivada de 0 H1 en HTML inicial.
+- FCP/LCP elevados no prueban que JavaScript o la ausencia de H1 en HTML inicial sean la causa. Identificarla requiere mediciones adicionales.
+- Cuando el usuario pida una guía completa para solucionar un problema, estructura tu respuesta cubriendo con claridad:
   • Por qué importa el hallazgo
   • Qué se detectó (dato medido)
   • Qué cambio se propone
@@ -85,7 +90,13 @@ Responde en español (tono profesional, cercano, empático y sin tecnicismos inn
 
     const response = await aiClient.models.generateContent({
       model: 'gemini-3.8-flash',
-      contents: prompt,
+      contents: [
+        ...normalizeAssistantHistory(history).map((turn) => ({
+          role: turn.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: turn.content }],
+        })),
+        { role: 'user', parts: [{ text: prompt }] },
+      ],
       config: {
         systemInstruction,
         temperature: 0.7,

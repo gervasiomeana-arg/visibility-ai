@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   KeyRound,
   ArrowUpRight,
@@ -54,10 +54,24 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const [selectedSite, setSelectedSite] = useState('');
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [copiedRedirectUri, setCopiedRedirectUri] = useState(false);
+  const [gscResult, setGscResult] = useState<{
+    siteUrl: string; startDate: string; endDate: string; rowCount: number;
+  } | null>(null);
+  const queryVersion = useRef(0);
 
   useEffect(() => {
     setKeywords(initialKeywords);
   }, [initialKeywords, business.id]);
+
+  useEffect(() => {
+    queryVersion.current += 1;
+    setGscLoading(false);
+    setGscResult(null);
+    setGscError('');
+    setGscSites([]);
+    setSelectedSite('');
+    return () => { queryVersion.current += 1; };
+  }, [business.id, business.workspaceId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,13 +106,15 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [business.id, business.url]);
+  }, [business.id, business.url, business.workspaceId]);
 
   const handleLoadSearchConsole = async () => {
-    if (!selectedSite) return;
+    if (!selectedSite || gscLoading) return;
+    const requestVersion = ++queryVersion.current;
 
     setGscLoading(true);
     setGscError('');
+    setGscResult(null);
 
     try {
       const result = await searchConsoleService.query(
@@ -109,6 +125,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           businessId: business.id,
         }
       );
+      if (requestVersion !== queryVersion.current) return;
       const realKeywords: KeywordItem[] = result.rows.map((row, index) => ({
         id: `gsc-${business.id}-${index}`,
         businessId: business.id,
@@ -125,8 +142,19 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         ctr: row.ctr,
       }));
 
-      setKeywords(realKeywords);
-      storageService.saveKeywords(business.id, realKeywords);
+      // Refresh the measured source without deleting words the user added manually.
+      const updatedKeywords = [
+        ...keywords.filter((kw) => kw.source === 'manual'),
+        ...realKeywords,
+      ];
+      setKeywords(updatedKeywords);
+      storageService.saveKeywords(business.id, updatedKeywords);
+      setGscResult({
+        siteUrl: selectedSite,
+        startDate: result.startDate,
+        endDate: result.endDate,
+        rowCount: realKeywords.length,
+      });
 
       const realOpportunities = storageService.buildOpportunitiesFromSearchConsole(business, realKeywords);
       storageService.replaceOpportunitiesBySource(business.id, 'search-console', realOpportunities);
@@ -181,15 +209,18 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         });
       }
 
+      if (requestVersion !== queryVersion.current) return;
       storageService.updateBusinessScores(
         business.id,
         {},
         { google: 'partial' }
       );
     } catch (error: any) {
-      setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
+      if (requestVersion === queryVersion.current) {
+        setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
+      }
     } finally {
-      setGscLoading(false);
+      if (requestVersion === queryVersion.current) setGscLoading(false);
     }
   };
 
@@ -314,10 +345,17 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           {gscConnected && (
             <div className="flex flex-col sm:flex-row gap-2 pt-1 border-t border-slate-200/60">
               <select
+                aria-label="Propiedad de Google Search Console"
+                disabled={gscLoading}
                 value={selectedSite}
-                onChange={(e) => setSelectedSite(e.target.value)}
+                onChange={(e) => {
+                  setSelectedSite(e.target.value);
+                  setGscResult(null);
+                  setGscError('');
+                }}
                 className="flex-1 px-3 py-2 rounded-xl ring-1 ring-slate-200 bg-white text-slate-800"
               >
+                {gscSites.length === 0 && <option value="">No hay propiedades disponibles</option>}
                 {gscSites.map((site) => (
                   <option key={site.siteUrl} value={site.siteUrl}>
                     {site.siteUrl}
@@ -335,7 +373,23 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             </div>
           )}
 
-          {gscError && <p className="text-[11px] font-semibold text-rose-600">{gscError}</p>}
+          {gscConnected && gscSites.length === 0 && !gscError && (
+            <p>Si el selector sigue vacío, comprobá que esta cuenta tenga acceso a una propiedad verificada en Google Search Console y recargá la página.</p>
+          )}
+          {gscResult && (
+            <div role="status" className="rounded-xl bg-blue-50 p-3 text-blue-900">
+              <p className="font-semibold">
+                {gscResult.rowCount === 0
+                  ? 'Consulta completada: sin datos disponibles para este período.'
+                  : `Consulta completada: ${gscResult.rowCount} ${gscResult.rowCount === 1 ? 'consulta recibida' : 'consultas recibidas'}.`}
+              </p>
+              <p className="mt-1">{gscResult.siteUrl} · {gscResult.startDate} a {gscResult.endDate}</p>
+              {gscResult.rowCount === 0 && (
+                <p className="mt-1">La conexión sigue activa. Revisá el mismo período en Search Console; si Google indica que está procesando datos, volvé a consultar cuando estén disponibles.</p>
+              )}
+            </div>
+          )}
+          {gscError && <p role="alert" className="text-[11px] font-semibold text-rose-600">{gscError}</p>}
         </div>
 
         {/* Search & Filters */}
@@ -385,6 +439,19 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
+              {filteredKeywords.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                    {keywords.length > 0
+                      ? 'No hay palabras clave que coincidan con estos filtros.'
+                      : gscLoading
+                      ? 'Consultando Google Search Console…'
+                      : gscResult?.rowCount === 0
+                      ? 'No se recibieron consultas de búsqueda para el período seleccionado.'
+                      : 'Todavía no hay palabras clave cargadas.'}
+                  </td>
+                </tr>
+              )}
               {filteredKeywords.map((kw) => {
                 const hasMeasurement = kw.position > 0;
                 const isTop10 = hasMeasurement && kw.position <= 10;

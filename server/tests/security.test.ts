@@ -257,7 +257,18 @@ test('DNS lookup handler supports both all:true array and single address callbac
 
 test('buildRealSeoAudit generates structured whyItMatters, detectedData, proposedChange, and howToVerify on items', async () => {
   const { buildRealSeoAudit } = await import('../seoAuditService');
-  const result = await buildRealSeoAudit('https://openvoley.com');
+  // A client-rendered shell is a fixed input, not a live site's changing content.
+  const result = await buildRealSeoAudit('https://example.com', {
+    fetchPage: async (url) => ({
+      finalUrl: url,
+      response: url === 'https://example.com'
+        ? new Response('<!doctype html><html><head><title>Scouting y estadísticas para entrenadores</title></head><body><div id="root"></div><script src="/app.js"></script></body></html>', {
+            status: 200, headers: { 'content-type': 'text/html' },
+          })
+        : new Response('', { status: 404, headers: { 'content-type': 'text/plain' } }),
+    }),
+    fetchPageSpeed: async () => { throw new Error('PageSpeed is outside this fixture test'); },
+  });
 
   assert.equal(result.httpStatus, 200);
   assert.equal(result.items.length >= 14, true);
