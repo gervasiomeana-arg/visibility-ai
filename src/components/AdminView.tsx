@@ -15,6 +15,10 @@ import {
 import { Business, ActiveTab, Workspace } from '../types';
 import { workspaceService } from '../services/workspaceService';
 import { BASE_PLANS, getPlanPrice } from '../config/markets';
+import {
+  ProductionHealth,
+  productionHealthService,
+} from '../services/productionHealthService';
 
 interface AdminViewProps {
   businesses: Business[];
@@ -43,6 +47,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   const [workspaceError, setWorkspaceError] = useState('');
   const [memberMessage, setMemberMessage] = useState('');
   const [memberError, setMemberError] = useState('');
+  const [productionHealth, setProductionHealth] = useState<ProductionHealth | null>(null);
+  const [productionHealthLoading, setProductionHealthLoading] = useState(false);
+  const [productionHealthError, setProductionHealthError] = useState('');
 
   useEffect(() => {
     setWorkspaceName(workspace?.name || '');
@@ -65,6 +72,33 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   useEffect(() => {
     if (activeTab === 'members') refreshMembers();
   }, [activeTab, workspace?.id]);
+
+  useEffect(() => {
+    if (activeTab !== 'integrations') return;
+
+    let cancelled = false;
+    setProductionHealthLoading(true);
+    setProductionHealthError('');
+
+    productionHealthService.getStatus()
+      .then((status) => {
+        if (!cancelled) setProductionHealth(status);
+      })
+      .catch((error: any) => {
+        if (!cancelled) {
+          setProductionHealthError(
+            error?.message || 'No se pudo consultar el estado de producción.'
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setProductionHealthLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab]);
 
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -565,49 +599,169 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {/* Tab: Integrations */}
       {activeTab === 'integrations' && (
-        <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60 space-y-4">
-          <h2 className="text-base font-bold text-slate-900 font-heading">
-            Estado de Conectores y APIs Externas
-          </h2>
-          <div className="divide-y divide-slate-100 text-xs">
-            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="space-y-4">
+          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
-                <span className="font-bold text-slate-900 block">Google Search Console API</span>
-                <span className="text-slate-500">Métricas de indexación real y clicks</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">
+                  Estado de producción
+                </span>
+                <h2 className="mt-1 text-base font-bold text-slate-900 font-heading">
+                  Configuración real del entorno
+                </h2>
+                <p className="mt-1 text-xs text-slate-500 max-w-2xl">
+                  Esta información viene directamente del servidor activo y no expone claves ni secretos.
+                </p>
               </div>
-              <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                REAL AL CONECTAR
+
+              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                productionHealth?.ok
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : productionHealthLoading
+                  ? 'bg-slate-100 text-slate-600'
+                  : 'bg-amber-50 text-amber-700'
+              }`}>
+                {productionHealthLoading
+                  ? 'VERIFICANDO'
+                  : productionHealth?.ok
+                  ? 'SERVIDOR OK'
+                  : 'SIN DIAGNÓSTICO'}
               </span>
             </div>
 
-            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <span className="font-bold text-slate-900 block">Google PageSpeed Insights API</span>
-                <span className="text-slate-500">Velocidad móvil y Core Web Vitals reales</span>
-              </div>
-              <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                REAL / CONFIGURABLE
-              </span>
-            </div>
+            {productionHealthError && (
+              <p className="mt-4 text-xs font-semibold text-rose-600">
+                {productionHealthError}
+              </p>
+            )}
 
-            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <span className="font-bold text-slate-900 block">Google Business Profile API</span>
-                <span className="text-slate-500">Fichas de Google Maps, horarios y opiniones</span>
+            {productionHealth && (
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {[
+                  {
+                    label: 'Supabase',
+                    enabled: productionHealth.integrations.supabase,
+                    detail: 'Auth + persistencia',
+                  },
+                  {
+                    label: 'Search Console OAuth',
+                    enabled: productionHealth.integrations.searchConsoleOAuth,
+                    detail: 'Conexión con Google',
+                  },
+                  {
+                    label: 'Tokens persistentes',
+                    enabled: productionHealth.integrations.searchConsoleDurableTokens,
+                    detail: 'OAuth durable cifrado',
+                  },
+                  {
+                    label: 'PageSpeed',
+                    enabled: productionHealth.integrations.pageSpeedKey,
+                    detail: 'Clave dedicada',
+                  },
+                  {
+                    label: 'Gemini',
+                    enabled: productionHealth.integrations.gemini,
+                    detail: 'Asistente y contenido IA',
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className={`rounded-2xl p-4 ring-1 ${
+                      item.enabled
+                        ? 'bg-emerald-50/60 ring-emerald-200'
+                        : 'bg-amber-50/60 ring-amber-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-slate-900">{item.label}</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ${
+                        item.enabled ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`} />
+                    </div>
+                    <p className="mt-2 text-[10px] text-slate-500">{item.detail}</p>
+                    <p className={`mt-2 text-[10px] font-bold uppercase tracking-wider ${
+                      item.enabled ? 'text-emerald-700' : 'text-amber-700'
+                    }`}>
+                      {item.enabled ? 'CONFIGURADO' : 'FALTA CONFIGURAR'}
+                    </p>
+                  </div>
+                ))}
               </div>
-              <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">
-                SIMULADO (DEMO)
-              </span>
-            </div>
+            )}
+          </div>
 
-            <div className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <span className="font-bold text-slate-900 block">Google Gemini API (gemini-3.8-flash)</span>
-                <span className="text-slate-500">Asistente empresarial y redactor inteligente</span>
+          {productionHealth && !productionHealth.integrations.supabase && (
+            <div className="rounded-[1.45rem] bg-amber-50 ring-1 ring-amber-200 p-5">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                <div>
+                  <h3 className="text-sm font-bold text-amber-950">
+                    Visibility AI sigue en modo local/demo
+                  </h3>
+                  <p className="mt-1 text-xs text-amber-800 leading-5">
+                    Para activar login, workspaces, usuarios y persistencia real en AI Studio faltan
+                    <strong> VITE_SUPABASE_URL</strong> y <strong>VITE_SUPABASE_ANON_KEY</strong>.
+                  </p>
+                </div>
               </div>
-              <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                CONFIGURABLE
-              </span>
+            </div>
+          )}
+
+          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60 space-y-4">
+            <h2 className="text-base font-bold text-slate-900 font-heading">
+              Conectores y APIs externas
+            </h2>
+
+            <div className="divide-y divide-slate-100 text-xs">
+              {[
+                {
+                  name: 'Supabase Auth + PostgreSQL',
+                  description: 'Usuarios, workspaces y persistencia multi-tenant',
+                  configured: productionHealth?.integrations.supabase,
+                  fallback: 'REQUERIDO PARA SAAS',
+                },
+                {
+                  name: 'Google Search Console API',
+                  description: 'Consultas, clicks, impresiones y posición media',
+                  configured: productionHealth?.integrations.searchConsoleOAuth,
+                  fallback: 'REAL AL CONECTAR',
+                },
+                {
+                  name: 'Google PageSpeed Insights API',
+                  description: 'Rendimiento móvil y métricas Lighthouse',
+                  configured: productionHealth?.integrations.pageSpeedKey,
+                  fallback: 'FUNCIONA CON CUOTA PÚBLICA',
+                },
+                {
+                  name: 'Google Gemini API',
+                  description: 'Asistente empresarial y generación de contenido',
+                  configured: productionHealth?.integrations.gemini,
+                  fallback: 'FALLBACK LOCAL',
+                },
+                {
+                  name: 'Google Business Profile API',
+                  description: 'Fichas de Google Maps, horarios y opiniones',
+                  configured: false,
+                  fallback: 'DEMO / PENDIENTE',
+                },
+              ].map((item) => (
+                <div
+                  key={item.name}
+                  className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                >
+                  <div>
+                    <span className="font-bold text-slate-900 block">{item.name}</span>
+                    <span className="text-slate-500">{item.description}</span>
+                  </div>
+                  <span className={`font-bold px-2 py-0.5 rounded ${
+                    item.configured
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {item.configured ? 'CONFIGURADO' : item.fallback}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
