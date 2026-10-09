@@ -245,6 +245,37 @@ async function deleteDurableSearchConsoleSession(
   if (!response.ok) throw new Error('Could not delete Search Console connection');
 }
 
+async function requireSupabaseAuth(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
+  const config = getSupabaseConfig();
+  if (!config.configured) {
+    next();
+    return;
+  }
+
+  const token = bearerToken(req);
+  if (!token) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  try {
+    const user = await getSupabaseUserFromToken(token);
+    if (!user) {
+      res.status(401).json({ error: 'Invalid or expired session' });
+      return;
+    }
+
+    res.locals.authUser = user;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Could not validate session' });
+  }
+}
+
 function parseCookies(cookieHeader?: string): Record<string, string> {
   if (!cookieHeader) return {};
   return cookieHeader.split(';').reduce<Record<string, string>>((acc, part) => {
@@ -854,7 +885,7 @@ if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
 // API Routes
 
 // Google Search Console OAuth + read-only data (Phase 2)
-app.get('/api/search-console/status', async (req, res) => {
+app.get('/api/search-console/status', requireSupabaseAuth, async (req, res) => {
   const active = await getSearchConsoleSession(req);
   return res.json({
     configured: searchConsoleConfigured(),
@@ -863,7 +894,7 @@ app.get('/api/search-console/status', async (req, res) => {
   });
 });
 
-app.post('/api/search-console/auth/start', async (req, res) => {
+app.post('/api/search-console/auth/start', requireSupabaseAuth, async (req, res) => {
   try {
     if (!searchConsoleConfigured()) {
       return res.status(503).json({
@@ -1000,7 +1031,7 @@ app.get('/api/search-console/oauth/callback', async (req, res) => {
   }
 });
 
-app.post('/api/search-console/disconnect', async (req, res) => {
+app.post('/api/search-console/disconnect', requireSupabaseAuth, async (req, res) => {
   const authToken = bearerToken(req);
 
   if (durableSearchConsoleConfigured() && authToken) {
@@ -1028,7 +1059,7 @@ app.post('/api/search-console/disconnect', async (req, res) => {
   return res.json({ connected: false });
 });
 
-app.get('/api/search-console/sites', async (req, res) => {
+app.get('/api/search-console/sites', requireSupabaseAuth, async (req, res) => {
   try {
     const active = await getSearchConsoleSession(req);
     if (!active) return res.status(401).json({ error: 'Search Console is not connected' });
@@ -1052,7 +1083,7 @@ app.get('/api/search-console/sites', async (req, res) => {
   }
 });
 
-app.post('/api/search-console/query', async (req, res) => {
+app.post('/api/search-console/query', requireSupabaseAuth, async (req, res) => {
   try {
     const active = await getSearchConsoleSession(req);
     if (!active) return res.status(401).json({ error: 'Search Console is not connected' });
@@ -1109,7 +1140,7 @@ app.post('/api/search-console/query', async (req, res) => {
 
 
 // Real technical SEO audit (Phase 2)
-app.post('/api/seo/audit', async (req, res) => {
+app.post('/api/seo/audit', requireSupabaseAuth, async (req, res) => {
   try {
     const { url } = req.body;
     if (!url || typeof url !== 'string') {
@@ -1130,7 +1161,7 @@ app.post('/api/seo/audit', async (req, res) => {
   }
 });
 
-app.post('/api/assistant/chat', async (req, res) => {
+app.post('/api/assistant/chat', requireSupabaseAuth, async (req, res) => {
   try {
     const { prompt, businessContext } = req.body;
     if (!prompt || typeof prompt !== 'string') {
@@ -1171,7 +1202,7 @@ Reglas clave:
   }
 });
 
-app.post('/api/content/generate', async (req, res) => {
+app.post('/api/content/generate', requireSupabaseAuth, async (req, res) => {
   try {
     const { contentType, topic, keyword, city, businessType, goal, tone } = req.body;
     if (!topic && !keyword) {
