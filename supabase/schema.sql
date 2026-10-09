@@ -611,3 +611,78 @@ with check (
       and wm.role in ('owner','admin','member')
   )
 );
+
+
+-- Production schema version / readiness
+create table if not exists public.visibility_schema_meta (
+  singleton boolean primary key default true check (singleton = true),
+  schema_version integer not null,
+  schema_label text not null,
+  updated_at timestamptz not null default now()
+);
+
+insert into public.visibility_schema_meta (
+  singleton,
+  schema_version,
+  schema_label,
+  updated_at
+)
+values (
+  true,
+  6,
+  'phase-6-database-readiness',
+  now()
+)
+on conflict (singleton) do update
+set
+  schema_version = excluded.schema_version,
+  schema_label = excluded.schema_label,
+  updated_at = excluded.updated_at;
+
+alter table public.visibility_schema_meta enable row level security;
+
+drop policy if exists "authenticated read schema meta" on public.visibility_schema_meta;
+create policy "authenticated read schema meta"
+on public.visibility_schema_meta
+for select
+to authenticated
+using (true);
+
+create or replace function public.get_visibility_schema_readiness()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'schemaVersion', meta.schema_version,
+    'schemaLabel', meta.schema_label,
+    'checks', jsonb_build_object(
+      'profiles', to_regclass('public.profiles') is not null,
+      'workspaces', to_regclass('public.workspaces') is not null,
+      'workspaceMembers', to_regclass('public.workspace_members') is not null,
+      'workspaceInvites', to_regclass('public.workspace_invites') is not null,
+      'businesses', to_regclass('public.businesses') is not null,
+      'seoAudits', to_regclass('public.seo_audits') is not null,
+      'searchConsoleSnapshots', to_regclass('public.search_console_snapshots') is not null,
+      'searchConsoleConnections', to_regclass('public.search_console_connections') is not null,
+      'opportunities', to_regclass('public.opportunities') is not null,
+      'actionTasks', to_regclass('public.action_tasks') is not null,
+      'createWorkspaceRpc', to_regprocedure(
+        'public.create_workspace_with_owner(text,text,text,text,text,text,text)'
+      ) is not null,
+      'listMembersRpc', to_regprocedure(
+        'public.list_workspace_members(uuid)'
+      ) is not null,
+      'acceptInviteRpc', to_regprocedure(
+        'public.accept_workspace_invite(uuid)'
+      ) is not null
+    )
+  )
+  from public.visibility_schema_meta meta
+  where meta.singleton = true;
+$$;
+
+revoke all on function public.get_visibility_schema_readiness() from public;
+grant execute on function public.get_visibility_schema_readiness() to authenticated;
