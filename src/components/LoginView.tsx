@@ -40,10 +40,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-xl p-6 sm:p-8">
+    <main className="min-h-[100dvh] overflow-x-hidden px-4 py-8 sm:px-6 lg:px-8 flex items-center justify-center">
+      <div className="w-full max-w-5xl grid lg:grid-cols-[1.1fr_0.9fr] gap-6 lg:gap-10 items-stretch">
+        <section className="hidden lg:flex min-h-[620px] rounded-[2rem] bg-slate-950 text-white p-10 xl:p-12 flex-col justify-between overflow-hidden relative shadow-[0_30px_80px_rgba(15,23,42,0.18)]">
+          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_15%,rgba(99,102,241,0.35),transparent_28rem),radial-gradient(circle_at_85%_75%,rgba(13,148,136,0.18),transparent_24rem)]"></div>
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-200 tracking-[0.14em] uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              Visibility Intelligence
+            </div>
+            <h2 className="mt-8 max-w-3xl text-5xl xl:text-6xl font-heading font-bold leading-[0.98] tracking-[-0.04em] text-balance">
+              Entendé dónde aparece tu negocio y qué mejorar primero.
+            </h2>
+            <p className="mt-6 max-w-xl text-sm leading-7 text-slate-300 text-pretty">
+              Unificamos auditoría técnica, Search Console, oportunidades y evolución en una lectura clara para decidir sin perderse en métricas.
+            </p>
+          </div>
+          <div className="relative grid grid-cols-3 gap-3">
+            {['SEO real', 'Search Console', 'Oportunidades'].map((item) => (
+              <div key={item} className="rounded-2xl bg-white/5 ring-1 ring-white/10 px-4 py-4">
+                <span className="text-xs font-semibold text-slate-200">{item}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="vai-shell self-center">
+          <section className="vai-core vai-panel rounded-[1.4rem] p-6 sm:p-8 lg:p-9">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+          <div className="w-11 h-11 rounded-[1rem] bg-slate-950 text-white flex items-center justify-center shadow-[0_10px_24px_rgba(15,23,42,0.18)]">
             <Search className="w-5 h-5" />
           </div>
           <div>
@@ -52,18 +77,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mt-6 p-1 bg-slate-100 rounded-xl">
+        <div className="grid grid-cols-2 gap-1.5 mt-7 p-1.5 bg-slate-100/80 rounded-2xl">
           <button
             type="button"
             onClick={() => setMode('login')}
-            className={`px-3 py-2 rounded-lg text-xs font-bold ${mode === 'login' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${mode === 'login' ? 'bg-white text-slate-950 shadow-[0_8px_20px_rgba(15,23,42,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
           >
             Ingresar
           </button>
           <button
             type="button"
             onClick={() => setMode('signup')}
-            className={`px-3 py-2 rounded-lg text-xs font-bold ${mode === 'signup' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${mode === 'signup' ? 'bg-white text-slate-950 shadow-[0_8px_20px_rgba(15,23,42,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
           >
             Crear cuenta
           </button>
@@ -78,7 +103,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full px-3 py-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
               placeholder="nombre@empresa.com"
             />
           </div>
@@ -93,7 +118,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-indigo-500"
+                className="w-full px-3 py-2.5 pr-10 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm focus:outline-none focus:border-indigo-400 focus:bg-white transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
                 placeholder="Mínimo 8 caracteres"
               />
               <button
@@ -113,17 +138,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+            className="group w-full py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold uppercase tracking-[0.12em] flex items-center justify-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
           >
             {mode === 'login' ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
             {loading ? 'Procesando...' : mode === 'login' ? 'Ingresar' : 'Crear cuenta'}
           </button>
         </form>
 
-        <p className="mt-5 text-[11px] text-slate-400 text-center">
-          Cada cuenta tendrá sus propios negocios, auditorías e historial cuando activemos la persistencia multi-tenant.
+        <p className="mt-5 text-[11px] text-slate-400 leading-relaxed text-center">
+          Cada cuenta mantiene separados sus negocios, auditorías e historial dentro de su propio workspace.
         </p>
+          </section>
+        </div>
       </div>
-    </div>
+    </main>
   );
 };
