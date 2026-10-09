@@ -26,9 +26,26 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
         await authService.signIn(email.trim(), password);
         onAuthenticated();
       } else if (mode === 'signup') {
-        const user = await authService.signUp(email.trim(), password);
-        if (user) {
-          setMessage('Cuenta creada. Si tu proyecto exige confirmación por email, revisá tu correo antes de ingresar.');
+        const result = await authService.signUp(email.trim(), password);
+
+        if (result.session) {
+          setMessage('Cuenta creada e iniciada correctamente.');
+          onAuthenticated();
+          return;
+        }
+
+        if (result.user && result.identitiesCount === 0) {
+          setMessage(
+            'Ese email ya puede tener una cuenta. Probá ingresar con tu contraseña o usá “Olvidé mi contraseña”.'
+          );
+          setMode('login');
+          return;
+        }
+
+        if (result.user) {
+          setMessage(
+            'Cuenta creada, pero Supabase exige confirmar el email antes de ingresar. Revisá tu bandeja de entrada y spam.'
+          );
           setMode('login');
         }
       } else {
@@ -36,7 +53,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
         setMessage('Te enviamos un enlace para crear una nueva contraseña. Revisá tu correo.');
       }
     } catch (err: any) {
-      setError(err?.message || 'No se pudo completar el acceso.');
+      const rawMessage = String(err?.message || '');
+
+      if (rawMessage.toLowerCase().includes('invalid login credentials')) {
+        setError(
+          'Email o contraseña incorrectos. Si acabás de crear la cuenta, verificá si Supabase exige confirmar el email o usá “Olvidé mi contraseña”.'
+        );
+      } else {
+        setError(rawMessage || 'No se pudo completar el acceso.');
+      }
     } finally {
       setLoading(false);
     }
