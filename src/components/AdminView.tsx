@@ -31,6 +31,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'viewer'>('member');
   const [inviteMessage, setInviteMessage] = useState('');
   const [inviteError, setInviteError] = useState('');
+  const canManageMembers = workspace?.role === 'owner' || workspace?.role === 'admin';
 
   const refreshMembers = async () => {
     if (!workspace?.id) return;
@@ -289,6 +290,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               Los roles controlan quién puede administrar el espacio. La invitación se comparte por enlace seguro.
             </p>
 
+            {canManageMembers ? (
             <form onSubmit={handleCreateInvite} className="mt-4 grid sm:grid-cols-[1fr_160px_auto] gap-2">
               <input
                 type="email"
@@ -314,6 +316,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 Crear invitación
               </button>
             </form>
+            ) : (
+              <p className="mt-4 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                Tu rol es de solo lectura. Solo owner o admin pueden crear invitaciones.
+              </p>
+            )}
 
             {inviteMessage && <p className="mt-2 text-xs font-semibold text-emerald-700">{inviteMessage}</p>}
             {inviteError && <p className="mt-2 text-xs font-semibold text-rose-600">{inviteError}</p>}
