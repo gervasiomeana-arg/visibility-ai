@@ -372,14 +372,41 @@ export const workspaceService = {
 
   async loadBusinessState(workspaceId: string, businessId: string): Promise<{
     audit: any | null;
+    auditHistory: any[];
     tasks: any[];
     opportunities: any[];
     searchConsole: any | null;
+    searchHistory: any[];
+    keywords: any[];
   }> {
-    if (!supabase) return { audit: null, tasks: [], opportunities: [], searchConsole: null };
+    if (!supabase) {
+      return {
+        audit: null,
+        auditHistory: [],
+        tasks: [],
+        opportunities: [],
+        searchConsole: null,
+        searchHistory: [],
+        keywords: [],
+      };
+    }
 
-    const [audit, tasksResult, opportunitiesResult, searchResult] = await Promise.all([
+    const [
+      audit,
+      auditHistoryResult,
+      tasksResult,
+      opportunitiesResult,
+      searchResult,
+      searchHistoryResult,
+    ] = await Promise.all([
       this.loadLatestSeoAudit(workspaceId, businessId),
+      supabase
+        .from('seo_audits')
+        .select('created_at,overall_score,seo_score,web_score,unresolved_issues')
+        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: true })
+        .limit(24),
       supabase
         .from('action_tasks')
         .select('payload')
@@ -400,17 +427,45 @@ export const workspaceService = {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from('search_console_snapshots')
+        .select('created_at,clicks,impressions,ctr,position')
+        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: true })
+        .limit(24),
     ]);
 
+    if (auditHistoryResult.error) throw auditHistoryResult.error;
     if (tasksResult.error) throw tasksResult.error;
     if (opportunitiesResult.error) throw opportunitiesResult.error;
     if (searchResult.error) throw searchResult.error;
+    if (searchHistoryResult.error) throw searchHistoryResult.error;
+
+    const latestSearch: any = searchResult.data || null;
 
     return {
       audit,
+      auditHistory: (auditHistoryResult.data || []).map((row: any) => ({
+        auditedAt: row.created_at,
+        overallScore: Number(row.overall_score || 0),
+        seoScore: Number(row.seo_score || 0),
+        webScore: Number(row.web_score || 0),
+        unresolvedIssues: Number(row.unresolved_issues || 0),
+      })),
       tasks: (tasksResult.data || []).map((row: any) => row.payload),
       opportunities: (opportunitiesResult.data || []).map((row: any) => row.payload),
-      searchConsole: searchResult.data || null,
+      searchConsole: latestSearch,
+      searchHistory: (searchHistoryResult.data || []).map((row: any) => ({
+        loadedAt: row.created_at,
+        clicks: Number(row.clicks || 0),
+        impressions: Number(row.impressions || 0),
+        ctr: Number(row.ctr || 0),
+        position: Number(row.position || 0),
+      })),
+      keywords: Array.isArray(latestSearch?.payload?.keywords)
+        ? latestSearch.payload.keywords
+        : [],
     };
   },
 
