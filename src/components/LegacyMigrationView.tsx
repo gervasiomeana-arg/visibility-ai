@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DatabaseZap, ArrowRight, X } from 'lucide-react';
-import { LegacyBusinessBundle } from '../services/storageService';
+import type { LegacyBusinessBundle } from '../services/storageService';
 
 interface LegacyMigrationViewProps {
   bundles: LegacyBusinessBundle[];
