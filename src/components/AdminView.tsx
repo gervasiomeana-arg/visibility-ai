@@ -21,7 +21,7 @@ import {
   productionHealthService,
 } from '../services/productionHealthService';
 
-const EXPECTED_SCHEMA_VERSION = 6;
+const EXPECTED_SCHEMA_VERSION = 7;
 
 interface AdminViewProps {
   businesses: Business[];
@@ -78,10 +78,41 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
     }>;
   } | null>(null);
   const [rlsTestError, setRlsTestError] = useState('');
+  const [usageSummary, setUsageSummary] = useState<{
+    periodDays: number;
+    seoAudits: number;
+    aiAssistantCalls: number;
+    aiContentGenerations: number;
+    aiCalls: number;
+    aiTokens: number;
+    searchConsoleQueries: number;
+  } | null>(null);
 
   useEffect(() => {
     setWorkspaceName(workspace?.name || '');
   }, [workspace?.id, workspace?.name]);
+
+  useEffect(() => {
+    if (!workspace?.id || !authService.isConfigured()) {
+      setUsageSummary(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    workspaceService
+      .getUsageSummary(workspace.id, 30)
+      .then((summary) => {
+        if (!cancelled) setUsageSummary(summary);
+      })
+      .catch(() => {
+        if (!cancelled) setUsageSummary(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace?.id]);
 
   const refreshMembers = async () => {
     if (!workspace?.id) return;
@@ -328,16 +359,22 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             <span className="text-2xl font-bold font-tabular text-white font-heading mt-0.5 block">{businesses.length}</span>
           </div>
           <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Auditorías Realizadas</span>
-            <span className="text-2xl font-bold font-tabular text-white font-heading mt-0.5 block">0</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Auditorías · 30 días</span>
+            <span className="text-2xl font-bold font-tabular text-white font-heading mt-0.5 block">
+              {usageSummary?.seoAudits ?? 0}
+            </span>
           </div>
           <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Consumo Tokens IA</span>
-            <span className="text-2xl font-bold font-tabular text-indigo-400 font-heading mt-0.5 block">0</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Tokens IA · 30 días</span>
+            <span className="text-2xl font-bold font-tabular text-indigo-400 font-heading mt-0.5 block">
+              {(usageSummary?.aiTokens ?? 0).toLocaleString('es-AR')}
+            </span>
           </div>
           <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Suscripciones Activas</span>
-            <span className="text-2xl font-bold font-tabular text-emerald-400 font-heading mt-0.5 block">0</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Plan actual</span>
+            <span className="text-2xl font-bold font-tabular text-emerald-400 font-heading mt-0.5 block capitalize">
+              {workspace?.planId || 'demo'}
+            </span>
           </div>
         </div>
       </div>
@@ -704,14 +741,18 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-semibold text-slate-500 block">Consultas al Asistente</span>
-              <span className="text-base font-bold text-slate-900 mt-1 block">Sin telemetría</span>
-              <span className="text-[11px] text-emerald-600 font-medium">Medición pendiente</span>
+              <span className="text-base font-bold text-slate-900 mt-1 block">
+                {usageSummary?.aiAssistantCalls ?? 0}
+              </span>
+              <span className="text-[11px] text-emerald-600 font-medium">Últimos 30 días</span>
             </div>
 
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-semibold text-slate-500 block">Contenidos Redactados</span>
-              <span className="text-base font-bold text-slate-900 mt-1 block">Sin telemetría</span>
-              <span className="text-[11px] text-slate-400">Medición pendiente</span>
+              <span className="text-base font-bold text-slate-900 mt-1 block">
+                {usageSummary?.aiContentGenerations ?? 0}
+              </span>
+              <span className="text-[11px] text-slate-400">Últimos 30 días</span>
             </div>
           </div>
         </div>
