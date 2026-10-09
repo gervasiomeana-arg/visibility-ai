@@ -120,6 +120,132 @@ export const workspaceService = {
     }));
   },
 
+  async listMembers(workspaceId: string): Promise<Array<{
+    userId: string;
+    role: 'owner' | 'admin' | 'member' | 'viewer';
+  }>> {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('workspace_members')
+      .select('user_id, role')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      userId: row.user_id,
+      role: row.role,
+    }));
+  },
+
+  async listInvites(workspaceId: string): Promise<Array<{
+    id: string;
+    email: string;
+    role: 'admin' | 'member' | 'viewer';
+    token: string;
+    expiresAt: string;
+    acceptedAt?: string | null;
+  }>> {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('workspace_invites')
+      .select('id,email,role,token,expires_at,accepted_at')
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      email: row.email,
+      role: row.role,
+      token: row.token,
+      expiresAt: row.expires_at,
+      acceptedAt: row.accepted_at,
+    }));
+  },
+
+  async createInvite(
+    workspaceId: string,
+    email: string,
+    role: 'admin' | 'member' | 'viewer'
+  ): Promise<{ token: string; expiresAt: string }> {
+    if (!supabase) throw new Error('Supabase no está configurado.');
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) throw userError;
+    if (!user) throw new Error('No hay usuario autenticado.');
+
+    const { data, error } = await supabase
+      .from('workspace_invites')
+      .upsert(
+        {
+          workspace_id: workspaceId,
+          email: email.trim().toLowerCase(),
+          role,
+          invited_by: user.id,
+          accepted_at: null,
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        { onConflict: 'workspace_id,email' }
+      )
+      .select('token,expires_at')
+      .single();
+
+    if (error) throw error;
+
+    return {
+      token: data.token,
+      expiresAt: data.expires_at,
+    };
+  },
+
+  async acceptInvite(token: string): Promise<string> {
+    if (!supabase) throw new Error('Supabase no está configurado.');
+
+    const { data, error } = await supabase.rpc('accept_workspace_invite', {
+      invite_token: token,
+    });
+
+    if (error) throw error;
+    return data as string;
+  },
+
+  async updateMemberRole(
+    workspaceId: string,
+    userId: string,
+    role: 'admin' | 'member' | 'viewer'
+  ): Promise<void> {
+    if (!supabase) return;
+
+    const { error } = await supabase
+      .from('workspace_members')
+      .update({ role })
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  },
+
+  async removeMember(workspaceId: string, userId: string): Promise<void> {
+    if (!supabase) return;
+
+    const { error } = await supabase
+      .from('workspace_members')
+      .delete()
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  },
+
   async saveSeoAudit(params: {
     workspaceId: string;
     businessId: string;
