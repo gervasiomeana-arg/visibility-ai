@@ -129,6 +129,7 @@ export interface KeywordItem {
 
 export interface Competitor {
   id: string;
+  source?: 'demo' | 'real';
   businessId: string;
   name: string;
   url: string;
