@@ -771,12 +771,12 @@ export const INITIAL_ACTION_TASKS: Record<string, ActionTask[]> = {
     {
       id: 'task-4',
       businessId: 'biz-hotel-mdp',
-      title: 'Comprimir las 18 imágenes pesadas para acelerar la carga en celulares',
+      title: 'Optimizar las 18 imágenes pesadas para mejorar la carga en móviles',
       priority: 'IMPORTANTE',
       status: 'pendiente',
       estimatedImpact: 'Alto',
       difficulty: 'Media',
-      simpleExplanation: 'Tu web tarda 4 segundos en abrir en teléfonos. Reduciendo el peso de las imágenes bajará a menos de 1.5 segundos.',
+      simpleExplanation: 'Se detectaron imágenes pesadas en el sitio. Optimizar su formato y compresión reduce el consumo de datos y los tiempos de transferencia en dispositivos móviles.',
       stepByStepSolution: [
         'Descargar las fotos de habitaciones y convertirlas a formato WebP (reducción del 75% sin pérdida de calidad).',
         'Reemplazarlas en la galería del sitio web.',

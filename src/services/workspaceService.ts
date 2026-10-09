@@ -1,5 +1,9 @@
 import { supabase } from './authService';
-import type { LegacyBusinessBundle } from './storageService';
+import {
+  type LegacyBusinessBundle,
+  deduplicateAndReconcileTasks,
+  sortTasksByPriority,
+} from './storageService';
 import {
   Business,
   SubscriptionPlanId,
@@ -617,22 +621,78 @@ export const workspaceService = {
   async upsertActionTasks(workspaceId: string, businessId: string, tasks: any[]): Promise<void> {
     if (!supabase || tasks.length === 0) return;
 
-    const rows = tasks.map((task) => ({
-      workspace_id: workspaceId,
-      business_id: businessId,
-      source_key: task.id,
-      title: task.title,
-      priority: task.priority,
-      status: task.status,
-      payload: task,
-      updated_at: new Date().toISOString(),
-    }));
+    const rows = tasks.map((task) => {
+      const dbStatus =
+        task.status === 'completada_manual' ||
+        task.status === 'verificada_auditoria' ||
+        task.status === 'completada'
+          ? 'completada'
+          : task.status === 'en_progreso'
+          ? 'en_progreso'
+          : 'pendiente';
 
+      const payload = {
+        ...task,
+        status: task.status,
+        completionType:
+          task.completionType ||
+          (task.status === 'completada_manual'
+            ? 'manual'
+            : task.status === 'verificada_auditoria'
+            ? 'auditoria'
+            : null),
+        userEvidence: task.userEvidence || null,
+        completedAt:
+          task.completedAt ||
+          (dbStatus === 'completada' ? new Date().toISOString() : null),
+      };
+
+      return {
+        workspace_id: workspaceId,
+        business_id: businessId,
+        source_key: task.id,
+        title: task.title,
+        priority: task.priority,
+        status: dbStatus,
+        payload,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    const activeKeys = new Set(tasks.map((task) => task.id));
+
+    // Upsert the reconciled tasks
     const { error } = await supabase
       .from('action_tasks')
       .upsert(rows, { onConflict: 'business_id,source_key' });
 
     if (error) throw error;
+
+    // Clean up any obsolete duplicate rows for this business that were merged
+    try {
+      const { data: existingRows } = await supabase
+        .from('action_tasks')
+        .select('source_key')
+        .eq('workspace_id', workspaceId)
+        .eq('business_id', businessId);
+
+      if (existingRows && existingRows.length > 0) {
+        const keysToDelete = existingRows
+          .map((r: any) => r.source_key)
+          .filter((key: string) => !activeKeys.has(key));
+
+        if (keysToDelete.length > 0) {
+          await supabase
+            .from('action_tasks')
+            .delete()
+            .eq('workspace_id', workspaceId)
+            .eq('business_id', businessId)
+            .in('source_key', keysToDelete);
+        }
+      }
+    } catch {
+      // Ignore cleanup error if minor
+    }
   },
 
   async upsertOpportunities(workspaceId: string, businessId: string, opportunities: any[]): Promise<void> {
@@ -745,7 +805,12 @@ export const workspaceService = {
         webScore: Number(row.web_score || 0),
         unresolvedIssues: Number(row.unresolved_issues || 0),
       })),
-      tasks: (tasksResult.data || []).map((row: any) => row.payload),
+      tasks: sortTasksByPriority(
+        deduplicateAndReconcileTasks(
+          businessId,
+          (tasksResult.data || []).map((row: any) => row.payload)
+        )
+      ),
       opportunities: (opportunitiesResult.data || []).map((row: any) => row.payload),
       searchConsole: latestSearch,
       searchHistory: (searchHistoryResult.data || []).map((row: any) => ({

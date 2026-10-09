@@ -1,6 +1,12 @@
 export type PriorityLevel = 'URGENTE' | 'IMPORTANTE' | 'RECOMENDADO';
 export type SeverityLevel = 'high' | 'medium' | 'ok';
-export type TaskStatus = 'pendiente' | 'en_progreso' | 'completada';
+export type TaskStatus =
+  | 'pendiente'
+  | 'en_progreso'
+  | 'completada'
+  | 'completada_manual'
+  | 'verificada_auditoria';
+export type TaskCompletionType = 'manual' | 'auditoria';
 export type SupportedCountryCode = 'AR' | 'CL' | 'MX' | 'ES' | 'CO' | 'US';
 export type SupportedCurrency = 'USD' | 'ARS' | 'CLP' | 'MXN' | 'EUR' | 'COP';
 export type SupportedLocale = 'es-AR' | 'es-CL' | 'es-MX' | 'es-ES' | 'es-CO' | 'es-US';
@@ -42,6 +48,7 @@ export interface Business {
   category: string;
   city: string;
   country: string;
+  description?: string;
   countryCode?: SupportedCountryCode;
   currency?: SupportedCurrency;
   locale?: SupportedLocale;
@@ -90,6 +97,10 @@ export interface SeoAuditItem {
   metricValue?: string;
   source?: 'real' | 'demo';
   checkedAt?: string;
+  whyItMatters?: string;
+  detectedData?: string;
+  proposedChange?: string;
+  howToVerify?: string;
 }
 
 export interface SeoAuditResult {
@@ -168,16 +179,26 @@ export interface Opportunity {
 export interface ActionTask {
   id: string;
   businessId: string;
+  url?: string;
   source?: 'demo' | 'seo-audit' | 'manual';
+  findingType?: string;
   title: string;
   priority: PriorityLevel;
   status: TaskStatus;
+  completionType?: TaskCompletionType | null;
+  userEvidence?: string | null;
+  completedAt?: string | null;
   estimatedImpact: 'Alto' | 'Medio' | 'Bajo';
   difficulty: 'Fácil' | 'Media' | 'Difícil';
   simpleExplanation: string;
   stepByStepSolution: string[];
   quickActionPrompt?: string;
   estimatedTimeToFix: string;
+  whyItMatters?: string;
+  detectedData?: string;
+  proposedChange?: string;
+  howToVerify?: string;
+  platformNote?: string;
 }
 
 export interface MonthlyEvolution {

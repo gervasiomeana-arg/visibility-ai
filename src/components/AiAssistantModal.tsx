@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Business, ChatMessage } from '../types';
 import { aiService } from '../services/aiService';
+import { storageService } from '../services/storageService';
 
 interface AiAssistantModalProps {
   business: Business;
@@ -29,11 +30,13 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
     {
       id: 'msg-welcome',
       role: 'assistant',
-      content: `¡Hola! Soy tu asistente de visibilidad para **${business.name}**. 
+      content: `¡Hola! Soy tu asistente técnico de visibilidad para **${business.name}**${
+        business.description ? ` (${business.description})` : ''
+      }.
 
-Estoy preparado para ayudarte a entender tu diagnóstico digital, qué buscan tus clientes en **${business.city}** y cómo superar a tus competidores sin jerga técnica incomprensible.
+Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distinguir datos medidos de propuestas y evaluar mejoras sin falsas promesas ni jerga incomprensible.
 
-¿Sobre qué te gustaría que hablemos hoy?`,
+¿Sobre qué punto te gustaría consultar?`,
       timestamp: 'Ahora',
     },
   ]);
@@ -44,10 +47,10 @@ Estoy preparado para ayudarte a entender tu diagnóstico digital, qué buscan tu
 
   const quickQuestions = [
     '¿Qué debería mejorar primero?',
-    '¿Por qué mi competencia aparece antes?',
-    '¿Qué contenido debería crear?',
+    'Explicame el problema con el H1.',
+    '¿Qué contenido técnico debería crear?',
     '¿Cómo puedo conseguir más consultas?',
-    'Explicame este problema.',
+    '¿Por qué importa este hallazgo?',
   ];
 
   const scrollToBottom = () => {
@@ -79,14 +82,40 @@ Estoy preparado para ayudarte a entender tu diagnóstico digital, qué buscan tu
     setIsLoading(true);
 
     try {
+      const latestAudit = storageService.getSeoAudit(business.id);
+      const auditMeta = storageService.getSeoAuditMeta(business.id);
+      const realAuditItems = latestAudit.filter((i) => i.source === 'real');
+
       const reply = await aiService.askAssistant(textToSend, {
         name: business.name,
         url: business.url,
         category: business.category,
         city: business.city,
+        description: business.description,
         scores: business.scores,
         workspaceId: business.workspaceId,
         businessId: business.id,
+        lastAudit: auditMeta?.fetchedAt
+          ? {
+              requestedUrl: auditMeta.requestedUrl,
+              finalUrl: auditMeta.finalUrl,
+              httpStatus: auditMeta.httpStatus,
+              responseTimeMs: auditMeta.responseTimeMs,
+              fetchedAt: auditMeta.fetchedAt,
+              items: realAuditItems.map((i) => ({
+                key: i.key,
+                title: i.title,
+                status: i.status,
+                statusLabel: i.statusLabel,
+                metricValue: i.metricValue,
+                simpleExplanation: i.simpleExplanation,
+                whyItMatters: i.whyItMatters,
+                detectedData: i.detectedData,
+                proposedChange: i.proposedChange,
+                howToVerify: i.howToVerify,
+              })),
+            }
+          : undefined,
       });
 
       const assistantMsg: ChatMessage = {

@@ -14,6 +14,16 @@ export interface SearchConsoleQueryRow {
   position: number;
 }
 
+export interface SearchConsoleStatus {
+  configured: boolean;
+  connected: boolean;
+  persistence: string;
+  missing?: string[];
+  appUrl?: string;
+  redirectUri?: string;
+  hasTokenKey?: boolean;
+}
+
 async function authHeaders(extra?: Record<string, string>): Promise<Record<string, string>> {
   const headers: Record<string, string> = { ...(extra || {}) };
 
@@ -28,12 +38,8 @@ async function authHeaders(extra?: Record<string, string>): Promise<Record<strin
 }
 
 export const searchConsoleService = {
-  async status(): Promise<{ configured: boolean; connected: boolean; persistence: string }> {
-    return apiFetchJson<{
-      configured: boolean;
-      connected: boolean;
-      persistence: string;
-    }>('/api/search-console/status', {
+  async status(): Promise<SearchConsoleStatus> {
+    return apiFetchJson<SearchConsoleStatus>('/api/search-console/status', {
       headers: await authHeaders(),
     });
   },

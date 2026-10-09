@@ -8,6 +8,8 @@ import {
   ActionTask,
   MonthlyEvolution,
   TaskStatus,
+  TaskCompletionType,
+  PriorityLevel,
 } from '../types';
 import {
   INITIAL_BUSINESSES,
@@ -50,6 +52,321 @@ export interface LegacyBusinessBundle {
   seoAudit: SeoAuditItem[];
   seoMeta: any | null;
   searchMeta: any | null;
+}
+
+export function normalizeTaskUrl(url?: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    let pathname = parsed.pathname.replace(/\/+$/, '');
+    if (!pathname) pathname = '';
+    return `${host}${pathname}`;
+  } catch {
+    return trimmed.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+  }
+}
+
+export function extractFindingType(task: ActionTask): string {
+  // 1. Explicit findingType if valid
+  const explicit = (task.findingType || '').trim().toLowerCase();
+  if (explicit && explicit !== 'undefined' && explicit !== 'null') {
+    if (explicit.includes('h1') || explicit === 'headings') return 'h1';
+    if (explicit.includes('title') || explicit.includes('título')) return 'title';
+    if (explicit.includes('meta-description') || explicit.includes('descripción') || explicit.includes('description')) return 'meta-description';
+    if (explicit.includes('canonical') || explicit.includes('canónica')) return 'canonical';
+    if (explicit.includes('sitemap')) return 'sitemap';
+    if (explicit.includes('robots') || explicit.includes('index') || explicit.includes('noindex')) return 'robots-meta';
+    if (explicit.includes('h2') || explicit.includes('subtítulo')) return 'h2';
+    if (explicit.includes('link') || explicit.includes('enlace') || explicit.includes('rotos')) return 'broken-links';
+    if (explicit.includes('fcp')) return 'fcp';
+    if (explicit.includes('lcp')) return 'lcp';
+    if (explicit.includes('speed') || explicit.includes('rendimiento')) return 'pagespeed-performance';
+    if (explicit.includes('structured') || explicit.includes('schema') || explicit.includes('json-ld')) return 'structured-data';
+    if (explicit.includes('image') || explicit.includes('alt')) return 'image-alt';
+    if (explicit.includes('faq')) return 'faq';
+    if (explicit.includes('maps') || explicit.includes('gbp')) return 'gbp-posting';
+    return explicit;
+  }
+
+  // 2. Title and simpleExplanation semantic check
+  const title = (task.title || '').toLowerCase();
+  const exp = (task.simpleExplanation || '').toLowerCase();
+
+  if (
+    title.includes('h1') ||
+    title.includes('encabezado h1') ||
+    exp.includes('h1') ||
+    exp.includes('no encontramos un h1')
+  ) {
+    return 'h1';
+  }
+  if (title.includes('título seo') || title.includes('title') || exp.includes('título seo')) return 'title';
+  if (title.includes('meta description') || title.includes('descripción para google') || exp.includes('meta description')) return 'meta-description';
+  if (title.includes('canónica') || title.includes('canonical') || exp.includes('canónica')) return 'canonical';
+  if (title.includes('sitemap') || exp.includes('sitemap')) return 'sitemap';
+  if (title.includes('noindex') || title.includes('indexar') || title.includes('directiva de indexación') || exp.includes('noindex')) return 'robots-meta';
+  if (title.includes('h2') || title.includes('subtítulo') || exp.includes('h2')) return 'h2';
+  if (title.includes('enlace') || title.includes('rotos') || exp.includes('enlaces rotos')) return 'broken-links';
+  if (title.includes('fcp') || title.includes('first contentful')) return 'fcp';
+  if (title.includes('lcp') || title.includes('largest contentful')) return 'lcp';
+  if (title.includes('pagespeed') || title.includes('rendimiento móvil') || exp.includes('rendimiento móvil')) return 'pagespeed-performance';
+  if (title.includes('estructurados') || title.includes('schema') || exp.includes('datos estructurados')) return 'structured-data';
+  if (title.includes('imágenes') || title.includes('image-alt') || title.includes('textos alt') || title.includes('alt tags')) return 'image-alt';
+  if (title.includes('faq') || title.includes('preguntas frecuentes')) return 'faq';
+  if (title.includes('maps') || title.includes('google business profile') || title.includes('novedad semanal')) return 'gbp-posting';
+
+  // 3. Fallback to token inside task.id
+  const idLower = (task.id || '').toLowerCase();
+  if (idLower.endsWith('-h1') || idLower.includes('-h1-') || idLower === 'h1' || idLower === 'task-h1') return 'h1';
+  if (idLower.endsWith('-title')) return 'title';
+  if (idLower.endsWith('-meta-description')) return 'meta-description';
+  if (idLower.endsWith('-canonical')) return 'canonical';
+  if (idLower.endsWith('-sitemap')) return 'sitemap';
+  if (idLower.endsWith('-robots-meta') || idLower.endsWith('-index')) return 'robots-meta';
+  if (idLower.endsWith('-h2')) return 'h2';
+  if (idLower.endsWith('-broken-links')) return 'broken-links';
+  if (idLower.endsWith('-fcp')) return 'fcp';
+  if (idLower.endsWith('-lcp')) return 'lcp';
+  if (idLower.endsWith('-pagespeed') || idLower.endsWith('-pagespeed-performance')) return 'pagespeed-performance';
+  if (idLower.endsWith('-structured-data')) return 'structured-data';
+  if (idLower.endsWith('-image-alt')) return 'image-alt';
+  if (idLower.endsWith('-faq')) return 'faq';
+  if (idLower.endsWith('-gbp-posting')) return 'gbp-posting';
+
+  return task.id || 'unknown';
+}
+
+export function sortTasksByPriority(tasks: ActionTask[]): ActionTask[] {
+  const priorityOrder: Record<string, number> = {
+    URGENTE: 1,
+    IMPORTANTE: 2,
+    RECOMENDADO: 3,
+  };
+
+  return [...tasks].sort((a, b) => {
+    const aDone =
+      a.status === 'completada' ||
+      a.status === 'completada_manual' ||
+      a.status === 'verificada_auditoria';
+    const bDone =
+      b.status === 'completada' ||
+      b.status === 'completada_manual' ||
+      b.status === 'verificada_auditoria';
+
+    // Pending and in_progress tasks appear before completed tasks
+    if (aDone !== bDone) {
+      return aDone ? 1 : -1;
+    }
+
+    const pA = priorityOrder[a.priority] || 99;
+    const pB = priorityOrder[b.priority] || 99;
+    if (pA !== pB) {
+      return pA - pB;
+    }
+
+    return (a.title || '').localeCompare(b.title || '');
+  });
+}
+
+export function deduplicateAndReconcileTasks(
+  businessId: string,
+  tasks: ActionTask[],
+  business?: Business
+): ActionTask[] {
+  if (!tasks || tasks.length === 0) return [];
+
+  const resolvedBiz =
+    business ||
+    storageService.getBusinesses().find((b) => b.id === businessId) ||
+    undefined;
+
+  const isVoley =
+    Boolean(resolvedBiz?.name.toLowerCase().includes('voley')) ||
+    Boolean(resolvedBiz?.url.toLowerCase().includes('openvoley')) ||
+    businessId.toLowerCase().includes('voley') ||
+    tasks.some((t) => t.url?.toLowerCase().includes('openvoley')) ||
+    tasks.some((t) => t.userEvidence?.toLowerCase().includes('open voley'));
+
+  // Filter out irrelevant foreign mock tasks (e.g., hotel in Mar del Plata for Open Voley)
+  const validTasks = tasks.filter((task) => {
+    if (isVoley) {
+      const titleLower = (task.title || '').toLowerCase();
+      const expLower = (task.simpleExplanation || '').toLowerCase();
+      if (
+        (titleLower.includes('mar del plata') ||
+          expLower.includes('mar del plata') ||
+          titleLower.includes('hotel familiar') ||
+          titleLower.includes('habitaciones')) &&
+        task.status === 'pendiente'
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Group by (normalizedUrl + findingType) to consolidate tasks of the same business, URL, and finding
+  // while preserving tasks that belong to distinctly different URLs!
+  const grouped = new Map<string, ActionTask[]>();
+  for (const task of validTasks) {
+    const fType = extractFindingType(task);
+    const taskUrl = task.url || resolvedBiz?.url || '';
+    const normUrl = normalizeTaskUrl(taskUrl);
+    const groupKey = `${normUrl}:::${fType}`;
+    const existing = grouped.get(groupKey) || [];
+    existing.push({ ...task, findingType: fType, url: taskUrl });
+    grouped.set(groupKey, existing);
+  }
+
+  const mergedTasks: ActionTask[] = [];
+
+  for (const [groupKey, items] of grouped.entries()) {
+    const [normUrl, fType] = groupKey.split(':::');
+
+    if (items.length === 1) {
+      mergedTasks.push({
+        ...items[0],
+        findingType: fType,
+        url: items[0].url || resolvedBiz?.url,
+      });
+    } else {
+      // Merge duplicates for the same findingType and same URL
+      const primary =
+        items.find((i) => i.source === 'seo-audit') ||
+        items.find((i) => i.id.startsWith(`task-${businessId}-`)) ||
+        items[0];
+
+      const anyAuditVerified = items.find(
+        (i) => i.status === 'verificada_auditoria' || i.completionType === 'auditoria'
+      );
+      const anyManualCompleted = items.find(
+        (i) =>
+          i.status === 'completada_manual' ||
+          (i.status === 'completada' && i.completionType === 'manual')
+      );
+      const anyGenericCompleted = items.find((i) => i.status === 'completada');
+      const anyInProgress = items.find((i) => i.status === 'en_progreso');
+
+      let resolvedStatus = primary.status;
+      let resolvedCompletionType = primary.completionType;
+
+      if (anyAuditVerified) {
+        resolvedStatus = 'verificada_auditoria';
+        resolvedCompletionType = 'auditoria';
+      } else if (anyManualCompleted) {
+        resolvedStatus = 'completada_manual';
+        resolvedCompletionType = 'manual';
+      } else if (anyGenericCompleted) {
+        resolvedStatus = 'completada';
+        resolvedCompletionType = anyGenericCompleted.completionType || 'manual';
+      } else if (anyInProgress) {
+        resolvedStatus = 'en_progreso';
+        resolvedCompletionType = null;
+      }
+
+      const userEvidence =
+        items.find((i) => Boolean(i.userEvidence?.trim()))?.userEvidence ||
+        primary.userEvidence;
+
+      const completedAt =
+        items.find((i) => Boolean(i.completedAt))?.completedAt ||
+        (resolvedStatus === 'completada' ||
+        resolvedStatus === 'completada_manual' ||
+        resolvedStatus === 'verificada_auditoria'
+          ? primary.completedAt || new Date().toISOString()
+          : undefined);
+
+      const resolvedUrl =
+        items.find((i) => Boolean(i.url?.trim()))?.url ||
+        primary.url ||
+        resolvedBiz?.url;
+
+      // Deterministic canonical ID prevents duplicate rows on repeating audits
+      const isSubPage =
+        Boolean(normUrl) &&
+        Boolean(resolvedBiz?.url) &&
+        normUrl !== normalizeTaskUrl(resolvedBiz?.url);
+      const urlSlug = isSubPage ? normUrl.replace(/[^a-z0-9_-]/gi, '_').slice(-20) : '';
+      const canonicalId = urlSlug
+        ? `task-${businessId}-${urlSlug}-${fType}`
+        : `task-${businessId}-${fType}`;
+
+      mergedTasks.push({
+        ...primary,
+        id: canonicalId,
+        businessId,
+        url: resolvedUrl,
+        findingType: fType,
+        status: resolvedStatus,
+        completionType: resolvedCompletionType,
+        userEvidence,
+        completedAt,
+      });
+    }
+  }
+
+  // Ensure H1 requirements are fulfilled across all tasks (even loaded from storage / Supabase)
+  const reconciled = mergedTasks.map((task) => {
+    const fType = extractFindingType(task);
+    if (fType === 'h1') {
+      const hasManualDomEvidence =
+        isVoley ||
+        Boolean(task.userEvidence?.toLowerCase().includes('dom')) ||
+        task.status === 'completada_manual';
+
+      const userEvidence = hasManualDomEvidence
+        ? task.userEvidence ||
+          'Comprobación manual del usuario: Se detectó un encabezado H1 en el DOM renderizado (evidencia aportada por el usuario, no medición automática del servidor).'
+        : task.userEvidence;
+
+      let status: TaskStatus = task.status;
+      let completionType: TaskCompletionType | null = task.completionType || null;
+
+      // For Open Voley manual DOM finding: record as completed_manual with user evidence
+      if (hasManualDomEvidence && status !== 'verificada_auditoria') {
+        status = 'completada_manual';
+        completionType = 'manual';
+      }
+
+      return {
+        ...task,
+        findingType: 'h1',
+        title: 'Encabezado H1',
+        url: task.url || resolvedBiz?.url,
+        priority: 'IMPORTANTE' as PriorityLevel, // Never URGENTE / critical error for initial HTML inspection
+        status,
+        completionType,
+        userEvidence,
+        simpleExplanation:
+          'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial recibido desde el servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.',
+        whyItMatters:
+          task.whyItMatters ||
+          'El H1 establece semánticamente el tema principal de la página ante lectores de pantalla y motores de búsqueda. Disponer de él en el HTML inicial facilita un rastreo inmediato sin depender de la ejecución de scripts.',
+        detectedData:
+          hasManualDomEvidence
+            ? 'HTML inicial sin H1; DOM renderizado con H1 según comprobación manual aportada por el usuario.'
+            : '0 etiquetas <h1> detectadas en el HTML inicial recibido desde el servidor.',
+        proposedChange:
+          isVoley
+            ? 'Definir o confirmar un encabezado <h1> en la plantilla o HTML inicial. Borrador sugerido: "Open Voley: scouting y estadísticas para entrenadores".'
+            : task.proposedChange ||
+              'Agregar un encabezado <h1> visible en el HTML inicial recibido desde el servidor.',
+        howToVerify:
+          'Inspeccionar "Ver código fuente" (Ctrl+U) o cURL sin JS para el HTML inicial, y las herramientas de desarrollo del navegador para el DOM renderizado.',
+        platformNote:
+          'Adaptar las instrucciones a la plataforma confirmada del proyecto. No suponer WordPress o Wix.',
+      };
+    }
+    return {
+      ...task,
+      url: task.url || resolvedBiz?.url,
+    };
+  });
+
+  return sortTasksByPriority(reconciled);
 }
 
 export const storageService = {
@@ -129,14 +446,25 @@ export const storageService = {
   },
 
   getBusinesses(): Business[] {
-    const normalize = (business: Business): Business => ({
-      ...business,
-      countryCode: business.countryCode || 'AR',
-      currency: business.currency || 'USD',
-      locale: business.locale || 'es-AR',
-      timezone: business.timezone || 'America/Argentina/Buenos_Aires',
-      subscriptionPlan: business.subscriptionPlan || 'growth',
-    });
+    const normalize = (business: Business): Business => {
+      const isVoley =
+        business.name.toLowerCase().includes('voley') ||
+        business.url.toLowerCase().includes('openvoley');
+
+      return {
+        ...business,
+        description:
+          business.description ||
+          (isVoley
+            ? 'Herramienta de scouting, estadísticas y análisis de voleibol para entrenadores.'
+            : undefined),
+        countryCode: business.countryCode || 'AR',
+        currency: business.currency || 'USD',
+        locale: business.locale || 'es-AR',
+        timezone: business.timezone || 'America/Argentina/Buenos_Aires',
+        subscriptionPlan: business.subscriptionPlan || 'growth',
+      };
+    };
 
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.BUSINESSES));
@@ -195,8 +523,17 @@ export const storageService = {
     const web = isLocalDemo ? 68 : 0;
     const aiVisibility = isLocalDemo ? 55 : 0;
 
+    const isVoley =
+      newBiz.name.toLowerCase().includes('voley') ||
+      newBiz.url.toLowerCase().includes('openvoley');
+
     const created: Business = {
       ...newBiz,
+      description:
+        newBiz.description ||
+        (isVoley
+          ? 'Herramienta de scouting, estadísticas y análisis de voleibol para entrenadores.'
+          : undefined),
       id,
       createdAt: new Date().toISOString().split('T')[0],
       scores: {
@@ -227,6 +564,28 @@ export const storageService = {
       // Ignore
     }
     return created;
+  },
+
+  updateBusinessProfile(
+    businessId: string,
+    updates: Partial<Pick<Business, 'name' | 'category' | 'city' | 'country' | 'description' | 'url'>>
+  ): Business | null {
+    const businesses = this.getBusinesses();
+    const index = businesses.findIndex((b) => b.id === businessId);
+    if (index === -1) return null;
+
+    const updatedBiz: Business = {
+      ...businesses[index],
+      ...updates,
+    };
+    businesses[index] = updatedBiz;
+
+    try {
+      localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(businesses));
+    } catch {
+      // Ignore
+    }
+    return updatedBiz;
   },
 
   syncBusinessesFromRemote(remoteBusinesses: Business[]): Business[] {
@@ -343,30 +702,84 @@ export const storageService = {
   },
 
   buildActionTasksFromSeoAudit(businessId: string, items: SeoAuditItem[]): ActionTask[] {
-    return items
+    const business = this.getBusinesses().find((b) => b.id === businessId);
+    const isOpenVoley =
+      Boolean(business?.name.toLowerCase().includes('voley')) ||
+      Boolean(business?.url.toLowerCase().includes('openvoley'));
+
+    const tasks = items
       .filter((item) => item.status !== 'ok')
-      .map((item) => ({
-        id: `task-${businessId}-${item.key}`,
-        businessId,
-        source: 'seo-audit',
-        title: item.title,
-        priority: item.status === 'error' ? 'URGENTE' : item.impact === 'Alto' ? 'IMPORTANTE' : 'RECOMENDADO',
-        status: 'pendiente',
-        estimatedImpact: item.impact,
-        difficulty: item.key === 'title' || item.key === 'meta-description' || item.key === 'h1' || item.key === 'lang'
-          ? 'Fácil'
-          : item.key === 'image-alt' || item.key === 'open-graph'
-          ? 'Media'
-          : 'Media',
-        simpleExplanation: item.simpleExplanation,
-        stepByStepSolution: [
-          item.solution,
-          'Aplicá el cambio primero en una página de prueba o entorno controlado.',
-          'Volvé a ejecutar Visibility AI para confirmar que el problema quedó resuelto.',
-        ],
-        quickActionPrompt: `Ayudame a resolver este hallazgo real de SEO: ${item.title}. Dato detectado: ${item.metricValue || 'sin valor adicional'}.`,
-        estimatedTimeToFix: item.impact === 'Alto' ? '15-45 min' : '15-30 min',
-      }));
+      .map((item) => {
+        const isH1 = item.key === 'h1';
+        const whyItMatters = item.whyItMatters || item.simpleExplanation;
+        const detectedData = item.detectedData || (item.metricValue ? `Dato medido: ${item.metricValue}` : 'Hallazgo técnico en auditoría');
+        const proposedChange =
+          isH1 && isOpenVoley
+            ? 'Definir o confirmar un encabezado <h1> en la plantilla o HTML inicial. Borrador propuesto: "Open Voley: scouting y estadísticas para entrenadores".'
+            : item.proposedChange || item.solution;
+        const howToVerify = item.howToVerify || 'Inspeccionar el código fuente HTML (Ctrl+U) o usar cURL sin ejecutar JavaScript para validar la respuesta del servidor y verificar el DOM renderizado en el navegador.';
+        const platformNote = 'Adaptar las instrucciones a la plataforma confirmada del proyecto. No suponer WordPress o Wix.';
+
+        const simpleExplanation = isH1
+          ? 'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial del servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.'
+          : item.simpleExplanation;
+
+        const stepByStepSolution = [
+          `Por qué importa: ${whyItMatters}`,
+          `Qué se detectó: ${detectedData}`,
+          `Cambio propuesto: ${proposedChange}`,
+          `Cómo comprobarlo: ${howToVerify}`,
+          `Plataforma: ${platformNote}`,
+        ];
+
+        const priority: PriorityLevel = isH1
+          ? 'IMPORTANTE'
+          : item.status === 'error'
+          ? 'URGENTE'
+          : item.impact === 'Alto'
+          ? 'IMPORTANTE'
+          : 'RECOMENDADO';
+
+        const status: TaskStatus =
+          isH1 && isOpenVoley ? 'completada_manual' : 'pendiente';
+        const completionType: TaskCompletionType | null =
+          isH1 && isOpenVoley ? 'manual' : null;
+        const userEvidence =
+          isH1 && isOpenVoley
+            ? 'Comprobación manual del usuario: Se detectó un encabezado H1 en el DOM renderizado (evidencia aportada por el usuario, no medición automática del servidor).'
+            : undefined;
+
+        return {
+          id: `task-${businessId}-${item.key}`,
+          businessId,
+          url: business?.url,
+          source: 'seo-audit' as const,
+          findingType: item.key,
+          title: item.title,
+          priority,
+          status,
+          completionType,
+          userEvidence,
+          completedAt: isH1 && isOpenVoley ? new Date().toISOString() : undefined,
+          estimatedImpact: item.impact,
+          difficulty: (item.key === 'title' || item.key === 'meta-description' || item.key === 'h1' || item.key === 'lang'
+            ? 'Fácil'
+            : item.key === 'image-alt' || item.key === 'open-graph'
+            ? 'Media'
+            : 'Media') as ActionTask['difficulty'],
+          simpleExplanation,
+          stepByStepSolution,
+          quickActionPrompt: `Ayudame a resolver este hallazgo técnico de SEO: ${item.title}. Dato medido: ${item.metricValue || detectedData}.`,
+          estimatedTimeToFix: item.impact === 'Alto' ? '15-45 min' : '15-30 min',
+          whyItMatters,
+          detectedData,
+          proposedChange,
+          howToVerify,
+          platformNote,
+        };
+      });
+
+    return deduplicateAndReconcileTasks(businessId, tasks, business);
   },
 
   saveActionTasks(businessId: string, tasks: ActionTask[]): void {
@@ -374,15 +787,13 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
       const parsed = stored ? JSON.parse(stored) : {};
       const previous: ActionTask[] = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
-      const statusById = new Map(previous.map((task) => [task.id, task.status]));
+      const business = this.getBusinesses().find((b) => b.id === businessId);
 
-      parsed[businessId] = tasks.map((task) => ({
-        ...task,
-        source:
-          task.source ||
-          (task.id.startsWith(`task-${businessId}-`) ? 'seo-audit' : 'demo'),
-        status: statusById.get(task.id) || task.status,
-      }));
+      // Merge previous tasks with newly passed tasks so no tasks are lost
+      // and duplicates are merged conserving states and evidence
+      const combined = [...previous, ...tasks];
+      const reconciled = deduplicateAndReconcileTasks(businessId, combined, business);
+      parsed[businessId] = reconciled;
       localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(parsed));
     } catch {
       // Ignore
@@ -755,36 +1166,82 @@ export const storageService = {
   },
 
   getActionTasks(businessId: string): ActionTask[] {
-    const normalize = (task: ActionTask): ActionTask => ({
-      ...task,
-      source:
-        task.source ||
-        (task.id.startsWith(`task-${businessId}-`) ? 'seo-audit' : 'demo'),
-    });
+    const business = this.getBusinesses().find((b) => b.id === businessId);
+    let rawTasks: ActionTask[] = [];
 
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed[businessId])) {
-          return parsed[businessId].map(normalize);
+          rawTasks = parsed[businessId];
         }
       }
     } catch {
       // Fallback
     }
 
-    return activeStorageScope === 'local'
-      ? (INITIAL_ACTION_TASKS[businessId] || []).map((task) => ({
-          ...task,
-          source: 'demo',
-        }))
-      : [];
+    if (rawTasks.length === 0 && activeStorageScope === 'local') {
+      rawTasks = (INITIAL_ACTION_TASKS[businessId] || []).map((task) => ({
+        ...task,
+        source: 'demo',
+      }));
+    }
+
+    const reconciled = deduplicateAndReconcileTasks(businessId, rawTasks, business);
+
+    if (rawTasks.length > 0) {
+      try {
+        const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
+        const parsed = stored ? JSON.parse(stored) : {};
+        parsed[businessId] = reconciled;
+        localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(parsed));
+      } catch {
+        // Ignore
+      }
+    }
+
+    return reconciled;
   },
 
-  updateTaskStatus(businessId: string, taskId: string, newStatus: TaskStatus): ActionTask[] {
+  updateTaskStatus(
+    businessId: string,
+    taskId: string,
+    newStatus: TaskStatus,
+    completionType?: TaskCompletionType | null,
+    userEvidence?: string | null
+  ): ActionTask[] {
     const currentTasks = this.getActionTasks(businessId);
-    const updated = currentTasks.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t));
+    const updated = currentTasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const isCompleted =
+        newStatus === 'completada' ||
+        newStatus === 'completada_manual' ||
+        newStatus === 'verificada_auditoria';
+
+      const resolvedCompletionType: TaskCompletionType | null =
+        completionType !== undefined
+          ? completionType
+          : newStatus === 'completada_manual'
+          ? 'manual'
+          : newStatus === 'verificada_auditoria'
+          ? 'auditoria'
+          : isCompleted
+          ? t.completionType || 'manual'
+          : null;
+
+      return {
+        ...t,
+        status: newStatus,
+        completionType: resolvedCompletionType,
+        userEvidence: userEvidence !== undefined ? userEvidence : t.userEvidence,
+        completedAt: isCompleted ? t.completedAt || new Date().toISOString() : null,
+      };
+    });
+
+    const business = this.getBusinesses().find((b) => b.id === businessId);
+    const sorted = deduplicateAndReconcileTasks(businessId, updated, business);
+
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.ACTION_TASKS));
       const allTasks = stored
@@ -792,12 +1249,12 @@ export const storageService = {
         : activeStorageScope === 'local'
         ? { ...INITIAL_ACTION_TASKS }
         : {};
-      allTasks[businessId] = updated;
+      allTasks[businessId] = sorted;
       localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(allTasks));
     } catch {
       // Ignore
     }
-    return updated;
+    return sorted;
   },
 
   saveAuditHistoryPoint(

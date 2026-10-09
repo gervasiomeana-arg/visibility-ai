@@ -182,9 +182,30 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
       {/* Grid of SEO items */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         {filteredItems.map((item) => {
-          const isOk = item.status === 'ok';
-          const isWarning = item.status === 'warning';
-          const isError = item.status === 'error';
+          const isH1 = item.key === 'h1';
+          const isOpenVoley =
+            business.name.toLowerCase().includes('voley') ||
+            business.url.toLowerCase().includes('openvoley');
+
+          const effectiveStatus = isH1 && item.status === 'error' ? 'warning' : item.status;
+          const isOk = effectiveStatus === 'ok';
+          const isWarning = effectiveStatus === 'warning';
+          const isError = effectiveStatus === 'error';
+
+          const effectiveStatusLabel =
+            isH1 && isWarning
+              ? 'Pendiente en página renderizada'
+              : item.statusLabel;
+
+          const effectiveExplanation =
+            isH1 && isWarning
+              ? 'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial recibido desde el servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.'
+              : item.simpleExplanation;
+
+          const proposedChange =
+            isH1 && isOpenVoley
+              ? 'Definir o confirmar un encabezado <h1> en la plantilla o HTML inicial. Borrador propuesto: "Open Voley: scouting y estadísticas para entrenadores".'
+              : item.proposedChange || item.solution;
 
           return (
             <div
@@ -215,7 +236,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
                     {isOk && <CheckCircle2 className="w-3 h-3" />}
                     {isWarning && <AlertTriangle className="w-3 h-3" />}
                     {isError && <AlertCircle className="w-3 h-3" />}
-                    <span>{item.statusLabel}</span>
+                    <span>{effectiveStatusLabel}</span>
                   </span>
                 </div>
 
@@ -230,14 +251,40 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
                 )}
 
                 <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  {item.simpleExplanation}
+                  {effectiveExplanation}
                 </p>
+
+                {isH1 && isOpenVoley && (
+                  <div className="mt-2.5 p-2.5 bg-sky-50/80 border border-sky-200/90 rounded-xl text-[11px] text-sky-950 flex items-start gap-2">
+                    <HelpCircle className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-[10px] uppercase tracking-wider text-sky-800 block mb-0.5">
+                        Evidencia aportada por el usuario
+                      </span>
+                      <p className="leading-relaxed">
+                        Comprobación manual del usuario: se detectó un encabezado H1 en el DOM renderizado en el navegador. (Evidencia aportada por el usuario, no medición automática del servidor).
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100/80 space-y-2">
-                <div className="text-[11px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                  <strong className="text-slate-900 block mb-0.5">Cómo resolverlo:</strong>
-                  <span>{item.solution}</span>
+                <div className="text-[11px] text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <strong className="text-slate-900 block font-heading">Solución recomendada:</strong>
+                    <span className="text-[10px] text-slate-400">Sin suponer WordPress o Wix</span>
+                  </div>
+                  {proposedChange ? (
+                    <div className="space-y-1.5 text-[11px] leading-relaxed">
+                      <p><strong className="text-slate-800">Propuesta:</strong> {proposedChange}</p>
+                      {item.howToVerify && (
+                        <p><strong className="text-slate-800">Comprobación:</strong> {item.howToVerify}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="leading-relaxed">{item.solution}</span>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between text-xs pt-1">

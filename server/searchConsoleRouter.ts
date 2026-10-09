@@ -332,28 +332,72 @@ async function getSearchConsoleSession(
   }
 }
 
-router.get('/status', requireSupabaseAuth, async (req, res) => {
-  const active = await getSearchConsoleSession(req);
+router.get('/status', async (req, res) => {
+  let active = null;
+  try {
+    active = await getSearchConsoleSession(req);
+  } catch {
+    // Session lookup is optional for status check
+  }
+
+  const missing: string[] = [];
+  if (!process.env.GOOGLE_CLIENT_ID) missing.push('GOOGLE_CLIENT_ID');
+  if (!process.env.GOOGLE_CLIENT_SECRET) missing.push('GOOGLE_CLIENT_SECRET');
+  if (!process.env.APP_URL) missing.push('APP_URL');
+
+  let redirectUri = '';
+  try {
+    redirectUri = getSearchConsoleRedirectUri();
+  } catch {
+    const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
+    const proto = req.get('x-forwarded-proto') || 'https';
+    redirectUri = `${proto}://${host}/api/search-console/oauth/callback`;
+  }
+
+  const appUrl =
+    process.env.APP_URL ||
+    `${req.get('x-forwarded-proto') || 'https'}://${req.get('x-forwarded-host') || req.get('host') || 'localhost:3000'}`;
 
   return res.json({
     configured: searchConsoleConfigured(),
     connected: Boolean(active),
+    missing,
+    appUrl,
+    redirectUri,
+    hasTokenKey: Boolean(getSearchConsoleTokenKey()),
     persistence: durableSearchConsoleConfigured()
       ? 'supabase-encrypted'
       : 'session',
   });
 });
 
-router.post('/auth/start', requireSupabaseAuth, async (req, res) => {
+router.all(['/auth/start', '/oauth/start'], async (req, res) => {
   try {
+    const missing: string[] = [];
+    if (!process.env.GOOGLE_CLIENT_ID) missing.push('GOOGLE_CLIENT_ID');
+    if (!process.env.GOOGLE_CLIENT_SECRET) missing.push('GOOGLE_CLIENT_SECRET');
+    if (!process.env.APP_URL) missing.push('APP_URL');
+
+    let redirectUri = '';
+    try {
+      redirectUri = getSearchConsoleRedirectUri();
+    } catch {
+      const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
+      const proto = req.get('x-forwarded-proto') || 'https';
+      redirectUri = `${proto}://${host}/api/search-console/oauth/callback`;
+    }
+
     if (!searchConsoleConfigured()) {
       return res.status(503).json({
         error: 'Google Search Console OAuth is not configured',
+        configured: false,
         required: [
           'GOOGLE_CLIENT_ID',
           'GOOGLE_CLIENT_SECRET',
           'APP_URL',
         ],
+        missing,
+        redirectUri,
       });
     }
 
@@ -362,29 +406,25 @@ router.post('/auth/start', requireSupabaseAuth, async (req, res) => {
 
     if (durableSearchConsoleConfigured()) {
       const authToken = bearerToken(req);
-      if (!authToken) {
-        return res
-          .status(401)
-          .json({ error: 'Supabase authentication is required' });
+      if (authToken) {
+        const user = await getSupabaseUserFromToken(authToken);
+        if (user) {
+          userId = user.id;
+          supabaseAccessToken = authToken;
+        }
       }
-
-      const user = await getSupabaseUserFromToken(authToken);
-      if (!user) {
-        return res
-          .status(401)
-          .json({ error: 'Invalid Supabase session' });
-      }
-
-      userId = user.id;
-      supabaseAccessToken = authToken;
     }
 
     const returnToRaw =
-      typeof req.body?.returnTo === 'string' ? req.body.returnTo : '/';
+      typeof req.body?.returnTo === 'string'
+        ? req.body.returnTo
+        : typeof req.query?.returnTo === 'string'
+        ? req.query.returnTo
+        : '/keywords';
     const returnTo =
       returnToRaw.startsWith('/') && !returnToRaw.startsWith('//')
         ? returnToRaw
-        : '/';
+        : '/keywords';
 
     let state: string;
 
@@ -416,7 +456,7 @@ router.post('/auth/start', requireSupabaseAuth, async (req, res) => {
     );
     authUrl.searchParams.set(
       'redirect_uri',
-      getSearchConsoleRedirectUri()
+      redirectUri
     );
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set(
@@ -426,6 +466,10 @@ router.post('/auth/start', requireSupabaseAuth, async (req, res) => {
     authUrl.searchParams.set('access_type', 'offline');
     authUrl.searchParams.set('prompt', 'consent');
     authUrl.searchParams.set('state', state);
+
+    if (req.method === 'GET') {
+      return res.redirect(authUrl.toString());
+    }
 
     return res.json({ authUrl: authUrl.toString() });
   } catch (error: any) {
@@ -437,7 +481,7 @@ router.post('/auth/start', requireSupabaseAuth, async (req, res) => {
   }
 });
 
-router.get('/oauth/callback', async (req, res) => {
+router.get(['/oauth/callback', '/callback'], async (req, res) => {
   const code =
     typeof req.query.code === 'string' ? req.query.code : '';
   const state =

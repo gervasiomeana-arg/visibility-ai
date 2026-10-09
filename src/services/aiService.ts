@@ -10,9 +10,11 @@ export const aiService = {
       url: string;
       category: string;
       city: string;
+      description?: string;
       scores?: any;
       workspaceId?: string;
       businessId?: string;
+      lastAudit?: any;
     }
   ): Promise<string> {
     try {
@@ -36,65 +38,79 @@ export const aiService = {
       console.warn('API error, using local business assistant engine fallback:', e);
     }
 
-    // Local fallback with rich business-oriented advice
+    // Local fallback adhering strictly to verification, non-promising, and domain rules
     const p = prompt.toLowerCase();
     const biz = businessContext?.name || 'tu negocio';
     const city = businessContext?.city || 'tu ciudad';
+    const desc = businessContext?.description;
+    const isOpenVoley =
+      biz.toLowerCase().includes('voley') ||
+      (businessContext?.url || '').toLowerCase().includes('openvoley');
+
+    const profileIntro = isOpenVoley
+      ? `Para **Open Voley** (herramienta de scouting, estadísticas y análisis de voleibol para entrenadores)`
+      : desc
+      ? `Para **${biz}** (${desc})`
+      : `Para **${biz}**`;
+
+    if (p.includes('h1') || p.includes('encabezado')) {
+      return `${profileIntro}, revisamos la evaluación del encabezado principal:
+
+1. **Dato medido:** No se detectó un H1 en el HTML analizado (0 H1 en la respuesta inicial del servidor).
+2. **Interpretación:** El auditor inspecciona el HTML inicial sin ejecutar scripts de navegador. Si la página utiliza JavaScript en el cliente (como en aplicaciones React/SPA), el contenido podría generarse dinámicamente. No se debe afirmar que Google tampoco lo encuentra, pero contar con un H1 en el HTML inicial asegura un rastreo inmediato y claro.
+3. **Propuesta:** ${
+        isOpenVoley
+          ? 'Agregar un encabezado <h1> visible en el HTML inicial o plantilla del servidor. Borrador propuesto: **"Open Voley: scouting y estadísticas para entrenadores"**.'
+          : 'Agregar un único encabezado <h1> visible en el HTML inicial que resuma la actividad principal.'
+      }
+4. **Cómo comprobarlo:** Abrir "Ver código fuente" (Ctrl+U) o usar cURL sin ejecutar JavaScript y verificar que la etiqueta figure en el marcado recibido.
+5. **Plataforma:** Adaptar la solución a la plataforma confirmada del proyecto (no asumir WordPress o Wix).`;
+    }
 
     if (p.includes('mejorar primero') || p.includes('prioridad') || p.includes('urgente')) {
-      return `Para **${biz}**, todavía no tengo mediciones reales suficientes para afirmar qué problema es el más urgente.
+      const items = businessContext?.lastAudit?.items || [];
+      const errorItem = items.find((i: any) => i.status === 'error');
 
-Mientras estemos en modo DEMO, te recomiendo priorizar solo lo que Visibility AI pueda verificar con una fuente real. Cuando conectemos el análisis técnico, voy a ordenar las acciones por impacto y evidencia.
+      if (errorItem) {
+        return `${profileIntro}, según la última auditoría técnica real:
 
-Por ahora puedo ayudarte a revisar una recomendación concreta sin presentarla como un diagnóstico verificado.`;
+- **Dato medido:** Se detectó "${errorItem.title}" (${errorItem.metricValue || errorItem.statusLabel}).
+- **Interpretación:** ${errorItem.simpleExplanation}
+- **Propuesta:** ${errorItem.proposedChange || errorItem.solution}
+- **Comprobación:** ${errorItem.howToVerify || 'Revisar el código fuente del sitio tras el cambio.'}
+
+*Nota de precisión:* Implementar esta propuesta resuelve el factor técnico observado; no constituye una promesa de subir posiciones ni de captar clientes inmediatos.`;
+      }
+
+      return `${profileIntro}: sin una auditoría técnica completa guardada, no es responsable afirmar qué problema tiene prioridad crítica. Te recomiendo revisar los factores medidos en la pestaña SEO Técnico antes de priorizar acciones.`;
     }
 
     if (p.includes('competencia') || p.includes('aparece antes') || p.includes('competidor')) {
-      return `Todavía no tengo datos competitivos reales de **${biz}** en **${city}**. En modo DEMO no voy a inventar posiciones, autoridad ni ventajas frente a competidores.
-
-Cuando conectemos una fuente real de keywords y resultados de búsqueda, voy a poder comparar:
-- búsquedas donde aparecés vos y ellos,
-- posiciones relativas,
-- páginas que capturan esas búsquedas,
-- oportunidades concretas para cerrar la brecha.
-
-Si querés, puedo explicarte cómo leer una comparación competitiva cuando esos datos estén disponibles.`;
+      return `${profileIntro}: actualmente no contamos con datos competitivos medidos ni rankings comparativos verificados. No voy a especular sobre competidores ni inventar diferencias que no estén sustentadas en datos reales. Si contás con competidores específicos que quieras analizar, indicalos para compararlos objetivamente.`;
     }
 
     if (p.includes('contenido') || p.includes('crear')) {
-      return `Todavía no tengo evidencia suficiente para afirmar qué contenido será el más rentable para **${biz}**.
+      if (isOpenVoley) {
+        return `${profileIntro}:
+- **Dato medido:** La web comunica un software de scouting y análisis para entrenadores de voleibol.
+- **Interpretación:** Conviene que la página principal y sus secciones describan con precisión las funciones técnicas (análisis táctico, estadísticas por set, rotaciones).
+- **Propuesta:** Estructurar el mensaje en torno a casos reales de entrenamiento de voleibol. Por ejemplo, como H1 borrador: **"Open Voley: scouting y estadísticas para entrenadores"**.
+- **Comprobación:** Validar que el texto refleje el software real sin suponer CMS como WordPress o Wix.`;
+      }
 
-Como punto de partida, podés evaluar:
-- **Una página específica del servicio principal** que responda claramente qué ofrecés y en qué zona trabajás.
-- **Preguntas frecuentes** basadas en dudas reales de tus clientes.
-- **Contenido para tu Perfil de Empresa en Google** cuando esa integración esté conectada.
-
-Estas son recomendaciones generales, no resultados medidos. Cuando tengamos consultas reales de Search Console, puedo priorizarlas según evidencia.`;
+      return `${profileIntro}: para orientar el contenido con precisión necesitamos definir los servicios confirmados y el perfil del cliente. ¿Podrías indicarme qué servicio o duda técnica puntual te gustaría abordar?`;
     }
 
     if (p.includes('consultas') || p.includes('clientes') || p.includes('reservas')) {
-      return `Para facilitar más consultas directas, podés revisar estas acciones:
-1. **Canal de contacto visible en móvil**: WhatsApp, teléfono o formulario, según cómo prefieran contactarte tus clientes.
-2. **Llamadas a la acción claras**: Explicá exactamente qué sucede al tocar cada botón, por ejemplo "Consultar disponibilidad" o "Pedir presupuesto".
-3. **Evidencia real del servicio**: Fotos propias, casos, testimonios o información concreta que ayude a decidir.
-
-Estas recomendaciones son generales. Visibility AI no debe atribuirles un aumento porcentual hasta contar con medición real antes y después.`;
+      return `${profileIntro}:
+- **Dato medido vs. propuesta:** La visibilidad técnica en buscadores facilita que la página sea descubierta, pero la generación de consultas depende de la propuesta de valor, claridad de contacto y confianza de la web.
+- **Propuesta:** Asegurar que los medios de contacto (o registro de prueba) sean visibles y claros en dispositivos móviles, sin prometer incrementos porcentuales garantizados.`;
     }
 
-    if (p.includes('problema') || p.includes('explicame') || p.includes('explicar')) {
-      return `En esta etapa, los problemas visibles dentro de Visibility AI pueden ser ejemplos de demostración y no deben interpretarse como hallazgos reales sobre **${biz}**.
+    return `Como asistente técnico para ${profileIntro}:
+Puedo ayudarte a desglosar los datos medidos en tu auditoría técnica, distinguir hechos de interpretaciones y redactar propuestas prácticas sin falsas promesas de indexación o ranking.
 
-Cuando una auditoría esté respaldada por una fuente real, te voy a explicar cada hallazgo con cuatro cosas: qué detectamos, de dónde sale el dato, por qué importa y qué acción conviene tomar.`;
-    }
-
-    return `Como asistente de visibilidad para **${biz}** en **${city}**, mi objetivo es ayudarte a conseguir más clientes sin tecnicismos. 
-
-Sin datos de demanda verificados, puedo sugerir acciones generales para revisar:
-- Clarificar la página de tu servicio principal.
-- Responder preguntas frecuentes reales de tus clientes.
-- Mantener actualizado tu Perfil de Empresa en Google cuando esté conectado.
-
-¿Hay algún punto o problema en particular del informe que quieras que revisemos juntos?`;
+¿Sobre qué hallazgo o aspecto técnico querés que profundicemos?`;
   },
 
   async generateContent(

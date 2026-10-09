@@ -195,3 +195,95 @@ test('health endpoint exposes readiness flags but never secret values', async ()
     }
   }
 });
+
+test('DNS lookup handler supports both all:true array and single address callbacks', () => {
+  const pinned = { address: '93.184.216.34', family: 4 as const };
+
+  function customLookup(
+    _hostname: string,
+    optionsOrCallback: any,
+    maybeCallback?: any
+  ) {
+    const callback =
+      typeof optionsOrCallback === 'function'
+        ? optionsOrCallback
+        : maybeCallback;
+    const options =
+      typeof optionsOrCallback === 'object' && optionsOrCallback !== null
+        ? optionsOrCallback
+        : null;
+
+    if (typeof callback !== 'function') return;
+
+    if (options?.all) {
+      callback(null, [{ address: pinned.address, family: pinned.family }]);
+    } else {
+      callback(null, pinned.address, pinned.family);
+    }
+  }
+
+  // Case 1: Node autoSelectFamily lookup with { all: true }
+  let allTrueCalled = false;
+  customLookup('example.com', { all: true }, (err: any, addresses: any) => {
+    assert.equal(err, null);
+    assert.equal(Array.isArray(addresses), true);
+    assert.equal(addresses.length, 1);
+    assert.equal(addresses[0].address, '93.184.216.34');
+    assert.equal(addresses[0].family, 4);
+    allTrueCalled = true;
+  });
+  assert.equal(allTrueCalled, true);
+
+  // Case 2: standard single address lookup with options
+  let singleWithOptionsCalled = false;
+  customLookup('example.com', { family: 4 }, (err: any, address: any, family: any) => {
+    assert.equal(err, null);
+    assert.equal(address, '93.184.216.34');
+    assert.equal(family, 4);
+    singleWithOptionsCalled = true;
+  });
+  assert.equal(singleWithOptionsCalled, true);
+
+  // Case 3: callback as second argument
+  let directCallbackCalled = false;
+  customLookup('example.com', (err: any, address: any, family: any) => {
+    assert.equal(err, null);
+    assert.equal(address, '93.184.216.34');
+    assert.equal(family, 4);
+    directCallbackCalled = true;
+  });
+  assert.equal(directCallbackCalled, true);
+});
+
+test('buildRealSeoAudit generates structured whyItMatters, detectedData, proposedChange, and howToVerify on items', async () => {
+  const { buildRealSeoAudit } = await import('../seoAuditService');
+  const result = await buildRealSeoAudit('https://openvoley.com');
+
+  assert.equal(result.httpStatus, 200);
+  assert.equal(result.items.length >= 14, true);
+
+  const h1Item = result.items.find((item: any) => item.key === 'h1');
+  assert.ok(h1Item, 'h1Item must exist');
+  assert.equal(h1Item.status, 'warning');
+  assert.equal(h1Item.statusLabel, 'Pendiente en página renderizada');
+  assert.equal(h1Item.metricValue, '0 H1 en HTML inicial');
+  assert.ok(
+    h1Item.simpleExplanation.includes('H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada'),
+    'Explanation must clarify pending rendered check'
+  );
+  assert.ok(
+    h1Item.simpleExplanation.includes('JavaScript'),
+    'Explanation must mention possible client-side JavaScript rendering'
+  );
+  assert.equal(
+    h1Item.simpleExplanation.includes('Google tampoco lo encuentra'),
+    false,
+    'Must not claim Google cannot find it'
+  );
+  assert.ok(h1Item.whyItMatters, 'whyItMatters must be populated');
+  assert.ok(h1Item.detectedData, 'detectedData must be populated');
+  assert.ok(h1Item.proposedChange, 'proposedChange must be populated');
+  assert.ok(h1Item.howToVerify, 'howToVerify must be populated');
+});
+
+

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart3,
   Search,
@@ -13,6 +13,9 @@ import {
   ChevronRight,
   TrendingUp,
   MapPin,
+  Edit3,
+  X,
+  Save,
 } from 'lucide-react';
 import { Business, ActiveTab, ExecutiveIssue } from '../types';
 
@@ -31,6 +34,7 @@ interface DashboardOverviewProps {
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistant: () => void;
   onGenerateOpportunity: (oppId: string) => void;
+  onUpdateBusinessProfile?: (updates: Partial<Business>) => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -39,7 +43,28 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   searchConsoleMeta,
   setActiveTab,
   onOpenAssistant,
+  onUpdateBusinessProfile,
 }) => {
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: business.name,
+    category: business.category,
+    city: business.city,
+    description: business.description || '',
+  });
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onUpdateBusinessProfile) {
+      onUpdateBusinessProfile({
+        name: profileForm.name.trim() || business.name,
+        category: profileForm.category.trim() || business.category,
+        city: profileForm.city.trim() || business.city,
+        description: profileForm.description.trim() || undefined,
+      });
+    }
+    setIsEditingProfile(false);
+  };
   const { scores } = business;
   const scoreSources = business.scoreSources || {
     overall: 'demo',
@@ -76,6 +101,12 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               {business.name}
             </h1>
 
+            {business.description && (
+              <p className="mt-2 text-xs sm:text-sm text-slate-600 max-w-xl leading-relaxed">
+                {business.description}
+              </p>
+            )}
+
             <div className="flex flex-wrap items-center gap-3 mt-3 text-xs text-slate-500">
               <a
                 href={business.url}
@@ -90,8 +121,28 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               <span className="text-slate-300">·</span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                {business.city}, {business.country}
+                {business.city ? `${business.city}, ` : ''}{business.country}
               </span>
+              {onUpdateBusinessProfile && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <button
+                    onClick={() => {
+                      setProfileForm({
+                        name: business.name,
+                        category: business.category,
+                        city: business.city,
+                        description: business.description || '',
+                      });
+                      setIsEditingProfile(true);
+                    }}
+                    className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>Editar perfil</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -142,8 +193,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                   <span className="text-xs text-slate-400 font-normal"> pos. media</span>
                 </span>
               ) : (
-                <span className="text-2xl font-extrabold text-slate-900 font-heading">
-                  {scores.google} <span className="text-xs text-slate-400 font-normal">/100</span>
+                <span className="text-xl font-extrabold text-slate-500 font-heading">
+                  Sin conectar
                 </span>
               )}
             </div>
@@ -159,8 +210,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               </p>
             )}
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span className={`font-semibold px-2 py-0.5 rounded ${hasSearchConsole ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}`}>
-                {hasSearchConsole ? 'PARCIAL REAL' : labelForSource(scoreSources.google)}
+              <span className={`font-semibold px-2 py-0.5 rounded ${hasSearchConsole ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 bg-slate-100'}`}>
+                {hasSearchConsole ? 'PARCIAL REAL' : 'SIN CONECTAR'}
               </span>
               <button
                 onClick={() => setActiveTab('keywords')}
@@ -459,6 +510,108 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Edit Business Profile Modal */}
+      {isEditingProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 font-heading">
+                    Perfil del Negocio
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Información de referencia para el asistente y el análisis
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsEditingProfile(false)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="mt-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Nombre
+                </label>
+                <input
+                  type="text"
+                  value={profileForm.name}
+                  onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Descripción confirmada del servicio / producto
+                </label>
+                <textarea
+                  value={profileForm.description}
+                  onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
+                  rows={3}
+                  placeholder="Ej: Herramienta de scouting, estadísticas y análisis de voleibol para entrenadores."
+                  className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed"
+                />
+                <span className="text-[11px] text-slate-400 block mt-1">
+                  El Asistente IA usará estrictamente esta descripción como base y no inventará actividades ni servicios.
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Categoría
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.category}
+                    onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Ciudad / Zona
+                  </label>
+                  <input
+                    type="text"
+                    value={profileForm.city}
+                    onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+                    className="w-full px-3.5 py-2 text-xs sm:text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingProfile(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>Guardar perfil</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

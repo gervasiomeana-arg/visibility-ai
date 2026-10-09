@@ -39,6 +39,7 @@ import {
   ActionTask,
   MonthlyEvolution,
   TaskStatus,
+  TaskCompletionType,
   ContentGenerationRequest,
   SeoAuditResult,
   Workspace,
@@ -317,6 +318,13 @@ export default function App() {
     storageService.setActiveBusinessId(bizId);
   };
 
+  const handleUpdateBusinessProfile = (updates: Partial<Business>) => {
+    const updated = storageService.updateBusinessProfile(activeBusiness.id, updates);
+    if (updated) {
+      setBusinesses(storageService.getBusinesses());
+    }
+  };
+
   const canEditWorkspace = !authService.isConfigured() || activeWorkspace?.role !== 'viewer';
 
   const handleStartAnalysis = (url: string, name?: string, category?: string, city?: string) => {
@@ -343,13 +351,20 @@ export default function App() {
       targetBusinessId = existing.id;
       handleSelectBusiness(existing.id);
     } else {
-      let deducedName = 'Negocio Analizado';
+      const isOpenVoley =
+        auditResult.requestedUrl.toLowerCase().includes('openvoley') ||
+        analyzingUrl.toLowerCase().includes('openvoley') ||
+        analyzingUrl.toLowerCase().includes('voley');
+
+      let deducedName = isOpenVoley ? 'Open Voley' : 'Negocio Analizado';
       try {
         const u = new URL(analyzingUrl.startsWith('http') ? analyzingUrl : `https://${analyzingUrl}`);
         const host = u.hostname.replace('www.', '').split('.')[0];
-        deducedName = host.charAt(0).toUpperCase() + host.slice(1);
+        if (!isOpenVoley) {
+          deducedName = host.charAt(0).toUpperCase() + host.slice(1);
+        }
       } catch {
-        deducedName = 'Mi Negocio';
+        deducedName = isOpenVoley ? 'Open Voley' : 'Mi Negocio';
       }
 
       const marketCountry = activeWorkspace?.countryCode === 'CL'
@@ -367,8 +382,11 @@ export default function App() {
       const businessDraft = {
         url: auditResult.requestedUrl,
         name: deducedName,
-        category: 'Pendiente de definir',
-        city: 'Pendiente de definir',
+        category: isOpenVoley ? 'Software deportivo / Scouting' : 'Pendiente de definir',
+        city: isOpenVoley ? 'Buenos Aires' : 'Pendiente de definir',
+        description: isOpenVoley
+          ? 'Herramienta de scouting, estadísticas y análisis de voleibol para entrenadores.'
+          : undefined,
         country: marketCountry,
         countryCode: activeWorkspace?.countryCode || 'AR',
         currency: activeWorkspace?.currency || 'USD',
@@ -538,9 +556,20 @@ export default function App() {
     setActiveTab('analyzing');
   };
 
-  const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
+  const handleUpdateTaskStatus = (
+    taskId: string,
+    newStatus: TaskStatus,
+    completionType?: TaskCompletionType | null,
+    userEvidence?: string | null
+  ) => {
     if (!canEditWorkspace) return;
-    const updated = storageService.updateTaskStatus(activeBusiness.id, taskId, newStatus);
+    const updated = storageService.updateTaskStatus(
+      activeBusiness.id,
+      taskId,
+      newStatus,
+      completionType,
+      userEvidence
+    );
     setActionTasks(updated);
 
     if (authService.isConfigured() && activeWorkspace?.id && activeBusiness.id !== 'no-business') {
@@ -725,6 +754,7 @@ export default function App() {
                   const opp = opportunities.find((o) => o.id === oppId) || opportunities[0];
                   if (opp) handleSelectOpportunityForAI(opp);
                 }}
+                onUpdateBusinessProfile={handleUpdateBusinessProfile}
               />
             )}
 
