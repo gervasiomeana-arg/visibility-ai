@@ -510,7 +510,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 declare
   workspace_owner uuid;
 begin
@@ -542,7 +542,7 @@ begin
 
   return new;
 end;
-$;
+$$;
 
 drop trigger if exists protect_workspace_owner_membership_trigger on public.workspace_members;
 create trigger protect_workspace_owner_membership_trigger
