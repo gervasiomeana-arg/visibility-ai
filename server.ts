@@ -815,11 +815,11 @@ app.get('/api/search-console/status', async (req, res) => {
   return res.json({
     configured: searchConsoleConfigured(),
     connected: Boolean(active),
-    persistence: 'session',
+    persistence: durableSearchConsoleConfigured() ? 'supabase-encrypted' : 'session',
   });
 });
 
-app.get('/api/search-console/auth/start', (req, res) => {
+app.post('/api/search-console/auth/start', async (req, res) => {
   try {
     if (!searchConsoleConfigured()) {
       return res.status(503).json({
@@ -828,10 +828,34 @@ app.get('/api/search-console/auth/start', (req, res) => {
       });
     }
 
+    let userId: string | undefined;
+    let supabaseAccessToken: string | undefined;
+
+    if (durableSearchConsoleConfigured()) {
+      const authToken = bearerToken(req);
+      if (!authToken) {
+        return res.status(401).json({ error: 'Supabase authentication is required' });
+      }
+
+      const user = await getSupabaseUserFromToken(authToken);
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid Supabase session' });
+      }
+
+      userId = user.id;
+      supabaseAccessToken = authToken;
+    }
+
     const state = crypto.randomBytes(24).toString('hex');
-    const returnToRaw = typeof req.query.returnTo === 'string' ? req.query.returnTo : '/';
+    const returnToRaw = typeof req.body?.returnTo === 'string' ? req.body.returnTo : '/';
     const returnTo = returnToRaw.startsWith('/') && !returnToRaw.startsWith('//') ? returnToRaw : '/';
-    searchConsoleStates.set(state, { createdAt: Date.now(), returnTo });
+
+    searchConsoleStates.set(state, {
+      createdAt: Date.now(),
+      returnTo,
+      userId,
+      supabaseAccessToken,
+    });
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     authUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID || '');
@@ -842,7 +866,7 @@ app.get('/api/search-console/auth/start', (req, res) => {
     authUrl.searchParams.set('prompt', 'consent');
     authUrl.searchParams.set('state', state);
 
-    return res.redirect(authUrl.toString());
+    return res.json({ authUrl: authUrl.toString() });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'Could not start Search Console OAuth' });
   }
@@ -879,13 +903,27 @@ app.get('/api/search-console/oauth/callback', async (req, res) => {
     }
 
     const tokenData: any = await tokenResponse.json();
-    const sessionId = crypto.randomBytes(24).toString('hex');
-    searchConsoleSessions.set(sessionId, {
+    const session: SearchConsoleSession = {
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token,
       expiresAt: Date.now() + Number(tokenData.expires_in || 3600) * 1000,
-    });
-    setSearchConsoleSessionCookie(res, sessionId);
+    };
+
+    if (
+      durableSearchConsoleConfigured() &&
+      pending.userId &&
+      pending.supabaseAccessToken
+    ) {
+      await saveDurableSearchConsoleSession(
+        pending.userId,
+        pending.supabaseAccessToken,
+        session
+      );
+    } else {
+      const sessionId = crypto.randomBytes(24).toString('hex');
+      searchConsoleSessions.set(sessionId, session);
+      setSearchConsoleSessionCookie(res, sessionId);
+    }
 
     const target = new URL(pending.returnTo, process.env.APP_URL).toString();
     return res.redirect(target);
@@ -896,9 +934,22 @@ app.get('/api/search-console/oauth/callback', async (req, res) => {
 });
 
 app.post('/api/search-console/disconnect', async (req, res) => {
-  const cookies = parseCookies(req.headers.cookie);
-  if (cookies.visibility_gsc_session) {
-    searchConsoleSessions.delete(cookies.visibility_gsc_session);
+  const authToken = bearerToken(req);
+
+  if (durableSearchConsoleConfigured() && authToken) {
+    const user = await getSupabaseUserFromToken(authToken);
+    if (!user) return res.status(401).json({ error: 'Invalid Supabase session' });
+
+    try {
+      await deleteDurableSearchConsoleSession(user.id, authToken);
+    } catch (error: any) {
+      return res.status(502).json({ error: error.message || 'Could not disconnect Search Console' });
+    }
+  } else {
+    const cookies = parseCookies(req.headers.cookie);
+    if (cookies.visibility_gsc_session) {
+      searchConsoleSessions.delete(cookies.visibility_gsc_session);
+    }
   }
 
   const appUrl = process.env.APP_URL || '';
