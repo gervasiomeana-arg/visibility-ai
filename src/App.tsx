@@ -194,11 +194,17 @@ export default function App() {
   }, [authenticated]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (authService.isConfigured() && activeWorkspace?.id) {
       storageService.setScope(activeWorkspace.id);
+      setBusinesses([]);
+      setActiveBusinessId('');
+      setActionTasks([]);
 
       workspaceService.listBusinesses(activeWorkspace.id)
         .then((remoteBusinesses) => {
+          if (cancelled) return;
           const scopedBusinesses = storageService.syncBusinessesFromRemote(remoteBusinesses);
           setBusinesses(scopedBusinesses);
           const scopedActiveId = storageService.getActiveBusinessId();
@@ -209,6 +215,7 @@ export default function App() {
           );
         })
         .catch(() => {
+          if (cancelled) return;
           const scopedBusinesses = storageService.getBusinesses();
           setBusinesses(scopedBusinesses);
           const scopedActiveId = storageService.getActiveBusinessId();
@@ -221,6 +228,10 @@ export default function App() {
     } else if (!authService.isConfigured()) {
       storageService.setScope();
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeWorkspace?.id]);
 
   useEffect(() => {
