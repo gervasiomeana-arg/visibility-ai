@@ -477,3 +477,42 @@ on public.search_console_connections
 for all
 using (user_id = auth.uid())
 with check (user_id = auth.uid());
+
+
+create or replace function public.protect_workspace_owner_membership()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  workspace_owner uuid;
+begin
+  select owner_user_id
+  into workspace_owner
+  from public.workspaces
+  where id = coalesce(new.workspace_id, old.workspace_id);
+
+  if tg_op = 'DELETE' then
+    if old.user_id = workspace_owner then
+      raise exception 'Workspace owner membership cannot be removed';
+    end if;
+    return old;
+  end if;
+
+  if new.role = 'owner' and new.user_id <> workspace_owner then
+    raise exception 'Only the workspace owner can have owner role';
+  end if;
+
+  if new.user_id = workspace_owner and new.role <> 'owner' then
+    raise exception 'Workspace owner role cannot be changed';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_workspace_owner_membership_trigger on public.workspace_members;
+create trigger protect_workspace_owner_membership_trigger
+before insert or update or delete on public.workspace_members
+for each row execute procedure public.protect_workspace_owner_membership();
