@@ -57,6 +57,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
     message: string;
     businessesCount?: number;
   } | null>(null);
+  const [schemaReadinessLoading, setSchemaReadinessLoading] = useState(false);
+  const [schemaReadiness, setSchemaReadiness] = useState<{
+    schemaVersion: number;
+    schemaLabel: string;
+    checks: Record<string, boolean>;
+  } | null>(null);
+  const [schemaReadinessError, setSchemaReadinessError] = useState('');
 
   useEffect(() => {
     setWorkspaceName(workspace?.name || '');
@@ -217,6 +224,32 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       });
     } finally {
       setPersistenceTestLoading(false);
+    }
+  };
+
+  const handleSchemaReadinessTest = async () => {
+    setSchemaReadinessLoading(true);
+    setSchemaReadinessError('');
+
+    try {
+      if (!authService.isConfigured()) {
+        throw new Error('Supabase no está configurado en este entorno.');
+      }
+
+      const result = await workspaceService.getSchemaReadiness();
+      if (!result) {
+        throw new Error('Supabase respondió sin información de versión.');
+      }
+
+      setSchemaReadiness(result);
+    } catch (error: any) {
+      setSchemaReadiness(null);
+      setSchemaReadinessError(
+        error?.message ||
+          'No se pudo validar la versión del schema de Supabase.'
+      );
+    } finally {
+      setSchemaReadinessLoading(false);
     }
   };
 
@@ -805,6 +838,91 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   </div>
                 </div>
               </div>
+            </div>
+          )}
+
+          {productionHealth?.integrations.supabase && (
+            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
+                    Schema Supabase
+                  </span>
+                  <h3 className="mt-1 text-base font-bold text-slate-900 font-heading">
+                    Verificar versión y objetos críticos
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500 max-w-2xl">
+                    Confirma que el proyecto Supabase tenga la versión de tablas y funciones que espera esta versión de Visibility AI.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSchemaReadinessTest}
+                  disabled={schemaReadinessLoading}
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-all"
+                >
+                  {schemaReadinessLoading ? 'Verificando...' : 'Verificar schema'}
+                </button>
+              </div>
+
+              {schemaReadinessError && (
+                <div className="mt-4 rounded-xl bg-rose-50 ring-1 ring-rose-200 p-4 text-xs text-rose-800">
+                  <p className="font-bold">Schema no verificado</p>
+                  <p className="mt-1">{schemaReadinessError}</p>
+                </div>
+              )}
+
+              {schemaReadiness && (
+                <div className="mt-5">
+                  {(() => {
+                    const checks = Object.entries(schemaReadiness.checks || {});
+                    const failed = checks.filter(([, ok]) => !ok);
+                    const allOk = failed.length === 0;
+
+                    return (
+                      <>
+                        <div className={`rounded-xl p-4 ring-1 ${
+                          allOk
+                            ? 'bg-emerald-50 ring-emerald-200'
+                            : 'bg-amber-50 ring-amber-200'
+                        }`}>
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">
+                                Schema v{schemaReadiness.schemaVersion}
+                              </p>
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                {schemaReadiness.schemaLabel}
+                              </p>
+                            </div>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                              allOk ? 'text-emerald-700' : 'text-amber-700'
+                            }`}>
+                              {allOk ? 'SCHEMA COMPLETO' : `${failed.length} CHECKS PENDIENTES`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {checks.map(([name, ok]) => (
+                            <div
+                              key={name}
+                              className={`rounded-lg px-3 py-2 text-[10px] font-semibold ring-1 ${
+                                ok
+                                  ? 'bg-emerald-50 ring-emerald-200 text-emerald-700'
+                                  : 'bg-rose-50 ring-rose-200 text-rose-700'
+                              }`}
+                            >
+                              {ok ? '✓' : '✕'} {name}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
