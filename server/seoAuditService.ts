@@ -65,7 +65,14 @@ async function resolvePublicHttpsTarget(
     throw new Error('Only HTTPS URLs are allowed');
   }
 
-  const hostname = url.hostname.toLowerCase();
+  if (url.username || url.password) {
+    throw new Error('URLs with embedded credentials are not allowed');
+  }
+
+  const hostname = url.hostname
+    .toLowerCase()
+    .replace(/^\[/, '')
+    .replace(/\]$/, '');
 
   if (
     hostname === 'localhost' ||
@@ -141,8 +148,33 @@ async function requestPinnedAddress(
 ): Promise<Response> {
   return new Promise<Response>((resolve, reject) => {
     let settled = false;
+    let request: ReturnType<typeof https.request>;
 
-    const request = https.request(
+    const absoluteTimeout = setTimeout(() => {
+      if (!settled && request) {
+        request.destroy(timeoutError());
+      }
+    }, FETCH_TIMEOUT_MS);
+
+    const finishResolve = (response: Response) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(absoluteTimeout);
+      resolve(response);
+    };
+
+    const finishReject = (error: unknown) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(absoluteTimeout);
+      reject(
+        error instanceof Error
+          ? error
+          : new Error('HTTPS request failed')
+      );
+    };
+
+    request = https.request(
       target.url,
       {
         method: 'GET',
@@ -166,8 +198,7 @@ async function requestPinnedAddress(
 
         if (status >= 300 && status < 400) {
           incoming.resume();
-          settled = true;
-          resolve(
+          finishResolve(
             new Response(null, {
               status,
               statusText: incoming.statusMessage,
@@ -185,9 +216,8 @@ async function requestPinnedAddress(
           Number.isFinite(declaredLength) &&
           declaredLength > MAX_HTML_BYTES
         ) {
-          settled = true;
           incoming.destroy();
-          reject(new Error('Response is too large to audit'));
+          finishReject(new Error('Response is too large to audit'));
           return;
         }
 
@@ -212,10 +242,7 @@ async function requestPinnedAddress(
         });
 
         incoming.on('end', () => {
-          if (settled) return;
-          settled = true;
-
-          resolve(
+          finishResolve(
             new Response(Buffer.concat(chunks), {
               status,
               statusText: incoming.statusMessage,
@@ -225,21 +252,13 @@ async function requestPinnedAddress(
         });
 
         incoming.on('error', (error) => {
-          if (settled) return;
-          settled = true;
-          reject(error);
+          finishReject(error);
         });
       }
     );
 
-    request.setTimeout(FETCH_TIMEOUT_MS, () => {
-      request.destroy(timeoutError());
-    });
-
     request.on('error', (error) => {
-      if (settled) return;
-      settled = true;
-      reject(error);
+      finishReject(error);
     });
 
     request.end();
