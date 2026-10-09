@@ -83,6 +83,15 @@ create table if not exists public.seo_audits (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.search_console_connections (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  access_token_ciphertext text not null,
+  refresh_token_ciphertext text,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.search_console_snapshots (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
@@ -166,6 +175,7 @@ alter table public.workspace_invites enable row level security;
 alter table public.businesses enable row level security;
 alter table public.seo_audits enable row level security;
 alter table public.search_console_snapshots enable row level security;
+alter table public.search_console_connections enable row level security;
 alter table public.action_tasks enable row level security;
 alter table public.opportunities enable row level security;
 
@@ -459,3 +469,11 @@ begin
   return invite_row.workspace_id;
 end;
 $$;
+
+
+drop policy if exists "users manage own search console connection" on public.search_console_connections;
+create policy "users manage own search console connection"
+on public.search_console_connections
+for all
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
