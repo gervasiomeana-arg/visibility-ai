@@ -13,6 +13,8 @@ import {
 import { KeywordItem, Business, ActiveTab } from '../types';
 import { searchConsoleService, SearchConsoleSite } from '../services/searchConsoleService';
 import { storageService } from '../services/storageService';
+import { workspaceService } from '../services/workspaceService';
+import { authService } from '../services/authService';
 
 interface KeywordsViewProps {
   business: Business;
@@ -139,6 +141,23 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         ctr,
         position,
       });
+
+      if (authService.isConfigured() && business.workspaceId) {
+        await workspaceService.saveSearchConsoleSnapshot({
+          workspaceId: business.workspaceId,
+          businessId: business.id,
+          siteUrl: selectedSite,
+          periodStart: result.startDate,
+          periodEnd: result.endDate,
+          clicks,
+          impressions,
+          ctr,
+          position,
+          payload: { keywords: realKeywords },
+        }).catch(() => {
+          // Local cache remains available if remote persistence is temporarily unavailable.
+        });
+      }
 
       storageService.updateBusinessScores(
         business.id,
