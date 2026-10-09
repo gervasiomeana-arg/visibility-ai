@@ -19,18 +19,26 @@ interface LandingPageProps {
   onAnalyze: (url: string, businessName?: string, category?: string, city?: string) => void;
   onSelectPreset: (businessId: string) => void;
   showPresets?: boolean;
+  analysisEnabled?: boolean;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   onAnalyze,
   onSelectPreset,
   showPresets = true,
+  analysisEnabled = true,
 }) => {
   const [urlInput, setUrlInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!analysisEnabled) {
+      setErrorMsg('Tu rol es de solo lectura. Un owner, admin o member puede iniciar nuevas auditorías.');
+      return;
+    }
+
     if (!urlInput.trim()) {
       setErrorMsg('Por favor ingresá la dirección web de tu negocio.');
       return;
@@ -127,9 +135,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
                 <button
                   type="submit"
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-indigo-200 hover:scale-[1.02] active:scale-[0.98] shrink-0 flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={!analysisEnabled}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-[0.98] shrink-0 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <span>ANALIZAR MI NEGOCIO</span>
+                  <span>{analysisEnabled ? 'ANALIZAR MI NEGOCIO' : 'SOLO LECTURA'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
