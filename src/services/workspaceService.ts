@@ -1,4 +1,5 @@
 import { supabase } from './authService';
+import type { LegacyBusinessBundle } from './storageService';
 import {
   Business,
   SubscriptionPlanId,
@@ -118,6 +119,85 @@ export const workspaceService = {
       totalOpportunities: 0,
       problemsCount: { high: 0, medium: 0, ok: 0 },
     }));
+  },
+
+  async importLegacyBundles(workspaceId: string, bundles: LegacyBusinessBundle[]): Promise<void> {
+    for (const bundle of bundles) {
+      let businessId: string;
+
+      try {
+        businessId = await this.createBusiness(workspaceId, {
+          ...bundle.business,
+          workspaceId,
+        });
+      } catch {
+        const existing = await this.listBusinesses(workspaceId);
+        const match = existing.find(
+          (business) => business.url.trim().toLowerCase() === bundle.business.url.trim().toLowerCase()
+        );
+        if (!match) throw new Error(`No se pudo importar ${bundle.business.name}`);
+        businessId = match.id;
+      }
+
+      const issues = bundle.issues.map((item: any) => ({ ...item, businessId }));
+      const tasks = bundle.tasks.map((item: any) => ({ ...item, businessId }));
+      const opportunities = bundle.opportunities.map((item: any) => ({ ...item, businessId }));
+      const keywords = bundle.keywords.map((item: any) => ({ ...item, businessId }));
+
+      const realAuditItems = bundle.seoAudit.filter((item) => item.source === 'real');
+      if (realAuditItems.length > 0) {
+        await this.saveSeoAudit({
+          workspaceId,
+          businessId,
+          requestedUrl: bundle.seoMeta?.requestedUrl || bundle.business.url,
+          finalUrl: bundle.seoMeta?.finalUrl || bundle.business.url,
+          httpStatus: bundle.seoMeta?.httpStatus,
+          responseTimeMs: bundle.seoMeta?.responseTimeMs,
+          seoScore: bundle.business.scores?.seo ?? null,
+          webScore: bundle.business.scores?.web ?? null,
+          overallScore: bundle.business.scores?.overall ?? null,
+          unresolvedIssues: issues.filter((issue: any) => issue.severity !== 'ok').length,
+          payload: {
+            items: realAuditItems,
+            issues,
+            meta: bundle.seoMeta,
+            scores: bundle.business.scores,
+            scoreSources: bundle.business.scoreSources,
+            migratedFromLocal: true,
+          },
+        });
+      }
+
+      if (tasks.length > 0) {
+        await this.upsertActionTasks(workspaceId, businessId, tasks);
+      }
+
+      if (opportunities.length > 0) {
+        await this.upsertOpportunities(workspaceId, businessId, opportunities);
+      }
+
+      if (
+        bundle.searchMeta?.siteUrl &&
+        bundle.searchMeta?.startDate &&
+        bundle.searchMeta?.endDate
+      ) {
+        await this.saveSearchConsoleSnapshot({
+          workspaceId,
+          businessId,
+          siteUrl: bundle.searchMeta.siteUrl,
+          periodStart: bundle.searchMeta.startDate,
+          periodEnd: bundle.searchMeta.endDate,
+          clicks: Number(bundle.searchMeta.clicks || 0),
+          impressions: Number(bundle.searchMeta.impressions || 0),
+          ctr: Number(bundle.searchMeta.ctr || 0),
+          position: Number(bundle.searchMeta.position || 0),
+          payload: {
+            keywords,
+            migratedFromLocal: true,
+          },
+        });
+      }
+    }
   },
 
   async listMembers(workspaceId: string): Promise<Array<{
