@@ -479,8 +479,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 <span className="font-bold text-slate-900 block">Google Search Console API</span>
                 <span className="text-slate-500">Métricas de indexación real y clicks</span>
               </div>
-              <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">
-                SIMULADO (DEMO)
+              <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                REAL AL CONECTAR
               </span>
             </div>
 
@@ -489,8 +489,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 <span className="font-bold text-slate-900 block">Google PageSpeed Insights API</span>
                 <span className="text-slate-500">Velocidad móvil y Core Web Vitals reales</span>
               </div>
-              <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">
-                SIMULADO (DEMO)
+              <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                REAL / CONFIGURABLE
               </span>
             </div>
 
