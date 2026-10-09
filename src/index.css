@@ -1,12 +1,97 @@
 @import "tailwindcss";
 
-@layer base {
-  body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  }
-  
-  h1, h2, h3, .font-heading {
-    font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+:root {
+  color-scheme: light;
+  --vai-ink: #172033;
+  --vai-muted: #64748b;
+  --vai-surface: #ffffff;
+  --vai-canvas: #f6f8fb;
+  --vai-accent: #4f46e5;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at 12% -10%, rgba(79, 70, 229, 0.08), transparent 30rem),
+    radial-gradient(circle at 88% 0%, rgba(15, 118, 110, 0.05), transparent 26rem),
+    var(--vai-canvas);
+  color: var(--vai-ink);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.018;
+  background-image:
+    radial-gradient(circle at 20% 20%, #0f172a 0.6px, transparent 0.7px),
+    radial-gradient(circle at 80% 70%, #0f172a 0.5px, transparent 0.6px);
+  background-size: 18px 18px, 23px 23px;
+}
+
+h1, h2, h3, .font-heading {
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+  letter-spacing: -0.025em;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(79, 70, 229, 0.55);
+  outline-offset: 3px;
+}
+
+.font-tabular,
+[data-metric] {
+  font-variant-numeric: tabular-nums;
+}
+
+.vai-panel {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.vai-shell {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(226, 232, 240, 0.42);
+  padding: 0.35rem;
+  border-radius: 1.75rem;
+}
+
+.vai-shell > .vai-core {
+  border-radius: calc(1.75rem - 0.35rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
 
@@ -15,6 +100,11 @@
     background: white !important;
     color: black !important;
   }
+
+  body::before {
+    display: none !important;
+  }
+
   .no-print {
     display: none !important;
   }

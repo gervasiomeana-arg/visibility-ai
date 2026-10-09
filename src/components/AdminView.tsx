@@ -80,14 +80,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="bg-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-sm">
+      <div className="rounded-[1.6rem] bg-slate-950 text-white p-6 sm:p-8 lg:p-9 shadow-[0_28px_70px_rgba(15,23,42,0.18)] ring-1 ring-white/10 overflow-hidden relative">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold mb-2">
+            <div className="inline-flex items-center gap-2 text-[11px] tracking-[0.12em] uppercase text-indigo-200 font-semibold mb-3">
               <ShieldAlert className="w-3.5 h-3.5 text-indigo-400" />
               <span>ESTRUCTURA ADMINISTRATIVA SAAS</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white font-heading">
+            <h1 className="text-3xl sm:text-4xl font-bold text-white font-heading tracking-[-0.04em] text-balance">
               Panel de Administración (SaaS Console)
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-2xl">
@@ -95,81 +95,81 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             </p>
           </div>
 
-          <div className="text-xs text-slate-400 bg-slate-800 p-3 rounded-xl border border-slate-700">
+          <div className="text-xs text-slate-300 bg-white/[0.05] p-3.5 rounded-[1rem] ring-1 ring-white/10">
             <span className="text-emerald-400 font-bold block mb-0.5">● Consola SaaS DEMO</span>
-            <span>MVP visual · persistencia multi-tenant aún no implementada</span>
+            <span>Workspace multi-tenant · roles y persistencia preparados</span>
           </div>
         </div>
 
         {/* Global KPIs */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-slate-800">
-          <div className="p-3 rounded-xl bg-slate-800/80">
+          <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Negocios Registrados</span>
-            <span className="text-2xl font-bold text-white font-heading mt-0.5 block">{businesses.length}</span>
+            <span className="text-2xl font-bold font-tabular text-white font-heading mt-0.5 block">{businesses.length}</span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-800/80">
+          <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Auditorías Realizadas</span>
-            <span className="text-2xl font-bold text-white font-heading mt-0.5 block">0</span>
+            <span className="text-2xl font-bold font-tabular text-white font-heading mt-0.5 block">0</span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-800/80">
+          <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Consumo Tokens IA</span>
-            <span className="text-2xl font-bold text-indigo-400 font-heading mt-0.5 block">0</span>
+            <span className="text-2xl font-bold font-tabular text-indigo-400 font-heading mt-0.5 block">0</span>
           </div>
-          <div className="p-3 rounded-xl bg-slate-800/80">
+          <div className="p-4 rounded-[1rem] bg-white/[0.045] ring-1 ring-white/8">
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Suscripciones Activas</span>
-            <span className="text-2xl font-bold text-emerald-400 font-heading mt-0.5 block">0</span>
+            <span className="text-2xl font-bold font-tabular text-emerald-400 font-heading mt-0.5 block">0</span>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3 text-xs font-semibold overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1.5 p-1.5 rounded-[1.15rem] bg-slate-100/80 ring-1 ring-slate-200/70 text-xs font-semibold overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveAdminTab('businesses')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'businesses'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
+              : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
           }`}
         >
           Negocios ({businesses.length})
         </button>
         <button
           onClick={() => setActiveAdminTab('members')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'members'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
+              : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
           }`}
         >
           Colaboradores ({members.length})
         </button>
         <button
           onClick={() => setActiveAdminTab('plans')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'plans'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
+              : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
           }`}
         >
           Planes y Suscripciones (4)
         </button>
         <button
           onClick={() => setActiveAdminTab('ai-usage')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'ai-usage'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
+              : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
           }`}
         >
           Consumo IA & Modelos
         </button>
         <button
           onClick={() => setActiveAdminTab('integrations')}
-          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'integrations'
-              ? 'bg-slate-900 text-white'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
+              : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
           }`}
         >
           Estado de Integraciones
@@ -178,17 +178,17 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {/* Tab: Businesses */}
       {activeTab === 'businesses' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 sm:p-6 border-b border-slate-200 flex items-center justify-between">
+        <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
+          <div className="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-base font-bold text-slate-900 font-heading">
               Negocios y Clientes Registrados
             </h2>
-            <span className="text-xs text-slate-500">Aislamiento real pendiente de backend</span>
+            <span className="text-xs text-slate-500">Aislamiento por workspace</span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
+              <thead className="bg-slate-50/70 text-slate-500 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">Negocio</th>
                   <th className="py-3 px-4">URL</th>
@@ -200,7 +200,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {businesses.map((biz) => (
-                  <tr key={biz.id} className="hover:bg-slate-50">
+                  <tr key={biz.id} className="hover:bg-slate-50/70">
                     <td className="py-3.5 px-4 font-bold text-slate-900">{biz.name}</td>
                     <td className="py-3.5 px-4 text-slate-500">{biz.url}</td>
                     <td className="py-3.5 px-4 text-slate-600">{biz.category}</td>
@@ -235,8 +235,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           {plans.map((p) => (
             <div
               key={p.id}
-              className={`bg-white rounded-2xl p-5 border shadow-xs flex flex-col justify-between ${
-                p.popular ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200'
+              className={`vai-panel rounded-[1.4rem] p-5 ring-1 flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
+                p.popular ? 'ring-indigo-300 shadow-[0_18px_40px_rgba(79,70,229,0.10)]' : 'ring-slate-200/60'
               }`}
             >
               <div>
@@ -284,7 +284,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {activeTab === 'members' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
             <h2 className="text-base font-bold text-slate-900 font-heading">Colaboradores del workspace</h2>
             <p className="mt-1 text-xs text-slate-500">
               Los roles controlan quién puede administrar el espacio. La invitación se comparte por enlace seguro.
@@ -298,12 +298,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder="persona@empresa.com"
-                className="px-3 py-2 rounded-lg border border-slate-300 text-xs"
+                className="px-3 py-2 rounded-xl ring-1 ring-slate-200 bg-slate-50/70 text-xs"
               />
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member' | 'viewer')}
-                className="px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white"
+                className="px-3 py-2 rounded-xl ring-1 ring-slate-200 bg-slate-50/70 text-xs bg-white"
               >
                 <option value="admin">Administrador</option>
                 <option value="member">Miembro</option>
@@ -311,7 +311,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               </select>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold"
+                className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
               >
                 Crear invitación
               </button>
@@ -326,13 +326,13 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             {inviteError && <p className="mt-2 text-xs font-semibold text-rose-600">{inviteError}</p>}
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
             <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Miembros activos</div>
             <div className="divide-y divide-slate-100">
               {members.map((member) => (
-                <div key={member.userId} className="p-4 flex items-center justify-between gap-3 text-xs">
+                <div key={member.userId} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                   <div>
-                    <p className="font-semibold text-slate-900">{member.userId}</p>
+                    <p className="font-semibold text-slate-900 break-all">{member.userId}</p>
                     <p className="text-slate-500">Usuario Supabase</p>
                   </div>
                   <span className="px-2 py-1 rounded bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
@@ -346,7 +346,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
             <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Invitaciones</div>
             <div className="divide-y divide-slate-100">
               {invites.map((invite) => (
@@ -374,7 +374,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {/* Tab: AI Usage */}
       {activeTab === 'ai-usage' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+        <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60 space-y-4">
           <h2 className="text-base font-bold text-slate-900 font-heading">
             Consumo y Auditoría de Modelos de IA
           </h2>
@@ -402,7 +402,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {/* Tab: Integrations */}
       {activeTab === 'integrations' && (
-        <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+        <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60 space-y-4">
           <h2 className="text-base font-bold text-slate-900 font-heading">
             Estado de Conectores y APIs Externas
           </h2>

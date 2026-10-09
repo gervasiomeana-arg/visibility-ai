@@ -52,14 +52,26 @@ export const WorkspaceSetupView: React.FC<WorkspaceSetupViewProps> = ({ onCreate
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-xl p-6 sm:p-8">
-        <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+    <main className="min-h-[100dvh] px-4 py-10 sm:px-6 flex items-center justify-center">
+      <div className="w-full max-w-3xl">
+        <div className="text-center max-w-2xl mx-auto mb-8">
+          <span className="text-[11px] font-semibold tracking-[0.16em] uppercase text-indigo-600">Configuración inicial</span>
+          <h1 className="mt-3 text-3xl sm:text-4xl font-heading font-bold text-slate-950 text-balance">
+            Prepará tu espacio de trabajo
+          </h1>
+          <p className="mt-3 text-sm text-slate-500 leading-6 text-pretty">
+            País, moneda, zona horaria y plan quedan asociados al workspace para mantener cada cliente correctamente separado.
+          </p>
+        </div>
+
+        <div className="vai-shell">
+          <section className="vai-core vai-panel p-6 sm:p-8 lg:p-10">
+        <div className="w-11 h-11 rounded-[1rem] bg-slate-950 text-white flex items-center justify-center shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
           <Building2 className="w-5 h-5" />
         </div>
-        <h1 className="mt-4 text-2xl font-extrabold text-slate-900">Crear tu espacio de trabajo</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Este espacio separará tus negocios, auditorías, usuarios y plan del resto de los clientes.
+        <h2 className="mt-4 text-xl font-bold text-slate-950">Datos del workspace</h2>
+        <p className="mt-1 text-sm text-slate-500 leading-6">
+          Podrás cambiar varios de estos datos más adelante desde administración.
         </p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
@@ -70,7 +82,7 @@ export const WorkspaceSetupView: React.FC<WorkspaceSetupViewProps> = ({ onCreate
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ej: Agencia Meana / Hotel Costa"
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-indigo-500"
+              className="w-full px-3 py-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 text-sm focus:outline-none focus:border-indigo-500"
             />
           </div>
 
@@ -80,7 +92,7 @@ export const WorkspaceSetupView: React.FC<WorkspaceSetupViewProps> = ({ onCreate
               <select
                 value={countryCode}
                 onChange={(e) => setCountryCode(e.target.value as SupportedCountryCode)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm"
+                className="w-full px-3 py-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 bg-white text-sm"
               >
                 {MARKET_CONFIGS.map((market) => (
                   <option key={market.countryCode} value={market.countryCode}>
@@ -95,7 +107,7 @@ export const WorkspaceSetupView: React.FC<WorkspaceSetupViewProps> = ({ onCreate
               <select
                 value={planId}
                 onChange={(e) => setPlanId(e.target.value as SubscriptionPlanId)}
-                className="w-full px-3 py-2.5 rounded-xl border border-slate-300 bg-white text-sm"
+                className="w-full px-3 py-2.5 rounded-2xl border border-slate-200 bg-slate-50/70 bg-white text-sm"
               >
                 <option value="diagnostic">Diagnóstico</option>
                 <option value="monitor">Visibility Monitor</option>
@@ -111,13 +123,15 @@ export const WorkspaceSetupView: React.FC<WorkspaceSetupViewProps> = ({ onCreate
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+            className="group w-full py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold uppercase tracking-[0.12em] flex items-center justify-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
           >
             {loading ? 'Creando...' : 'Crear espacio'}
             {!loading && <ArrowRight className="w-4 h-4" />}
           </button>
         </form>
+          </section>
+        </div>
       </div>
-    </div>
+    </main>
   );
 };

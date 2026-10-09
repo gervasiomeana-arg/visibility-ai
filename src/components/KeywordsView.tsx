@@ -202,10 +202,11 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-14">
       {/* Header */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="vai-shell">
+        <div className="vai-core vai-panel p-6 sm:p-8 lg:p-9">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold mb-2">
               <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
@@ -222,7 +223,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.1em] shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Rastrear palabra clave</span>
@@ -230,7 +231,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           </div>
         </div>
 
-        <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-3">
+        <div className="mt-5 p-4 bg-slate-50/70 ring-1 ring-slate-200/70 rounded-[1.25rem] text-xs text-slate-600 space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${gscConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}></span>
@@ -256,7 +257,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <select
                 value={selectedSite}
                 onChange={(e) => setSelectedSite(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-800"
+                className="flex-1 px-3 py-2 rounded-xl ring-1 ring-slate-200 bg-slate-50/70 bg-white text-slate-800"
               >
                 {gscSites.map((site) => (
                   <option key={site.siteUrl} value={site.siteUrl}>
@@ -268,7 +269,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 type="button"
                 onClick={handleLoadSearchConsole}
                 disabled={!selectedSite || gscLoading}
-                className="px-4 py-2 rounded-lg bg-indigo-600 disabled:bg-slate-300 text-white font-bold"
+                className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
               >
                 {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
               </button>
@@ -291,7 +292,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <button
                 key={intent}
                 onClick={() => setIntentFilter(intent)}
-                className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
                   intentFilter === intent
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -308,15 +309,16 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Filtrar palabra clave..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 text-xs text-slate-900 focus:outline-none focus:ring-indigo-300 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
             />
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           </div>
         </div>
+        </div>
       </div>
 
       {/* Keywords Table matching user prompt exactly */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>
@@ -336,7 +338,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 const isGoodRank = hasMeasurement && kw.position <= 20;
 
                 return (
-                  <tr key={kw.id} className="hover:bg-slate-50/70 transition-colors">
+                  <tr key={kw.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="font-semibold text-slate-900">{kw.keyword}</div>
                       <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
@@ -423,7 +425,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                   value={newKeywordInput}
                   onChange={(e) => setNewKeywordInput(e.target.value)}
                   placeholder="Escribí aquí..."
-                  className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl ring-1 ring-slate-200 bg-slate-50/70 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
