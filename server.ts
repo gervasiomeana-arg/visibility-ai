@@ -1001,9 +1001,28 @@ app.get('/api/search-console/oauth/callback', async (req, res) => {
     }
 
     const tokenData: any = await tokenResponse.json();
+    let refreshToken: string | undefined = tokenData.refresh_token;
+
+    if (
+      durableSearchConsoleConfigured() &&
+      pending.userId &&
+      pending.supabaseAccessToken &&
+      !refreshToken
+    ) {
+      try {
+        const previousSession = await loadDurableSearchConsoleSession(
+          pending.userId,
+          pending.supabaseAccessToken
+        );
+        refreshToken = previousSession?.refreshToken;
+      } catch {
+        // A previous connection is optional; continue with Google's response.
+      }
+    }
+
     const session: SearchConsoleSession = {
       accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
+      refreshToken,
       expiresAt: Date.now() + Number(tokenData.expires_in || 3600) * 1000,
     };
 
