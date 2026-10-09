@@ -246,18 +246,60 @@ with check (
 );
 
 drop policy if exists "members access seo audits" on public.seo_audits;
-create policy "members access seo audits"
+drop policy if exists "members read seo audits" on public.seo_audits;
+create policy "members read seo audits"
+on public.seo_audits
+for select
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "editors write seo audits" on public.seo_audits;
+create policy "editors write seo audits"
 on public.seo_audits
 for all
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = seo_audits.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+)
+with check (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = seo_audits.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+);
 
 drop policy if exists "members access search console snapshots" on public.search_console_snapshots;
-create policy "members access search console snapshots"
+drop policy if exists "members read search console snapshots" on public.search_console_snapshots;
+create policy "members read search console snapshots"
+on public.search_console_snapshots
+for select
+using (public.is_workspace_member(workspace_id));
+
+drop policy if exists "editors write search console snapshots" on public.search_console_snapshots;
+create policy "editors write search console snapshots"
 on public.search_console_snapshots
 for all
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = search_console_snapshots.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+)
+with check (
+  exists (
+    select 1 from public.workspace_members wm
+    where wm.workspace_id = search_console_snapshots.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role in ('owner','admin','member')
+  )
+);
 
 drop policy if exists "members access action tasks" on public.action_tasks;
 create policy "members read action tasks"
