@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ShieldAlert,
   Building2,
@@ -12,17 +12,61 @@ import {
   Layers,
   Sparkles,
 } from 'lucide-react';
-import { Business, ActiveTab } from '../types';
+import { Business, ActiveTab, Workspace } from '../types';
+import { workspaceService } from '../services/workspaceService';
 import { BASE_PLANS, getPlanPrice } from '../config/markets';
 
 interface AdminViewProps {
   businesses: Business[];
   setActiveTab: (tab: ActiveTab) => void;
   onSelectBusiness: (bizId: string) => void;
+  workspace?: Workspace | null;
 }
 
-export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, onSelectBusiness }) => {
-  const [activeTab, setActiveAdminTab] = useState<'businesses' | 'plans' | 'ai-usage' | 'integrations'>('businesses');
+export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, onSelectBusiness, workspace }) => {
+  const [activeTab, setActiveAdminTab] = useState<'businesses' | 'plans' | 'members' | 'ai-usage' | 'integrations'>('businesses');
+  const [members, setMembers] = useState<Array<{ userId: string; role: 'owner' | 'admin' | 'member' | 'viewer' }>>([]);
+  const [invites, setInvites] = useState<Array<{ id: string; email: string; role: 'admin' | 'member' | 'viewer'; token: string; expiresAt: string; acceptedAt?: string | null }>>([]);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'member' | 'viewer'>('member');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [inviteError, setInviteError] = useState('');
+
+  const refreshMembers = async () => {
+    if (!workspace?.id) return;
+    try {
+      const [nextMembers, nextInvites] = await Promise.all([
+        workspaceService.listMembers(workspace.id),
+        workspaceService.listInvites(workspace.id),
+      ]);
+      setMembers(nextMembers);
+      setInvites(nextInvites);
+    } catch {
+      setInviteError('No se pudieron cargar los colaboradores.');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'members') refreshMembers();
+  }, [activeTab, workspace?.id]);
+
+  const handleCreateInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace?.id || !inviteEmail.trim()) return;
+    setInviteError('');
+    setInviteMessage('');
+
+    try {
+      const invite = await workspaceService.createInvite(workspace.id, inviteEmail, inviteRole);
+      const inviteUrl = `${window.location.origin}${window.location.pathname}?invite=${encodeURIComponent(invite.token)}`;
+      await navigator.clipboard?.writeText(inviteUrl);
+      setInviteMessage(`Invitación creada y enlace copiado. Vence el ${new Date(invite.expiresAt).toLocaleDateString('es-AR')}.`);
+      setInviteEmail('');
+      await refreshMembers();
+    } catch (error: any) {
+      setInviteError(error?.message || 'No se pudo crear la invitación.');
+    }
+  };
 
   const plans = BASE_PLANS.map((plan) => ({
     ...plan,
@@ -88,6 +132,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           }`}
         >
           Negocios ({businesses.length})
+        </button>
+        <button
+          onClick={() => setActiveAdminTab('members')}
+          className={`px-4 py-2 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+            activeTab === 'members'
+              ? 'bg-slate-900 text-white'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          Colaboradores ({members.length})
         </button>
         <button
           onClick={() => setActiveAdminTab('plans')}
@@ -224,6 +278,90 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {activeTab === 'members' && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+            <h2 className="text-base font-bold text-slate-900 font-heading">Colaboradores del workspace</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              Los roles controlan quién puede administrar el espacio. La invitación se comparte por enlace seguro.
+            </p>
+
+            <form onSubmit={handleCreateInvite} className="mt-4 grid sm:grid-cols-[1fr_160px_auto] gap-2">
+              <input
+                type="email"
+                required
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="persona@empresa.com"
+                className="px-3 py-2 rounded-lg border border-slate-300 text-xs"
+              />
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member' | 'viewer')}
+                className="px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white"
+              >
+                <option value="admin">Administrador</option>
+                <option value="member">Miembro</option>
+                <option value="viewer">Solo lectura</option>
+              </select>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold"
+              >
+                Crear invitación
+              </button>
+            </form>
+
+            {inviteMessage && <p className="mt-2 text-xs font-semibold text-emerald-700">{inviteMessage}</p>}
+            {inviteError && <p className="mt-2 text-xs font-semibold text-rose-600">{inviteError}</p>}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Miembros activos</div>
+            <div className="divide-y divide-slate-100">
+              {members.map((member) => (
+                <div key={member.userId} className="p-4 flex items-center justify-between gap-3 text-xs">
+                  <div>
+                    <p className="font-semibold text-slate-900">{member.userId}</p>
+                    <p className="text-slate-500">Usuario Supabase</p>
+                  </div>
+                  <span className="px-2 py-1 rounded bg-slate-100 text-slate-700 font-bold uppercase text-[10px]">
+                    {member.role}
+                  </span>
+                </div>
+              ))}
+              {members.length === 0 && (
+                <div className="p-5 text-xs text-slate-500">Todavía no hay miembros cargados.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Invitaciones</div>
+            <div className="divide-y divide-slate-100">
+              {invites.map((invite) => (
+                <div key={invite.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div>
+                    <p className="font-semibold text-slate-900">{invite.email}</p>
+                    <p className="text-slate-500">
+                      {invite.role} · vence {new Date(invite.expiresAt).toLocaleDateString('es-AR')}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded font-bold text-[10px] ${
+                    invite.acceptedAt ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                  }`}>
+                    {invite.acceptedAt ? 'ACEPTADA' : 'PENDIENTE'}
+                  </span>
+                </div>
+              ))}
+              {invites.length === 0 && (
+                <div className="p-5 text-xs text-slate-500">No hay invitaciones creadas.</div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
