@@ -21,6 +21,8 @@ import {
   productionHealthService,
 } from '../services/productionHealthService';
 
+const EXPECTED_SCHEMA_VERSION = 6;
+
 interface AdminViewProps {
   businesses: Business[];
   setActiveTab: (tab: ActiveTab) => void;
@@ -878,7 +880,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   {(() => {
                     const checks = Object.entries(schemaReadiness.checks || {});
                     const failed = checks.filter(([, ok]) => !ok);
-                    const allOk = failed.length === 0;
+                    const versionOk =
+                      schemaReadiness.schemaVersion >= EXPECTED_SCHEMA_VERSION;
+                    const allOk = failed.length === 0 && versionOk;
 
                     return (
                       <>
@@ -899,10 +903,20 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                             <span className={`text-[10px] font-bold uppercase tracking-wider ${
                               allOk ? 'text-emerald-700' : 'text-amber-700'
                             }`}>
-                              {allOk ? 'SCHEMA COMPLETO' : `${failed.length} CHECKS PENDIENTES`}
+                              {allOk
+                                ? 'SCHEMA COMPLETO'
+                                : !versionOk
+                                ? `ACTUALIZAR A V${EXPECTED_SCHEMA_VERSION}`
+                                : `${failed.length} CHECKS PENDIENTES`}
                             </span>
                           </div>
                         </div>
+
+                        {!versionOk && (
+                          <div className="mt-3 rounded-lg bg-amber-50 ring-1 ring-amber-200 px-3 py-2 text-[10px] font-semibold text-amber-800">
+                            La app espera schema v{EXPECTED_SCHEMA_VERSION} o superior y Supabase reporta v{schemaReadiness.schemaVersion}.
+                          </div>
+                        )}
 
                         <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                           {checks.map(([name, ok]) => (
