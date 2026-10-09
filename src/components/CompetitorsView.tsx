@@ -68,10 +68,12 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
             </div>
             <div>
               <h3 className="text-xs sm:text-sm font-bold text-amber-950 font-heading">
-                Ejemplo de brecha competitiva
+                {isRealCompetitiveData ? 'Brecha competitiva verificada' : 'Ejemplo de brecha competitiva'}
               </h3>
               <p className="text-xs text-amber-800 mt-0.5">
-                Cuando conectemos datos reales, esta sección mostrará búsquedas donde otros negocios aparecen y el tuyo no.
+                {isRealCompetitiveData
+                  ? 'Las diferencias mostradas deben poder rastrearse hasta una fuente real.'
+                  : 'Cuando conectemos datos reales, esta sección mostrará búsquedas donde otros negocios aparecen y el tuyo no.'}
               </p>
             </div>
           </div>
