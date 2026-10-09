@@ -44,6 +44,85 @@ export const workspaceService = {
   },
 
 
+  async runRlsIsolationTest(): Promise<{
+    ok: boolean;
+    accessibleWorkspaceIds: string[];
+    tables: Array<{
+      table: string;
+      rowsVisible: number;
+      leakedRows: number;
+      leakedWorkspaceIds: string[];
+    }>;
+  }> {
+    if (!supabase) throw new Error('Supabase no está configurado.');
+
+    const workspaces = await this.listWorkspaces();
+    const allowedWorkspaceIds = new Set(workspaces.map((item) => item.id));
+
+    const tableSpecs: Array<{
+      table: string;
+      workspaceField: string;
+      select: string;
+    }> = [
+      { table: 'workspaces', workspaceField: 'id', select: 'id' },
+      { table: 'businesses', workspaceField: 'workspace_id', select: 'workspace_id' },
+      { table: 'seo_audits', workspaceField: 'workspace_id', select: 'workspace_id' },
+      {
+        table: 'search_console_snapshots',
+        workspaceField: 'workspace_id',
+        select: 'workspace_id',
+      },
+      { table: 'opportunities', workspaceField: 'workspace_id', select: 'workspace_id' },
+      { table: 'action_tasks', workspaceField: 'workspace_id', select: 'workspace_id' },
+      { table: 'tracked_keywords', workspaceField: 'workspace_id', select: 'workspace_id' },
+    ];
+
+    const tables = await Promise.all(
+      tableSpecs.map(async (spec) => {
+        const { data, error } = await supabase
+          .from(spec.table)
+          .select(spec.select)
+          .limit(500);
+
+        if (error) {
+          throw new Error(
+            `RLS test failed reading ${spec.table}: ${error.message}`
+          );
+        }
+
+        const rows = Array.isArray(data) ? data : [];
+        const leakedWorkspaceIds = Array.from(
+          new Set(
+            rows
+              .map((row: any) => String(row?.[spec.workspaceField] || ''))
+              .filter(
+                (workspaceId) =>
+                  workspaceId && !allowedWorkspaceIds.has(workspaceId)
+              )
+          )
+        );
+
+        const leakedRows = rows.filter((row: any) => {
+          const workspaceId = String(row?.[spec.workspaceField] || '');
+          return workspaceId && !allowedWorkspaceIds.has(workspaceId);
+        }).length;
+
+        return {
+          table: spec.table,
+          rowsVisible: rows.length,
+          leakedRows,
+          leakedWorkspaceIds,
+        };
+      })
+    );
+
+    return {
+      ok: tables.every((table) => table.leakedRows === 0),
+      accessibleWorkspaceIds: Array.from(allowedWorkspaceIds),
+      tables,
+    };
+  },
+
   async listWorkspaces(): Promise<Workspace[]> {
     if (!supabase) return [];
 
