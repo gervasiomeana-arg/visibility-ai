@@ -6,6 +6,7 @@ import {
   envRateLimit,
   rateLimitWindowMs,
 } from './rateLimit';
+import { recordUsageEventSafe } from './usageTelemetry';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.post(
   seoAuditRateLimit,
   async (req, res) => {
   try {
-    const { url } = req.body;
+    const { url, workspaceId, businessId } = req.body;
 
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ error: 'URL is required' });
@@ -32,6 +33,21 @@ router.post(
     }
 
     const result = await buildRealSeoAudit(url);
+
+    recordUsageEventSafe(req, {
+      workspaceId:
+        typeof workspaceId === 'string' ? workspaceId : undefined,
+      businessId:
+        typeof businessId === 'string' ? businessId : undefined,
+      userId: res.locals.authUser?.id,
+      eventType: 'seo_audit',
+      units: 1,
+      metadata: {
+        httpStatus: result.httpStatus,
+        pageSpeedAvailable: Boolean(result.pageSpeed),
+      },
+    });
+
     return res.json(result);
   } catch (error: any) {
     console.error('Error in /api/seo/audit:', error);
