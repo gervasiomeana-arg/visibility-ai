@@ -112,9 +112,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const maxVal = hasHistory ? Math.max(...currentConfig.values, 1) * 1.15 : 1;
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-14">
       {/* Header */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+      <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
@@ -228,7 +228,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               onClick={() => setSelectedMetric(key as any)}
               className={`px-4 py-2 rounded-xl whitespace-nowrap font-semibold transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-slate-900 text-white shadow-xs'
+                  ? 'bg-slate-950 text-white shadow-xs'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
@@ -239,7 +239,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       </div>
 
       {/* Main Chart Card */}
-      {hasHistory && <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+      {hasHistory && <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
             <h2 className="text-lg font-bold text-slate-900 font-heading">
