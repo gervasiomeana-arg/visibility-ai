@@ -225,20 +225,22 @@ export const workspaceService = {
 
   async listMembers(workspaceId: string): Promise<Array<{
     userId: string;
+    email?: string | null;
+    fullName?: string | null;
     role: 'owner' | 'admin' | 'member' | 'viewer';
   }>> {
     if (!supabase) return [];
 
-    const { data, error } = await supabase
-      .from('workspace_members')
-      .select('user_id, role')
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: true });
+    const { data, error } = await supabase.rpc('list_workspace_members', {
+      target_workspace: workspaceId,
+    });
 
     if (error) throw error;
 
     return (data || []).map((row: any) => ({
       userId: row.user_id,
+      email: row.email,
+      fullName: row.full_name,
       role: row.role,
     }));
   },
