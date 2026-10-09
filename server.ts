@@ -2,10 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import searchConsoleRouter from './server/searchConsoleRouter';
-import seoAuditRouter from './server/seoAuditRouter';
-import aiRouter from './server/aiRouter';
-import healthRouter from './server/healthRouter';
+import apiRouter from './server/apiRouter';
 
 dotenv.config();
 
@@ -17,18 +14,8 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '100kb' }));
 
-// Health / deployment diagnostics
-app.use('/api/health', healthRouter);
-
-// API Routes
-
-// Google Search Console OAuth + read-only data
-app.use('/api/search-console', searchConsoleRouter);
-
-// Real technical SEO audit
-app.use('/api/seo', seoAuditRouter);
-
-app.use('/api', aiRouter);
+// API
+app.use('/api', apiRouter);
 
 // Setup Vite middleware in dev or serve dist in production
 async function startServer() {
