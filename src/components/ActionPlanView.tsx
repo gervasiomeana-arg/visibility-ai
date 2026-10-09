@@ -43,7 +43,13 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
   const recommendedTasks = tasks.filter((t) => t.priority === 'RECOMENDADO');
 
   const completedCount = tasks.filter((t) => t.status === 'completada').length;
-  const isRealPlan = tasks.length > 0 && tasks.every((task) => task.id.includes(`task-${business.id}-`));
+  const realTaskCount = tasks.filter((task) => task.source === 'seo-audit').length;
+  const planSource =
+    tasks.length > 0 && realTaskCount === tasks.length
+      ? 'real'
+      : realTaskCount > 0
+      ? 'partial'
+      : 'demo';
 
   return (
     <div className="space-y-6 pb-14">
@@ -53,14 +59,22 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold mb-2">
               <CheckSquare className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isRealPlan ? 'PLAN BASADO EN HALLAZGOS REALES' : 'HOJA DE RUTA ESTRATÉGICA'}</span>
+              <span>
+                {planSource === 'real'
+                  ? 'PLAN BASADO EN HALLAZGOS REALES'
+                  : planSource === 'partial'
+                  ? 'PLAN PARCIAL'
+                  : 'HOJA DE RUTA DEMO'}
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
               Plan de Acción Priorizado
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              {isRealPlan
+              {planSource === 'real'
                 ? 'Tareas generadas automáticamente desde la última auditoría SEO técnica verificada.'
+                : planSource === 'partial'
+                ? `${realTaskCount} tareas provienen de hallazgos verificados; las demás mantienen su fuente identificada.`
                 : 'Tareas DEMO organizadas por prioridad para validar la experiencia. Las prioridades reales dependerán de hallazgos verificados.'}
             </p>
           </div>
@@ -205,6 +219,17 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                         }`}
                       >
                         {task.priority}
+                      </span>
+                      <span
+                        className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
+                          task.source === 'seo-audit'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : task.source === 'manual'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-amber-50 text-amber-700'
+                        }`}
+                      >
+                        {task.source === 'seo-audit' ? 'REAL · SEO' : task.source === 'manual' ? 'MANUAL' : 'DEMO'}
                       </span>
                       <span className="text-xs text-slate-400">·</span>
                       <span className="text-xs text-slate-500">
