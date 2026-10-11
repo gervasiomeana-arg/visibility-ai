@@ -1,3 +1,4 @@
+import { measuredScore } from '../../shared/scoreEvidence';
 import { h1Guidance, normalizeH1Item } from '../../shared/h1Guidance';
 import { performanceSolution, legacyPerformanceMetric } from '../../shared/performanceSolution';
 import {
@@ -1318,6 +1319,7 @@ export const storageService = {
       return {
         source: 'real',
         auditDates: history.map(entry => entry.auditedAt),
+        auditBases: history.map(entry => [measuredScore(entry.seoScore) !== null ? 'SEO' : '', measuredScore(entry.webScore) !== null ? 'PAGESPEED' : ''].filter(Boolean).join('+')),
         searchPeriods: searchHistory.map(({ loadedAt, siteUrl, startDate, endDate }) => ({ loadedAt, siteUrl, startDate, endDate })),
         months: labelDates.map((value) =>
           new Date(value).toLocaleDateString('es-AR', {

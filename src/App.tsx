@@ -457,7 +457,7 @@ export default function App() {
         },
         {
           seo: seoScore !== null ? 'real' : 'demo',
-          web: pageSpeedScore !== null ? 'real' : 'demo',
+          web: pageSpeedScore !== null ? 'real' : 'unavailable',
           overall: verifiedValues.length ? 'partial' : 'demo',
         }
       );
@@ -501,7 +501,7 @@ export default function App() {
               scores: { seo: nextSeo, web: nextWeb, overall },
               scoreSources: {
                 seo: seoScore !== null ? 'real' : 'demo',
-                web: pageSpeedScore !== null ? 'real' : 'demo',
+                web: pageSpeedScore !== null ? 'real' : 'unavailable',
                 overall: verifiedValues.length ? 'partial' : 'demo',
               },
             },
@@ -754,6 +754,8 @@ export default function App() {
                 business={activeBusiness}
                 issues={issues}
                 searchConsoleMeta={searchConsoleMeta}
+                auditMeta={seoAuditMeta}
+                auditHistory={storageService.getAuditHistory(activeBusiness.id)}
                 setActiveTab={setActiveTab}
                 onOpenAssistant={() => {
                   setAssistantInitialPrompt('¿Qué debería mejorar primero en mi negocio?');

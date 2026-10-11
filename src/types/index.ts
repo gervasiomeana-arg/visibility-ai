@@ -60,7 +60,7 @@ export interface Business {
     overall: 'demo' | 'partial' | 'real';
     google: 'demo' | 'partial' | 'real';
     seo: 'demo' | 'real';
-    web: 'demo' | 'real';
+    web: 'demo' | 'real' | 'unavailable';
     aiVisibility: 'demo' | 'real';
   };
   totalOpportunities: number;
@@ -229,6 +229,7 @@ export interface MonthlyEvolution {
   searchPositions?: number[];
   searchMonths?: string[];
   auditDates?: string[];
+  auditBases?: string[];
   searchPeriods?: SearchHistoryPeriod[];
   monthComparison: {
     visibilityChangePercent: number; // e.g. +12

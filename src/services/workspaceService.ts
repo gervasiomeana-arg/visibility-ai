@@ -1,3 +1,4 @@
+import { measuredScore } from '../../shared/scoreEvidence';
 import { supabase } from './authService';
 import {
   type LegacyBusinessBundle,
@@ -801,8 +802,8 @@ export const workspaceService = {
       auditHistory: [...(auditHistoryResult.data || [])].reverse().map((row: any) => ({
         auditedAt: row.created_at,
         overallScore: Number(row.overall_score || 0),
-        seoScore: Number(row.seo_score || 0),
-        webScore: Number(row.web_score || 0),
+        seoScore: measuredScore(row.seo_score),
+        webScore: measuredScore(row.web_score),
         unresolvedIssues: Number(row.unresolved_issues || 0),
       })),
       tasks: sortTasksByPriority(

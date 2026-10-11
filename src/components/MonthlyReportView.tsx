@@ -1,3 +1,4 @@
+import { technicalScoreChange } from '../../shared/scoreEvidence';
 import React from 'react';
 import { FileText, Printer } from 'lucide-react';
 import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask } from '../types';
@@ -16,7 +17,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
   const { mode, priorities, useDemoMetrics } = evidence;
   const isReal = mode === 'PARCIAL REAL';
   const technical = evolution.source === 'real' ? measuredSeries(evolution.months, evolution.visibility) : [];
-  const technicalChange = technical.length >= 2 ? technical.at(-1)!.value - technical[0].value : null;
+  const technicalChange = technicalScoreChange(evolution);
   const positionChange = searchPositionChange(evolution);
   const reduction = evolution.source === 'real' && technical.length >= 2 && evolution.fixedProblems.length === evolution.visibility.length
     ? evolution.fixedProblems.at(-1) : undefined;
@@ -40,7 +41,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     { label: 'Clics de consultas recuperadas', value: clicks !== null ? clicks.toLocaleString('es-AR') : '—', source: clicks !== null ? 'SEARCH CONSOLE' : 'SIN FUENTE', note: 'Último período medido; no equivale a consultas comerciales.' },
     { label: 'Impresiones de consultas recuperadas', value: impressions !== null ? impressions.toLocaleString('es-AR') : '—', source: impressions !== null ? 'SEARCH CONSOLE' : 'SIN FUENTE', note: 'Último período medido; el alcance depende de las consultas disponibles.' },
     { label: 'CTR de consultas recuperadas', value: ctr !== null ? `${ctr.toLocaleString('es-AR')}%` : '—', source: ctr !== null ? 'SEARCH CONSOLE' : 'SIN MEDICIÓN', note: 'Clics sobre impresiones. Sin impresiones no se calcula una tasa.' },
-    { label: 'Cambio del índice técnico', value: useDemoMetrics ? `+${evolution.monthComparison.visibilityChangePercent}%` : technicalChange !== null ? `${signed(technicalChange)} puntos` : '—', source: useDemoMetrics ? 'DEMO' : technicalChange !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Primera y última medición; no es una posición en Google.' },
+    { label: 'Cambio del índice técnico', value: useDemoMetrics ? `+${evolution.monthComparison.visibilityChangePercent}%` : technicalChange !== null ? `${signed(technicalChange)} puntos` : '—', source: useDemoMetrics ? 'DEMO' : technicalChange !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Primera y última medición con las mismas fuentes; no es una posición en Google.' },
     { label: 'Cambio de posición media', value: useDemoMetrics ? String(evolution.monthComparison.improvedPositionsCount) : positionChange !== null ? signed(positionChange) : '—', source: useDemoMetrics ? 'DEMO' : positionChange !== null ? 'SEARCH CONSOLE' : 'SIN COMPARACIÓN', note: positionChange !== null ? 'Últimos dos períodos comparables; positivo = menor posición.' : 'Requiere períodos conocidos, de igual duración y sin solapamiento.' },
     { label: 'Reducción neta de hallazgos', value: useDemoMetrics ? String(evolution.monthComparison.solvedProblemsCount) : typeof reduction === 'number' && Number.isFinite(reduction) ? String(reduction) : '—', source: useDemoMetrics ? 'DEMO' : reduction !== undefined ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Menos hallazgos respecto del inicio; no acredita tareas resueltas.' },
     { label: 'Factores evaluados', value: evidence.usableIssues.length ? String(evidence.usableIssues.length) : '—', source: useDemoMetrics ? 'DEMO' : evidence.realIssues.length ? 'AUDITORÍA REAL' : 'SIN DATOS', note: 'Incluye factores correctos, advertencias y errores.' },
