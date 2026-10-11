@@ -1,3 +1,4 @@
+import { h1Guidance } from '../shared/h1Guidance';
 import { normalizeAuditUrl } from '../shared/auditUrl';
 import { performanceSolution } from '../shared/performanceSolution';
 import dns from 'dns/promises';
@@ -728,13 +729,13 @@ export async function buildRealSeoAudit(
           'warning',
           'Pendiente en página renderizada',
           'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial recibido desde el servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.',
-          'Por qué importa: El H1 estructura el tema principal de la página. Qué se detectó: 0 etiquetas <h1> en el HTML inicial recibido. Qué cambio se propone: Definir un <h1> visible en la plantilla o servidor (por ejemplo, para Open Voley: "Open Voley: scouting y estadísticas para entrenadores"). Cómo comprobarlo: Inspeccionar el código fuente inicial (Ctrl+U) antes de ejecutar scripts y revisar el DOM renderizado en el navegador.',
+          h1Guidance('0 H1').proposedChange,
           'Medio',
           '0 H1 en HTML inicial',
           {
             whyItMatters: 'El H1 establece semánticamente el tema principal de la página ante lectores de pantalla y rastreadores.',
             detectedData: '0 etiquetas <h1> detectadas en el HTML inicial recibido desde el servidor.',
-            proposedChange: 'Agregar un único encabezado <h1> descriptivo en la plantilla o HTML inicial. Para Open Voley se sugiere como borrador: "Open Voley: scouting y estadísticas para entrenadores".',
+            proposedChange: h1Guidance('0 H1').proposedChange,
             howToVerify: 'Inspeccionar "Ver código fuente" (Ctrl+U) o usar cURL sin ejecutar JavaScript y comprobar el DOM en el navegador si hay JavaScript del lado del cliente.',
           }
         )

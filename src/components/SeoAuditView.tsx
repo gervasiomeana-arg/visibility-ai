@@ -1,3 +1,4 @@
+import { normalizeH1Item } from '../../shared/h1Guidance';
 import React, { useState } from 'react';
 import {
   Search,
@@ -5,7 +6,6 @@ import {
   AlertTriangle,
   AlertCircle,
   ExternalLink,
-  HelpCircle,
   Sparkles,
   Info,
   SlidersHorizontal,
@@ -41,7 +41,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
     'Seguridad y Datos',
   ];
 
-  const filteredItems = items.filter((item) => {
+  const filteredItems = items.map(normalizeH1Item).filter((item) => {
     if (selectedCategory !== 'all' && item.category !== selectedCategory) return false;
     if (selectedStatus !== 'all' && item.status !== selectedStatus) return false;
     if (searchTerm) {
@@ -52,10 +52,10 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
     return true;
   });
 
-  const okCount = items.filter((i) => i.status === 'ok').length;
-  const warningCount = items.filter((i) => i.status === 'warning').length;
-  const errorCount = items.filter((i) => i.status === 'error').length;
-  const realCount = items.filter((i) => i.source === 'real').length;
+  const okCount = items.map(normalizeH1Item).filter((i) => i.status === 'ok').length;
+  const warningCount = items.map(normalizeH1Item).filter((i) => i.status === 'warning').length;
+  const errorCount = items.map(normalizeH1Item).filter((i) => i.status === 'error').length;
+  const realCount = items.map(normalizeH1Item).filter((i) => i.source === 'real').length;
   const isRealAudit = items.length > 0 && realCount === items.length;
 
   return (
@@ -181,31 +181,16 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
 
       {/* Grid of SEO items */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {filteredItems.map((item) => {
-          const isH1 = item.key === 'h1';
-          const isOpenVoley =
-            business.name.toLowerCase().includes('voley') ||
-            business.url.toLowerCase().includes('openvoley');
-
-          const effectiveStatus = isH1 && item.status === 'error' ? 'warning' : item.status;
+        {filteredItems.map((storedItem) => {
+          const item = normalizeH1Item(storedItem);
+          const effectiveStatus = item.status;
           const isOk = effectiveStatus === 'ok';
           const isWarning = effectiveStatus === 'warning';
           const isError = effectiveStatus === 'error';
 
-          const effectiveStatusLabel =
-            isH1 && isWarning
-              ? 'Pendiente en página renderizada'
-              : item.statusLabel;
-
-          const effectiveExplanation =
-            isH1 && isWarning
-              ? 'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial recibido desde el servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.'
-              : item.simpleExplanation;
-
-          const proposedChange =
-            isH1 && isOpenVoley
-              ? 'Definir o confirmar un encabezado <h1> en la plantilla o HTML inicial. Borrador propuesto: "Open Voley: scouting y estadísticas para entrenadores".'
-              : item.proposedChange || item.solution;
+          const effectiveStatusLabel = item.statusLabel;
+          const effectiveExplanation = item.simpleExplanation;
+          const proposedChange = item.proposedChange || item.solution;
 
           return (
             <div
@@ -254,19 +239,6 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
                   {effectiveExplanation}
                 </p>
 
-                {isH1 && isOpenVoley && (
-                  <div className="mt-2.5 p-2.5 bg-sky-50/80 border border-sky-200/90 rounded-xl text-[11px] text-sky-950 flex items-start gap-2">
-                    <HelpCircle className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-[10px] uppercase tracking-wider text-sky-800 block mb-0.5">
-                        Evidencia aportada por el usuario
-                      </span>
-                      <p className="leading-relaxed">
-                        Comprobación manual del usuario: se detectó un encabezado H1 en el DOM renderizado en el navegador. (Evidencia aportada por el usuario, no medición automática del servidor).
-                      </p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100/80 space-y-2">

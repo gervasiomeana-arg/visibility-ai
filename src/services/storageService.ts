@@ -1,3 +1,4 @@
+import { h1Guidance, normalizeH1Item } from '../../shared/h1Guidance';
 import { performanceSolution, legacyPerformanceMetric } from '../../shared/performanceSolution';
 import {
   Business,
@@ -332,41 +333,24 @@ export function deduplicateAndReconcileTasks(
       };
     }
     if (fType === 'h1') {
-      const hasManualEvidence = Boolean(task.userEvidence?.trim());
-      const userEvidence = task.userEvidence;
-      const status: TaskStatus = task.status;
-      const completionType: TaskCompletionType | null = task.completionType || null;
-
+      const guidance = h1Guidance(task.metricValue || task.quickActionPrompt || task.simpleExplanation);
+      const proposedChange = task.userEvidence?.trim()
+        ? `Revisar primero la nota guardada y su alcance. ${guidance.proposedChange}`
+        : guidance.proposedChange;
       return {
-        ...task,
-        findingType: 'h1',
-        title: 'Encabezado H1',
-        url: task.url || resolvedBiz?.url,
-        priority: 'IMPORTANTE' as PriorityLevel, // Never URGENTE / critical error for initial HTML inspection
-        status,
-        completionType,
-        userEvidence,
-        simpleExplanation:
-          hasManualEvidence
-            ? 'H1 no detectado en HTML inicial. Hay una comprobación manual guardada; revisá su alcance antes de proponer cambios.'
-            : 'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial recibido desde el servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.',
-        whyItMatters:
-          task.whyItMatters ||
-          'El H1 establece semánticamente el tema principal de la página ante lectores de pantalla y motores de búsqueda. Disponer de él en el HTML inicial facilita un rastreo inmediato sin depender de la ejecución de scripts.',
-        detectedData:
-          hasManualEvidence
-            ? '0 etiquetas <h1> detectadas en el HTML inicial. Existe una nota del usuario que debe evaluarse por separado.'
-            : '0 etiquetas <h1> detectadas en el HTML inicial recibido desde el servidor.',
-        proposedChange:
-          hasManualEvidence
-            ? 'Revisar la comprobación guardada y el texto del H1 existente antes de modificar la página. Si ya existe un H1 adecuado, no agregar otro ni exigir SSR solo por este hallazgo.'
-            : isVoley
-            ? 'Comprobar primero si hay un H1 en la página renderizada. Si hace falta, usar como borrador: "Open Voley: scouting y estadísticas para entrenadores".'
-            : 'Comprobar primero si existe un H1 en la página renderizada antes de proponer agregarlo.',
-        howToVerify:
-          'Inspeccionar "Ver código fuente" (Ctrl+U) o cURL sin JS para el HTML inicial, y las herramientas de desarrollo del navegador para el DOM renderizado.',
-        platformNote:
-          'Adaptar las instrucciones a la plataforma confirmada del proyecto. No suponer WordPress o Wix.',
+        ...task, findingType: 'h1', title: 'Encabezado H1', completionType: task.completionType || null,
+        url: task.url || resolvedBiz?.url, priority: 'IMPORTANTE' as PriorityLevel,
+        simpleExplanation: `${guidance.simpleExplanation}${task.userEvidence?.trim() ? ' Hay una comprobación manual guardada; revisar su alcance por separado.' : ''}`,
+        whyItMatters: guidance.whyItMatters, detectedData: guidance.detectedData,
+        proposedChange, howToVerify: guidance.howToVerify,
+        quickActionPrompt: `Ayudame a revisar el H1 de este negocio. Dato registrado: ${task.metricValue || 'sin recuento registrado'}.`,
+        stepByStepSolution: [
+          `Por qué importa: ${guidance.whyItMatters}`,
+          `Qué se detectó: ${guidance.detectedData}`,
+          `Cambio propuesto: ${proposedChange}`,
+          `Cómo comprobarlo: ${guidance.howToVerify}`,
+          ...(task.platformNote ? [`Plataforma: ${task.platformNote}`] : []),
+        ],
       };
     }
     return {
@@ -708,7 +692,7 @@ export const storageService = {
       return 'SEO';
     };
 
-    return items.map((item) => ({
+    return items.map(normalizeH1Item).map((item) => ({
       id: `issue-${businessId}-${item.key}`,
       businessId,
       name: item.title,
@@ -729,26 +713,17 @@ export const storageService = {
 
   buildActionTasksFromSeoAudit(businessId: string, items: SeoAuditItem[]): ActionTask[] {
     const business = this.getBusinesses().find((b) => b.id === businessId);
-    const isOpenVoley =
-      Boolean(business?.name.toLowerCase().includes('voley')) ||
-      Boolean(business?.url.toLowerCase().includes('openvoley'));
-
-    const tasks = items
+    const tasks = items.map(normalizeH1Item)
       .filter((item) => item.status !== 'ok')
       .map((item) => {
         const isH1 = item.key === 'h1';
         const whyItMatters = item.whyItMatters || item.simpleExplanation;
         const detectedData = item.detectedData || (item.metricValue ? `Dato medido: ${item.metricValue}` : 'Hallazgo técnico en auditoría');
-        const proposedChange =
-          isH1 && isOpenVoley
-            ? 'Comprobar primero si existe un H1 en la página renderizada. Borrador si hace falta: "Open Voley: scouting y estadísticas para entrenadores".'
-            : item.proposedChange || item.solution;
+        const proposedChange = item.proposedChange || item.solution;
         const howToVerify = item.howToVerify || 'Inspeccionar el código fuente HTML (Ctrl+U) o usar cURL sin ejecutar JavaScript para validar la respuesta del servidor y verificar el DOM renderizado en el navegador.';
         const platformNote = 'Adaptar las instrucciones a la plataforma confirmada del proyecto. No suponer WordPress o Wix.';
 
-        const simpleExplanation = isH1
-          ? 'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial del servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.'
-          : item.simpleExplanation;
+        const simpleExplanation = item.simpleExplanation;
 
         const stepByStepSolution = [
           `Por qué importa: ${whyItMatters}`,
@@ -862,7 +837,7 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.EXECUTIVE_ISSUES));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed[businessId]) return parsed[businessId];
+        if (parsed[businessId]) return parsed[businessId].map((issue: ExecutiveIssue) => /(?:^|-)h1$/.test(issue.id) ? { ...issue, possibleSolution: h1Guidance(this.getSeoAudit(businessId).find(item => item.key === 'h1')?.metricValue).proposedChange } : issue);
       }
     } catch {
       // Fallback
@@ -877,19 +852,19 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEO_AUDITS));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed[businessId])) return parsed[businessId];
+        if (Array.isArray(parsed[businessId])) return parsed[businessId].map(normalizeH1Item);
       }
     } catch {
       // Fallback
     }
-    return activeStorageScope === 'local' ? INITIAL_SEO_AUDIT : [];
+    return activeStorageScope === 'local' ? INITIAL_SEO_AUDIT.map(normalizeH1Item) : [];
   },
 
   saveSeoAudit(businessId: string, items: SeoAuditItem[], meta?: unknown): void {
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEO_AUDITS));
       const parsed = stored ? JSON.parse(stored) : {};
-      parsed[businessId] = items;
+      parsed[businessId] = items.map(normalizeH1Item);
       localStorage.setItem(scopedKey(STORAGE_KEYS.SEO_AUDITS), JSON.stringify(parsed));
 
       if (meta !== undefined) {
@@ -1045,7 +1020,7 @@ export const storageService = {
   },
 
   buildOpportunitiesFromSeoAudit(business: Business, items: SeoAuditItem[]): Opportunity[] {
-    return items
+    return items.map(normalizeH1Item)
       .filter((item) => item.source === 'real' && item.status !== 'ok')
       .slice(0, 12)
       .map((item) => ({
@@ -1176,7 +1151,7 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed[businessId])) return parsed[businessId].filter((item: Opportunity) => item.businessId === businessId);
+        if (Array.isArray(parsed[businessId])) return parsed[businessId].filter((item: Opportunity) => item.businessId === businessId).map((item: Opportunity) => item.source === 'seo-audit' && (item.findingType === 'h1' || item.id.endsWith('-h1')) ? { ...item, commercialAction: h1Guidance(this.getSeoAudit(businessId).find(audit => audit.key === 'h1')?.metricValue).proposedChange } : item);
       }
     } catch {
       // Fallback
