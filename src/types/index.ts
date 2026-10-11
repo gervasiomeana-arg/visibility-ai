@@ -202,6 +202,13 @@ export interface ActionTask {
   platformNote?: string;
 }
 
+export interface SearchHistoryPeriod {
+  loadedAt: string;
+  siteUrl?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface MonthlyEvolution {
   source?: 'real' | 'demo';
   months: string[];
@@ -215,6 +222,8 @@ export interface MonthlyEvolution {
   searchCtr?: number[];
   searchPositions?: number[];
   searchMonths?: string[];
+  auditDates?: string[];
+  searchPeriods?: SearchHistoryPeriod[];
   monthComparison: {
     visibilityChangePercent: number; // e.g. +12
     improvedPositionsCount: number;   // e.g. 17

@@ -233,4 +233,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   body { background: white !important; color: black !important; }
   .no-print { display: none !important; }
   .vai-panel { box-shadow: none; }
+  .vai-report-document { max-width: none; border-radius: 0; }
+  .vai-report-document h3 { break-after: avoid; }
+  .vai-report-document li, .vai-report-document section > div > div { break-inside: avoid; }
 }

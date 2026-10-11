@@ -756,7 +756,7 @@ export const workspaceService = {
         .select('created_at,overall_score,seo_score,web_score,unresolved_issues')
         .eq('workspace_id', workspaceId)
         .eq('business_id', businessId)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(24),
       supabase
         .from('action_tasks')
@@ -780,10 +780,10 @@ export const workspaceService = {
         .maybeSingle(),
       supabase
         .from('search_console_snapshots')
-        .select('created_at,clicks,impressions,ctr,position')
+        .select('created_at,site_url,period_start,period_end,clicks,impressions,ctr,position')
         .eq('workspace_id', workspaceId)
         .eq('business_id', businessId)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
         .limit(24),
       this.loadManualKeywords(workspaceId, businessId),
     ]);
@@ -798,7 +798,7 @@ export const workspaceService = {
 
     return {
       audit,
-      auditHistory: (auditHistoryResult.data || []).map((row: any) => ({
+      auditHistory: [...(auditHistoryResult.data || [])].reverse().map((row: any) => ({
         auditedAt: row.created_at,
         overallScore: Number(row.overall_score || 0),
         seoScore: Number(row.seo_score || 0),
@@ -813,8 +813,11 @@ export const workspaceService = {
       ),
       opportunities: (opportunitiesResult.data || []).map((row: any) => row.payload),
       searchConsole: latestSearch,
-      searchHistory: (searchHistoryResult.data || []).map((row: any) => ({
+      searchHistory: [...(searchHistoryResult.data || [])].reverse().map((row: any) => ({
         loadedAt: row.created_at,
+        siteUrl: row.site_url,
+        startDate: row.period_start,
+        endDate: row.period_end,
         clicks: Number(row.clicks || 0),
         impressions: Number(row.impressions || 0),
         ctr: Number(row.ctr || 0),

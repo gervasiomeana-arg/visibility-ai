@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
+import { measuredSeries, comparableSearchPeriods, searchPositionChange } from '../../shared/reportEvidence';
 import {
   TrendingUp,
   Calendar,
@@ -35,13 +36,12 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const searchMonths = evolution.searchMonths || [];
   const searchPositions = evolution.searchPositions || [];
 
-  const hasTechnicalComparison = isRealHistory && evolution.visibility.length >= 2;
-  const hasSearchPositionComparison = isRealHistory && searchPositions.length >= 2;
-  const hasSolvedProblemsSeries = isRealHistory && evolution.fixedProblems.length > 0;
+  const technicalSeries = isRealHistory ? measuredSeries(months, evolution.visibility) : [];
+  const hasTechnicalComparison = technicalSeries.length >= 2;
+  const technicalChange = hasTechnicalComparison ? technicalSeries.at(-1)!.value - technicalSeries[0].value : null;
+  const hasSolvedProblemsSeries = hasTechnicalComparison && evolution.fixedProblems.length === evolution.visibility.length;
 
-  const averagePositionDelta = hasSearchPositionComparison
-    ? Number((searchPositions[0] - searchPositions[searchPositions.length - 1]).toFixed(1))
-    : null;
+  const averagePositionDelta = searchPositionChange(evolution);
 
   const solvedProblems = hasSolvedProblemsSeries
     ? evolution.fixedProblems[evolution.fixedProblems.length - 1]
@@ -92,12 +92,12 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       source: 'DEMO',
     },
     fixedProblems: {
-      label: 'Problemas técnicos resueltos',
+      label: 'Reducción neta de hallazgos',
       values: evolution.fixedProblems,
-      unit: 'resueltos',
+      unit: 'hallazgos menos',
       gradient: 'from-amber-500 to-orange-600',
       description: isRealHistory
-        ? 'Cantidad derivada de la reducción de hallazgos técnicos pendientes entre auditorías.'
+        ? 'Reducción neta de hallazgos pendientes respecto de la primera auditoría. No verifica tareas completadas.'
         : 'Métrica DEMO de problemas solucionados.',
       source: isRealHistory ? 'AUDITORÍAS' : 'DEMO',
     },
@@ -106,7 +106,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       values: evolution.searchImpressions || [],
       unit: 'impresiones',
       gradient: 'from-blue-500 to-indigo-600',
-      description: 'Impresiones verificadas desde Google Search Console.',
+      description: 'Impresiones de las consultas recuperadas desde Google Search Console; pueden no representar el total del sitio.',
       source: 'SEARCH CONSOLE',
     },
     searchClicks: {
@@ -114,7 +114,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       values: evolution.searchClicks || [],
       unit: 'clics',
       gradient: 'from-emerald-500 to-teal-600',
-      description: 'Clics orgánicos verificados desde Google Search Console.',
+      description: 'Clics de las consultas recuperadas desde Google Search Console; pueden no representar el total del sitio.',
       source: 'SEARCH CONSOLE',
     },
     searchCtr: {
@@ -130,31 +130,18 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       values: searchPositions,
       unit: 'posición',
       gradient: 'from-slate-500 to-slate-700',
-      description: 'Posición media reportada por Google Search Console. En esta métrica, un valor menor es mejor.',
+      description: 'Posición media ponderada por impresiones de las consultas recuperadas. Una posición sin impresiones queda sin medición; no se interpreta como cero.',
       lowerIsBetter: true,
       source: 'SEARCH CONSOLE',
     },
   };
 
-  const availableMetricKeys = useMemo(
-    () =>
-      (Object.keys(metricConfigs) as MetricKey[]).filter((key) => {
-        if (!isRealHistory) return true;
-        return metricConfigs[key].values.length > 0;
-      }),
-    [
-      isRealHistory,
-      evolution.visibility,
-      evolution.googlePositions,
-      evolution.estimatedVisits,
-      evolution.consultations,
-      evolution.fixedProblems,
-      evolution.searchImpressions,
-      evolution.searchClicks,
-      evolution.searchCtr,
-      searchPositions,
-    ]
-  );
+  const availableMetricKeys = (Object.keys(metricConfigs) as MetricKey[]).filter(key => {
+    const config = metricConfigs[key];
+    if (isRealHistory && config.source === 'DEMO') return false;
+    const labels = key.startsWith('search') ? searchMonths : months;
+    return measuredSeries(labels, config.values, config.lowerIsBetter).length > 0;
+  });
 
   const effectiveSelectedMetric = availableMetricKeys.includes(selectedMetric)
     ? selectedMetric
@@ -163,15 +150,21 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const currentConfig = metricConfigs[effectiveSelectedMetric];
   const isSearchMetric = effectiveSelectedMetric.startsWith('search');
   const currentMonths = isSearchMetric ? searchMonths : months;
-  const plottedCount = Math.min(currentMonths.length, currentConfig.values.length);
-  const plottedMonths = currentMonths.slice(-plottedCount);
-  const plottedValues = currentConfig.values.slice(-plottedCount);
+  const points = measuredSeries(currentMonths, currentConfig.values, currentConfig.lowerIsBetter);
+  const plottedCount = points.length;
+  const plottedMonths = points.map(point => point.label);
+  const plottedValues = points.map(point => point.value);
   const hasHistory = plottedCount > 0;
   const maxVal = hasHistory ? Math.max(...plottedValues, 1) * 1.15 : 1;
-
-  const firstValue = plottedValues[0];
-  const lastValue = plottedValues[plottedValues.length - 1];
-  const hasComparison = plottedValues.length >= 2;
+  const searchPeriodCount = evolution.searchPeriods?.length || 0;
+  const hasComparablePeriods = searchPeriodCount >= 2 && comparableSearchPeriods(
+    evolution.searchPeriods?.[searchPeriodCount - 2], evolution.searchPeriods?.[searchPeriodCount - 1]
+  );
+  const completeLastPair = points.length >= 2 && points.at(-1)!.index === currentConfig.values.length - 1 && points.at(-2)!.index === currentConfig.values.length - 2;
+  const hasComparison = points.length >= 2 && (!isSearchMetric || (hasComparablePeriods && completeLastPair));
+  const firstValue = isSearchMetric && hasComparison ? plottedValues.at(-2)! : plottedValues[0];
+  const firstLabel = isSearchMetric && hasComparison ? plottedMonths.at(-2)! : plottedMonths[0];
+  const lastValue = plottedValues.at(-1)!;
   const delta = hasComparison ? lastValue - firstValue : 0;
   const improved = hasComparison
     ? currentConfig.lowerIsBetter
@@ -181,7 +174,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const unchanged = hasComparison && lastValue === firstValue;
 
   const comparisonLabel = !hasComparison
-    ? 'Todavía no hay dos mediciones para comparar'
+    ? isSearchMetric ? 'Sin dos períodos comparables de igual duración y sin solapamiento' : 'Todavía no hay dos mediciones para comparar'
     : unchanged
     ? 'Sin cambio respecto del inicio'
     : currentConfig.lowerIsBetter
@@ -207,7 +200,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
         {
           label: 'Cambio score técnico',
           value: hasTechnicalComparison
-            ? `${monthComparison.visibilityChangePercent > 0 ? '+' : ''}${monthComparison.visibilityChangePercent}%`
+            ? `${technicalChange! > 0 ? '+' : ''}${Number(technicalChange!.toFixed(1))} puntos`
             : '—',
           source: hasTechnicalComparison ? 'AUDITORÍAS' : 'SIN SERIE',
           tone: 'indigo',
@@ -221,7 +214,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
           tone: 'emerald',
         },
         {
-          label: 'Problemas resueltos',
+          label: 'Hallazgos menos',
           value: solvedProblems !== null ? String(solvedProblems) : '—',
           source: solvedProblems !== null ? 'AUDITORÍAS' : 'SIN SERIE',
           tone: 'amber',
@@ -290,7 +283,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               <span>EVOLUCIÓN TEMPORAL</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-              Crecimiento y Progreso Histórico
+              Historial de mediciones
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
               {isRealHistory
@@ -387,17 +380,17 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
           <div className="overflow-x-auto pb-2">
             <div
               className="flex items-end gap-3 sm:gap-5 h-64 border-b border-slate-200 px-2 sm:px-4"
-              style={{ minWidth: `${Math.max(520, plottedCount * 84)}px` }}
+              style={{ minWidth: `${Math.max(520, plottedCount * (isSearchMetric ? 190 : 100))}px` }}
             >
               {plottedMonths.map((month, idx) => {
                 const value = plottedValues[idx];
-                const heightPercent = Math.max(12, Math.round((value / maxVal) * 100));
+                const heightPercent = Math.max(0, Math.round((value / maxVal) * 100));
                 const isLast = idx === plottedMonths.length - 1;
 
                 return (
                   <div
                     key={`${month}-${idx}`}
-                    className="flex-1 min-w-[56px] max-w-[84px] flex flex-col items-center h-full justify-end group"
+                    className="flex-1 min-w-[56px] flex flex-col items-center h-full justify-end group"
                   >
                     <span className="text-[11px] font-bold text-slate-700 mb-2 font-tabular">
                       {value.toLocaleString('es-AR')}
@@ -413,7 +406,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
                       />
                     </div>
 
-                    <span className={`text-[10px] mt-3 font-semibold whitespace-nowrap ${
+                    <span className={`text-[10px] mt-3 font-semibold text-center ${
                       isLast ? 'text-indigo-600' : 'text-slate-500'
                     }`}>
                       {month}
@@ -426,8 +419,8 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
           <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500">
             <span>
-              Punto de partida:{' '}
-              <strong>{firstValue} {currentConfig.unit}</strong> ({plottedMonths[0]})
+              {isSearchMetric && hasComparison ? 'Período anterior comparable:' : 'Primera medición mostrada:'}{' '}
+              <strong>{firstValue} {currentConfig.unit}</strong> ({firstLabel})
               {' → '}
               Estado actual:{' '}
               <strong>{lastValue} {currentConfig.unit}</strong> ({plottedMonths[plottedMonths.length - 1]})
