@@ -882,71 +882,62 @@ export async function buildRealSeoAudit(
   );
 
   const imageTags = getTagMatches(html, 'img');
-  const imagesMissingAlt = imageTags.filter((tag) => {
-    const alt = getAttribute(tag, 'alt');
-    return alt === null || alt.trim() === '';
-  }).length;
-  if (imageTags.length === 0) {
-    items.push(
-      auditItem(
-        'image-alt',
-        'Textos ALT de imágenes',
-        'Contenido y On-Page',
-        'ok',
-        'Sin imágenes',
-        'No detectamos imágenes <img> en el HTML inicial.',
-        'Si se agregan imágenes relevantes, describirlas con ALT útil.',
-        'Bajo',
-        '0 imágenes',
-        {
-          whyItMatters: 'El texto alternativo es esencial para accesibilidad y descripción semántica.',
-          detectedData: '0 etiquetas <img> en el HTML inicial recibido.',
-          proposedChange: 'Si se añaden imágenes, incluir siempre el atributo alt="..." descriptivo.',
-          howToVerify: 'Inspeccionar las etiquetas de imagen en el marcado.',
-        }
-      )
-    );
-  } else if (imagesMissingAlt === 0) {
-    items.push(
-      auditItem(
-        'image-alt',
-        'Textos ALT de imágenes',
-        'Contenido y On-Page',
-        'ok',
-        'Correcto',
-        'Todas las imágenes detectadas tienen atributo ALT no vacío.',
-        'Mantener descripciones ALT útiles y específicas.',
-        'Medio',
-        `${imageTags.length}/${imageTags.length} con ALT`,
-        {
-          whyItMatters: 'Garantiza accesibilidad visual y contexto de contenido.',
-          detectedData: `${imageTags.length} de ${imageTags.length} imágenes cuentan con atributo alt.`,
-          proposedChange: 'Mantener textos ALT representativos en nuevas imágenes.',
-          howToVerify: 'Verificar atributos alt en el código fuente.',
-        }
-      )
-    );
-  } else {
-    items.push(
-      auditItem(
-        'image-alt',
-        'Textos ALT de imágenes',
-        'Contenido y On-Page',
-        imagesMissingAlt === imageTags.length ? 'error' : 'warning',
-        'Mejorable',
-        'Hay imágenes sin texto alternativo útil.',
-        'Agregar ALT descriptivo a imágenes que aportan información o contexto.',
-        'Medio',
-        `${imageTags.length - imagesMissingAlt}/${imageTags.length} con ALT`,
-        {
-          whyItMatters: 'Los usuarios con lectores de pantalla y rastreadores no pueden interpretar imágenes sin texto alternativo.',
-          detectedData: `${imagesMissingAlt} de ${imageTags.length} imágenes carecen de atributo alt.`,
-          proposedChange: 'Añadir atributo alt="..." con descripción concisa a cada imagen informativa.',
-          howToVerify: 'Inspeccionar el atributo alt en las etiquetas <img> del HTML.',
-        }
-      )
-    );
+  // Parse actual attribute names: data-alt and text inside another attribute are not ALT.
+  const imageAttributes = imageTags.map((tag) => {
+    const attributes = new Map<string, string>();
+    const content = tag.replace(/^<img\b/i, '').replace(/\/?\s*>$/, '');
+    const pattern = /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+    for (const match of content.matchAll(pattern)) {
+      const name = match[1].toLowerCase();
+      if (!attributes.has(name)) attributes.set(name, decodeBasicEntities(match[2] ?? match[3] ?? match[4] ?? ''));
+    }
+    return attributes;
+  });
+  let missingAlt = 0;
+  let descriptiveAlt = 0;
+  let decorativeEmptyAlt = 0;
+  let emptyAltToReview = 0;
+  for (const attributes of imageAttributes) {
+    if (!attributes.has('alt')) {
+      missingAlt++;
+    } else if (attributes.get('alt')!.trim()) {
+      descriptiveAlt++;
+    } else if (
+      attributes.get('aria-hidden')?.trim().toLowerCase() === 'true' ||
+      /^(none|presentation)$/i.test(attributes.get('role')?.trim() || '')
+    ) {
+      decorativeEmptyAlt++;
+    } else {
+      // Empty ALT can be valid without ARIA: determining intent requires the page context.
+      emptyAltToReview++;
+    }
   }
+  const imageAltData = `HTML inicial: ${imageTags.length} imágenes; ${missingAlt} sin atributo ALT; ${descriptiveAlt} con ALT descriptivo; ${decorativeEmptyAlt} con ALT vacío y marca decorativa; ${emptyAltToReview} con ALT vacío para revisar en contexto.`;
+  const imageAltProposal = 'Agregar un ALT descriptivo a las imágenes informativas que lo necesiten. Conservar alt="" en las decorativas; no añadirles una descripción innecesaria. Un ALT vacío sin marca ARIA también puede ser válido: confirmar su función en la página.';
+  const imageAltVerification = 'Inspeccionar cada <img> en el HTML inicial y en la página renderizada. Distinguir atributo ausente, ALT descriptivo y alt="". Revisar la función de la imagen y sus marcas aria-hidden o role; el auditor no puede determinar por sí solo si aporta información. Si es decorativa, mantener alt="".';
+  items.push(auditItem(
+    'image-alt',
+    'Textos ALT de imágenes',
+    'Contenido y On-Page',
+    missingAlt > 0 || emptyAltToReview > 0 ? 'warning' : 'ok',
+    imageTags.length === 0 ? 'Sin imágenes en HTML inicial' : missingAlt > 0 ? 'Mejorable' : emptyAltToReview > 0 ? 'Revisar contexto' : 'Correcto',
+    imageTags.length === 0
+      ? 'No detectamos imágenes <img> en el HTML inicial; podrían existir en la página renderizada.'
+      : missingAlt > 0
+        ? 'Hay imágenes sin atributo ALT. Su corrección depende de la función de cada imagen; los ALT vacíos no se cuentan como atributos ausentes.'
+        : emptyAltToReview > 0
+          ? 'Hay ALT vacíos cuya función requiere revisión en contexto. No se confirma un error: las imágenes decorativas pueden usar alt="".'
+          : 'Las imágenes detectadas tienen ALT descriptivo o ALT vacío con una marca decorativa. Esto no valida automáticamente la calidad de las descripciones ni toda la accesibilidad de la página.',
+    imageAltProposal,
+    'Medio',
+    `${missingAlt} sin atributo ALT; ${decorativeEmptyAlt + emptyAltToReview} ALT vacíos`,
+    {
+      whyItMatters: 'El ALT comunica el contenido de imágenes informativas a quienes usan lectores de pantalla. En imágenes decorativas, alt="" permite omitir información innecesaria.',
+      detectedData: imageAltData,
+      proposedChange: imageAltProposal,
+      howToVerify: imageAltVerification,
+    },
+  ));
 
   const viewport = findMetaContent(html, 'name', 'viewport');
   items.push(
