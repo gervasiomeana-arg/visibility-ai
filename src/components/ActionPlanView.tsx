@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CheckSquare,
   AlertCircle,
@@ -45,6 +45,11 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
   onOpenAssistantWithPrompt,
 }) => {
   const [selectedTask, setSelectedTask] = useState<ActionTask | null>(null);
+  const [evidenceDraft, setEvidenceDraft] = useState('');
+  useEffect(() => {
+    setEvidenceDraft(selectedTask?.userEvidence || '');
+  }, [selectedTask]);
+
   const [priorityFilter, setPriorityFilter] = useState<'all' | PriorityLevel>('all');
 
   const formatTaskCount = (count: number) =>
@@ -428,22 +433,21 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 </p>
               </div>
 
-              {selectedTask.userEvidence && (
-                <div className="p-3.5 rounded-xl bg-sky-50/80 border border-sky-200 text-xs text-sky-950">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <HelpCircle className="w-3.5 h-3.5 text-sky-600" />
-                    <span className="text-[10px] uppercase font-bold text-sky-700 tracking-wider">
-                      Evidencia aportada por el usuario
-                    </span>
-                  </div>
-                  <p className="leading-relaxed font-semibold">
-                    {selectedTask.userEvidence}
-                  </p>
-                  <span className="text-[10px] text-sky-600 block mt-1 italic">
-                    Tratada como comprobación manual del usuario, no como una medición automática del servidor.
-                  </span>
-                </div>
-              )}
+              <div className="p-3.5 rounded-xl bg-sky-50/80 border border-sky-200 text-xs text-sky-950">
+                <label htmlFor="task-evidence" className="font-bold block mb-2">
+                  Tu comprobación o nota de avance
+                </label>
+                <textarea id="task-evidence" value={evidenceDraft} onChange={(event) => setEvidenceDraft(event.target.value)}
+                  rows={3} maxLength={4000} placeholder="Por ejemplo: inspeccioné la página publicada y encontré un H1. Texto: …"
+                  className="w-full p-2 rounded-lg border border-sky-200 bg-white text-slate-900" />
+                <p className="mt-1 text-sky-700">Se guarda en esta tarea y negocio como nota manual. No es una medición automática.</p>
+                <button type="button" onClick={() => {
+                  onUpdateStatus(selectedTask.id, selectedTask.status, selectedTask.completionType || null, evidenceDraft.trim() || null);
+                  setSelectedTask(null);
+                }} className="mt-2 px-3 py-2 rounded-lg bg-sky-700 text-white font-semibold cursor-pointer">
+                  Guardar nota
+                </button>
+              </div>
 
               <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-100 text-xs text-emerald-950">
                 <span className="text-[10px] uppercase font-bold text-emerald-700 tracking-wider block mb-1">
@@ -500,7 +504,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
                   onClick={() => {
-                    onUpdateStatus(selectedTask.id, 'completada_manual', 'manual');
+                    onUpdateStatus(selectedTask.id, 'completada_manual', 'manual', evidenceDraft.trim() || null);
                     setSelectedTask(null);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
@@ -511,22 +515,12 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 >
                   ✓ Completada manualmente
                 </button>
+                <span className="text-[11px] text-slate-500">
+                  Estos controles registran avances manuales; no certifican una verificación automática.
+                </span>
                 <button
                   onClick={() => {
-                    onUpdateStatus(selectedTask.id, 'verificada_auditoria', 'auditoria');
-                    setSelectedTask(null);
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-                    selectedTask.status === 'verificada_auditoria'
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                  }`}
-                >
-                  ✓ Verificada por auditoría
-                </button>
-                <button
-                  onClick={() => {
-                    onUpdateStatus(selectedTask.id, 'en_progreso', null);
+                    onUpdateStatus(selectedTask.id, 'en_progreso', null, evidenceDraft.trim() || null);
                     setSelectedTask(null);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
@@ -539,7 +533,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 </button>
                 <button
                   onClick={() => {
-                    onUpdateStatus(selectedTask.id, 'pendiente', null);
+                    onUpdateStatus(selectedTask.id, 'pendiente', null, evidenceDraft.trim() || null);
                     setSelectedTask(null);
                   }}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
