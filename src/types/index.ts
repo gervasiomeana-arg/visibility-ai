@@ -165,6 +165,12 @@ export interface Opportunity {
   potentialImpact: 'Muy Alto' | 'Alto' | 'Medio';
   searchDemand: string;
   source?: 'demo' | 'seo-audit' | 'search-console';
+  kind?: 'content' | 'technical';
+  findingType?: string;
+  checkedAt?: string;
+  evidenceUrl?: string;
+  periodStart?: string;
+  periodEnd?: string;
   evidenceText?: string;
   contentParams: {
     contentType: 'web_page' | 'blog_article' | 'service_description' | 'faq' | 'seo_meta' | 'google_post';

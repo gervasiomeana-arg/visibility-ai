@@ -5,7 +5,7 @@ export function validateContentInput(input: any): string | null {
   if (!input || !contentTypes.includes(input.contentType)) return 'Seleccioná un tipo de contenido válido.';
   if (fields.some(field => typeof input[field] !== 'string')) return 'Los datos del contenido deben ser texto.';
   if (fields.some(field => input[field].length > 2000)) return 'Uno de los campos supera los 2000 caracteres.';
-  if (['topic', 'keyword', 'businessType', 'goal'].some(field => !input[field].trim())) return 'Completá el tema, la palabra clave, el tipo de negocio y el objetivo.';
+  if (['topic', 'businessType', 'goal'].some(field => !input[field].trim())) return 'Completá el tema, el tipo de negocio y el objetivo.';
   const profile = input.businessContext;
   if (!profile || typeof profile.name !== 'string' || !profile.name.trim()) return 'Falta el perfil del negocio seleccionado.';
   if (['name', 'description', 'url'].some(field => profile[field] !== undefined && (typeof profile[field] !== 'string' || profile[field].length > 4000))) return 'El perfil del negocio no es válido.';

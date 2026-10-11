@@ -161,7 +161,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         rowCount: realKeywords.length,
       });
 
-      const realOpportunities = storageService.buildOpportunitiesFromSearchConsole(business, realKeywords);
+      const realOpportunities = storageService.buildOpportunitiesFromSearchConsole(business, realKeywords, { siteUrl: selectedSite, startDate: result.startDate, endDate: result.endDate, loadedAt: new Date().toISOString() });
       storageService.replaceOpportunitiesBySource(business.id, 'search-console', realOpportunities);
 
       const clicks = realKeywords.reduce((sum, kw) => sum + (kw.clicks || 0), 0);

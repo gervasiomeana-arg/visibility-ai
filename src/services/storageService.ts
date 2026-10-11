@@ -1034,19 +1034,19 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.COMPETITORS));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed[businessId]) return parsed[businessId];
+        if (Array.isArray(parsed[businessId])) return parsed[businessId].filter((item: Competitor) => item.businessId === businessId);
       }
     } catch {
       // Fallback
     }
     return activeStorageScope === 'local'
-      ? INITIAL_COMPETITORS[businessId] || []
+      ? (INITIAL_COMPETITORS[businessId] || []).map(item => ({ ...item, source: 'demo' as const }))
       : [];
   },
 
   buildOpportunitiesFromSeoAudit(business: Business, items: SeoAuditItem[]): Opportunity[] {
     return items
-      .filter((item) => item.status !== 'ok')
+      .filter((item) => item.source === 'real' && item.status !== 'ok')
       .slice(0, 12)
       .map((item) => ({
         id: `seo-${business.id}-${item.key}`,
@@ -1061,6 +1061,10 @@ export const storageService = {
         potentialImpact: item.impact === 'Alto' ? 'Muy Alto' : item.impact === 'Medio' ? 'Alto' : 'Medio',
         searchDemand: 'Sin dato de demanda asociado',
         source: 'seo-audit',
+        kind: ['title', 'meta-description', 'h1'].includes(item.key) ? 'content' : 'technical',
+        findingType: item.key,
+        checkedAt: item.checkedAt,
+        evidenceUrl: business.url,
         evidenceText: `Auditoría SEO real · ${item.statusLabel}${item.metricValue ? ` · ${item.metricValue}` : ''}`,
         contentParams: {
           contentType:
@@ -1088,7 +1092,7 @@ export const storageService = {
       const preserved = current.filter(
         (opp) => opp.source && opp.source !== source && opp.source !== 'demo'
       );
-      const combined = [...incoming, ...preserved].slice(0, 20);
+      const combined = [...incoming.filter(opp => opp.businessId === businessId && opp.source === source), ...preserved.filter(opp => opp.businessId === businessId)].slice(0, 20);
       parsed[businessId] = combined;
       localStorage.setItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES), JSON.stringify(parsed));
 
@@ -1101,79 +1105,66 @@ export const storageService = {
 
       return combined;
     } catch {
-      return incoming;
+      return incoming.filter(opp => opp.businessId === businessId && opp.source === source);
     }
   },
 
-  buildOpportunitiesFromSearchConsole(business: Business, keywords: KeywordItem[]): Opportunity[] {
-    const realRows = keywords
-      .filter((kw) => kw.source === 'search-console' && (kw.impressions || 0) > 0)
-      .sort((a, b) => (b.impressions || 0) - (a.impressions || 0));
-
+  buildOpportunitiesFromSearchConsole(
+    business: Business,
+    keywords: KeywordItem[],
+    context?: { siteUrl: string; startDate: string; endDate: string; loadedAt: string }
+  ): Opportunity[] {
+    const realRows = keywords.filter(kw => kw.businessId === business.id && kw.source === 'search-console' &&
+      typeof kw.keyword === 'string' && !!kw.keyword.trim() && Number.isFinite(kw.impressions) && kw.impressions! > 0 &&
+      Number.isFinite(kw.position) && kw.position > 0)
+      .sort((a, b) => b.impressions! - a.impressions!);
     const opportunities: Opportunity[] = [];
-
+    const seen = new Set<string>();
     for (const kw of realRows) {
-      const impressions = kw.impressions || 0;
-      const ctr = kw.ctr || 0;
-      const position = kw.position || 0;
-
-      if (impressions >= 20 && position >= 8 && position <= 20) {
-        opportunities.push({
-          id: `gsc-near-top-${business.id}-${opportunities.length}`,
-          businessId: business.id,
-          detectedProblem: `“${kw.keyword}” está cerca de las primeras posiciones`,
-          simpleExplanation: `Google mostró tu sitio ${impressions} veces para esta consulta en el período analizado y la posición media fue ${position.toFixed(1)}.`,
-          commercialAction: 'Revisar la página que responde a esta búsqueda, reforzar título, encabezados y contenido útil para intentar ganar posiciones.',
-          suggestedPageTitle: `Optimizar contenido para “${kw.keyword}”`,
-          potentialImpact: impressions >= 100 ? 'Muy Alto' : 'Alto',
-          searchDemand: `${impressions} impresiones verificadas`,
-          source: 'search-console',
-          evidenceText: `Search Console · posición media ${position.toFixed(1)} · ${impressions} impresiones`,
-          contentParams: {
-            contentType: 'web_page',
-            topic: kw.keyword,
-            keyword: kw.keyword,
-            city: business.city,
-            businessType: business.category,
-            goal: 'Mejorar la relevancia de una consulta con impresiones reales y acercarla a mejores posiciones',
-          },
-        });
-      }
-
-      if (impressions >= 30 && ctr < 0.03 && position > 0 && position <= 15) {
-        opportunities.push({
-          id: `gsc-low-ctr-${business.id}-${opportunities.length}`,
-          businessId: business.id,
-          detectedProblem: `“${kw.keyword}” obtiene impresiones pero pocos clics`,
-          simpleExplanation: `La consulta tuvo ${impressions} impresiones y un CTR de ${(ctr * 100).toFixed(1)}% con posición media ${position.toFixed(1)}.`,
-          commercialAction: 'Probar un título SEO y una meta description más claros y atractivos, alineados con lo que busca el usuario.',
-          suggestedPageTitle: `Mejorar CTR para “${kw.keyword}”`,
-          potentialImpact: impressions >= 100 ? 'Muy Alto' : 'Alto',
-          searchDemand: `${impressions} impresiones verificadas`,
-          source: 'search-console',
-          evidenceText: `Search Console · CTR ${(ctr * 100).toFixed(1)}% · ${impressions} impresiones`,
-          contentParams: {
-            contentType: 'seo_meta',
-            topic: kw.keyword,
-            keyword: kw.keyword,
-            city: business.city,
-            businessType: business.category,
-            goal: 'Mejorar el porcentaje de clics de una consulta con visibilidad real en Google',
-          },
-        });
-      }
-
+      const query = kw.keyword.trim();
+      const identity = query.toLocaleLowerCase('es');
+      if (seen.has(identity)) continue;
+      seen.add(identity);
+      const impressions = kw.impressions!;
+      const position = kw.position;
+      const hasCtr = typeof kw.ctr === 'number' && Number.isFinite(kw.ctr) && kw.ctr >= 0 && kw.ctr <= 1;
+      const lowCtr = impressions >= 30 && hasCtr && kw.ctr! < 0.03 && position <= 15;
+      const positionCandidate = impressions >= 20 && position >= 8 && position <= 20;
+      if (!lowCtr && !positionCandidate) continue;
+      const metric = lowCtr ? `CTR ${(kw.ctr! * 100).toFixed(1)}%` : `posición media ${position.toFixed(1)}`;
+      opportunities.push({
+        id: `gsc-${lowCtr ? 'low-ctr' : 'position'}-${business.id}-${encodeURIComponent(identity)}`,
+        businessId: business.id,
+        detectedProblem: `Consulta para revisar: “${query}”`,
+        simpleExplanation: `Se registraron ${impressions} impresiones, posición media ${position.toFixed(1)}${hasCtr ? ` y CTR ${(kw.ctr! * 100).toFixed(1)}%` : '; no hay un CTR válido registrado'}. Estos datos no confirman demanda total ni un servicio ofrecido por el negocio.`,
+        commercialAction: lowCtr
+          ? 'Comprobar la intención de la búsqueda y revisar el título y la descripción de la página que la responde. Preparar un borrador solo si corresponde a un servicio confirmado.'
+          : 'Comprobar qué página responde a la consulta y si su contenido describe un servicio confirmado. Revisar su claridad antes de proponer contenido nuevo.',
+        suggestedPageTitle: `Revisión de contenido para “${query}”`,
+        potentialImpact: impressions >= 100 ? 'Muy Alto' : 'Alto',
+        searchDemand: `${impressions} impresiones registradas; demanda total no medida`,
+        source: 'search-console', kind: 'content',
+        checkedAt: context?.loadedAt,
+        evidenceUrl: context?.siteUrl,
+        periodStart: context?.startDate,
+        periodEnd: context?.endDate,
+        evidenceText: `Search Console · ${metric} · ${impressions} impresiones${context ? ` · ${context.startDate} a ${context.endDate}` : ' · período no registrado'}. Criterio orientativo: ${lowCtr ? '30 impresiones o más, CTR menor a 3% y posición media hasta 15' : '20 impresiones o más y posición media entre 8 y 20'}; no es una predicción de resultados.`,
+        contentParams: {
+          contentType: lowCtr ? 'seo_meta' : 'web_page', topic: query, keyword: query,
+          city: business.city, businessType: business.category,
+          goal: 'Explicar con claridad un servicio confirmado que sea pertinente para esta consulta',
+        },
+      });
       if (opportunities.length >= 12) break;
     }
-
-    return opportunities.slice(0, 12);
+    return opportunities;
   },
 
   saveOpportunities(businessId: string, opportunities: Opportunity[]): void {
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
       const parsed = stored ? JSON.parse(stored) : {};
-      parsed[businessId] = opportunities;
+      parsed[businessId] = opportunities.filter(item => item.businessId === businessId);
       localStorage.setItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES), JSON.stringify(parsed));
     } catch {
       // Ignore
@@ -1185,13 +1176,13 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (parsed[businessId]) return parsed[businessId];
+        if (Array.isArray(parsed[businessId])) return parsed[businessId].filter((item: Opportunity) => item.businessId === businessId);
       }
     } catch {
       // Fallback
     }
     return activeStorageScope === 'local'
-      ? INITIAL_OPPORTUNITIES[businessId] || []
+      ? (INITIAL_OPPORTUNITIES[businessId] || []).map(item => ({ ...item, source: 'demo' as const }))
       : [];
   },
 
