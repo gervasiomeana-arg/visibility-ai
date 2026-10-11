@@ -193,6 +193,7 @@ export function deduplicateAndReconcileTasks(
 
   // Filter out irrelevant foreign mock tasks (e.g., hotel in Mar del Plata for Open Voley)
   const validTasks = tasks.filter((task) => {
+    if (task.businessId !== businessId) return false;
     if (isVoley) {
       const titleLower = (task.title || '').toLowerCase();
       const expLower = (task.simpleExplanation || '').toLowerCase();
@@ -236,7 +237,7 @@ export function deduplicateAndReconcileTasks(
     } else {
       // Merge duplicates for the same findingType and same URL
       const primary =
-        items.find((i) => i.source === 'seo-audit') ||
+        [...items].reverse().find((i) => i.source === 'seo-audit') ||
         items.find((i) => i.id.startsWith(`task-${businessId}-`)) ||
         items[0];
 
@@ -330,24 +331,10 @@ export function deduplicateAndReconcileTasks(
       };
     }
     if (fType === 'h1') {
-      const hasManualDomEvidence =
-        isVoley ||
-        Boolean(task.userEvidence?.toLowerCase().includes('dom')) ||
-        task.status === 'completada_manual';
-
-      const userEvidence = hasManualDomEvidence
-        ? task.userEvidence ||
-          'Comprobación manual del usuario: Se detectó un encabezado H1 en el DOM renderizado (evidencia aportada por el usuario, no medición automática del servidor).'
-        : task.userEvidence;
-
-      let status: TaskStatus = task.status;
-      let completionType: TaskCompletionType | null = task.completionType || null;
-
-      // For Open Voley manual DOM finding: record as completed_manual with user evidence
-      if (hasManualDomEvidence && status !== 'verificada_auditoria') {
-        status = 'completada_manual';
-        completionType = 'manual';
-      }
+      const hasManualEvidence = Boolean(task.userEvidence?.trim());
+      const userEvidence = task.userEvidence;
+      const status: TaskStatus = task.status;
+      const completionType: TaskCompletionType | null = task.completionType || null;
 
       return {
         ...task,
@@ -359,19 +346,22 @@ export function deduplicateAndReconcileTasks(
         completionType,
         userEvidence,
         simpleExplanation:
-          'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial recibido desde el servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.',
+          hasManualEvidence
+            ? 'H1 no detectado en HTML inicial. Hay una comprobación manual guardada; revisá su alcance antes de proponer cambios.'
+            : 'H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada. El auditor inspecciona únicamente el HTML inicial recibido desde el servidor sin ejecutar JavaScript; no se presenta como una ausencia confirmada ni como un error crítico únicamente por ese resultado, dado que podría existir contenido generado en el cliente.',
         whyItMatters:
           task.whyItMatters ||
           'El H1 establece semánticamente el tema principal de la página ante lectores de pantalla y motores de búsqueda. Disponer de él en el HTML inicial facilita un rastreo inmediato sin depender de la ejecución de scripts.',
         detectedData:
-          hasManualDomEvidence
-            ? 'HTML inicial sin H1; DOM renderizado con H1 según comprobación manual aportada por el usuario.'
+          hasManualEvidence
+            ? '0 etiquetas <h1> detectadas en el HTML inicial. Existe una nota del usuario que debe evaluarse por separado.'
             : '0 etiquetas <h1> detectadas en el HTML inicial recibido desde el servidor.',
         proposedChange:
-          isVoley
-            ? 'Definir o confirmar un encabezado <h1> en la plantilla o HTML inicial. Borrador sugerido: "Open Voley: scouting y estadísticas para entrenadores".'
-            : task.proposedChange ||
-              'Agregar un encabezado <h1> visible en el HTML inicial recibido desde el servidor.',
+          hasManualEvidence
+            ? 'Revisar la comprobación guardada y el texto del H1 existente antes de modificar la página. Si ya existe un H1 adecuado, no agregar otro ni exigir SSR solo por este hallazgo.'
+            : isVoley
+            ? 'Comprobar primero si hay un H1 en la página renderizada. Si hace falta, usar como borrador: "Open Voley: scouting y estadísticas para entrenadores".'
+            : 'Comprobar primero si existe un H1 en la página renderizada antes de proponer agregarlo.',
         howToVerify:
           'Inspeccionar "Ver código fuente" (Ctrl+U) o cURL sin JS para el HTML inicial, y las herramientas de desarrollo del navegador para el DOM renderizado.',
         platformNote:
@@ -733,7 +723,7 @@ export const storageService = {
         const detectedData = item.detectedData || (item.metricValue ? `Dato medido: ${item.metricValue}` : 'Hallazgo técnico en auditoría');
         const proposedChange =
           isH1 && isOpenVoley
-            ? 'Definir o confirmar un encabezado <h1> en la plantilla o HTML inicial. Borrador propuesto: "Open Voley: scouting y estadísticas para entrenadores".'
+            ? 'Comprobar primero si existe un H1 en la página renderizada. Borrador si hace falta: "Open Voley: scouting y estadísticas para entrenadores".'
             : item.proposedChange || item.solution;
         const howToVerify = item.howToVerify || 'Inspeccionar el código fuente HTML (Ctrl+U) o usar cURL sin ejecutar JavaScript para validar la respuesta del servidor y verificar el DOM renderizado en el navegador.';
         const platformNote = 'Adaptar las instrucciones a la plataforma confirmada del proyecto. No suponer WordPress o Wix.';
@@ -758,14 +748,8 @@ export const storageService = {
           ? 'IMPORTANTE'
           : 'RECOMENDADO';
 
-        const status: TaskStatus =
-          isH1 && isOpenVoley ? 'completada_manual' : 'pendiente';
-        const completionType: TaskCompletionType | null =
-          isH1 && isOpenVoley ? 'manual' : null;
-        const userEvidence =
-          isH1 && isOpenVoley
-            ? 'Comprobación manual del usuario: Se detectó un encabezado H1 en el DOM renderizado (evidencia aportada por el usuario, no medición automática del servidor).'
-            : undefined;
+        const status: TaskStatus = 'pendiente';
+        const completionType: TaskCompletionType | null = null;
 
         return {
           id: `task-${businessId}-${item.key}`,
@@ -778,8 +762,8 @@ export const storageService = {
           priority,
           status,
           completionType,
-          userEvidence,
-          completedAt: isH1 && isOpenVoley ? new Date().toISOString() : undefined,
+          userEvidence: undefined,
+          completedAt: undefined,
           estimatedImpact: item.impact,
           difficulty: (item.key === 'title' || item.key === 'meta-description' || item.key === 'h1' || item.key === 'lang'
             ? 'Fácil'

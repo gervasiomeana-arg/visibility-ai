@@ -4,6 +4,7 @@ import {
   sortTasksByPriority,
   deduplicateAndReconcileTasks,
   extractFindingType,
+  storageService,
 } from '../../src/services/storageService';
 import { ActionTask, Business } from '../../src/types';
 
@@ -174,7 +175,7 @@ test('deduplicateAndReconcileTasks reconciles duplicate finding types and preser
   assert.equal(indexingTasks.length, 1, 'Duplicate indexing tasks must be merged');
   assert.equal(indexingTasks[0].status, 'en_progreso', 'User status must be preserved when merging');
 
-  // 4. H1 task: Must not be critical error (priority IMPORTANTE), must have userEvidence, and completed manually
+  // 4. H1 remains pending until the user supplies a check; the business name is not evidence
   const h1Task = reconciled.find((t) => extractFindingType(t) === 'h1');
   assert.ok(h1Task, 'H1 task must exist');
   assert.equal(h1Task.priority, 'IMPORTANTE', 'H1 must be IMPORTANTE, not URGENTE');
@@ -182,12 +183,9 @@ test('deduplicateAndReconcileTasks reconciles duplicate finding types and preser
     h1Task.simpleExplanation.includes('H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada'),
     'Must explain initial HTML vs client rendering'
   );
-  assert.equal(h1Task.status, 'completada_manual');
-  assert.equal(h1Task.completionType, 'manual');
-  assert.ok(
-    h1Task.userEvidence?.includes('DOM renderizado'),
-    'Must record manual DOM verification as user evidence'
-  );
+  assert.equal(h1Task.status, 'pendiente');
+  assert.equal(h1Task.completionType, null);
+  assert.equal(h1Task.userEvidence, undefined);
 });
 
 test('consolidates two identical H1 cards with old text "No encontramos un H1 principal" into one with updated text and IMPORTANTE priority', () => {
@@ -248,7 +246,7 @@ test('consolidates two identical H1 cards with old text "No encontramos un H1 pr
   // Must NOT have old text
   assert.ok(!h1.simpleExplanation.includes('No encontramos un H1 principal'), 'Must not contain old text "No encontramos un H1 principal"');
   assert.ok(
-    h1.simpleExplanation.includes('H1 no detectado en HTML inicial; pendiente de comprobar en la página renderizada'),
+    h1.simpleExplanation.includes('comprobación manual guardada'),
     'Must use exact requested explanation'
   );
   // Must preserve user manual evidence
@@ -361,3 +359,82 @@ test('tasks with distinct URLs are preserved and distinguished', () => {
   assert.ok(h1Tasks.some((t) => t.url?.includes('/blog/articulo-1')), 'Blog URL must be preserved');
 });
 
+
+const evidenceBusiness = { id: 'evidence-voley', name: 'Open Voley', url: 'https://openvoley.com' } as Business;
+const evidenceTask = {
+  id: 'task-evidence-voley-h1', businessId: evidenceBusiness.id, source: 'seo-audit', findingType: 'h1',
+  title: 'Encabezado H1', priority: 'IMPORTANTE', status: 'pendiente', completionType: null,
+  url: evidenceBusiness.url, estimatedImpact: 'Medio', difficulty: 'Fácil',
+  simpleExplanation: '0 H1', stepByStepSolution: [], estimatedTimeToFix: '15m',
+} as ActionTask;
+
+test('an H1 note never completes or reopens the task automatically', () => {
+  for (const status of ['pendiente', 'en_progreso', 'completada_manual'] as const) {
+    const task = { ...evidenceTask, status, userEvidence: 'Todavía no comprobé el DOM.' };
+    const [result] = deduplicateAndReconcileTasks(evidenceBusiness.id, [task], evidenceBusiness);
+    assert.equal(result.status, status);
+    assert.equal(result.userEvidence, task.userEvidence);
+    assert.doesNotMatch(result.detectedData!, /DOM renderizado con H1/);
+    assert.match(result.proposedChange!, /no agregar otro/);
+  }
+});
+
+test('task reconciliation excludes another business even when the finding and URL match', () => {
+  const other = { ...evidenceTask, businessId: 'other-business', userEvidence: 'Private note' };
+  const result = deduplicateAndReconcileTasks(evidenceBusiness.id, [evidenceTask, other], evidenceBusiness);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].userEvidence, undefined);
+});
+
+test('a repeated audit updates its measurement while preserving user progress and notes', () => {
+  const oldTask = { ...evidenceTask, findingType: 'fcp', metricValue: '8.5 s', status: 'en_progreso', userEvidence: 'Optimicé el fondo.' } as ActionTask;
+  const newTask = { ...oldTask, metricValue: '3.2 s', status: 'pendiente', userEvidence: undefined } as ActionTask;
+  const [result] = deduplicateAndReconcileTasks(evidenceBusiness.id, [oldTask, newTask], evidenceBusiness);
+  assert.equal(result.metricValue, '3.2 s');
+  assert.match(result.detectedData!, /3\.2 s/);
+  assert.equal(result.status, 'en_progreso');
+  assert.equal(result.userEvidence, oldTask.userEvidence);
+});
+
+test('saved H1 notes survive reads, status changes and new audits within their workspace', () => {
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const originalScope = storageService.getScope();
+  const values = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+  } });
+  try {
+    storageService.setScope('workspace-evidence');
+    values.set('visibility_ai_businesses:workspace-evidence', JSON.stringify([evidenceBusiness]));
+    const [newH1] = storageService.buildActionTasksFromSeoAudit(evidenceBusiness.id, [{
+      key: 'h1', title: 'Encabezado H1', status: 'warning', statusLabel: 'Revisar',
+      metricValue: '0 H1', impact: 'Medio', category: 'Contenido',
+      simpleExplanation: 'No detectado en HTML inicial', solution: 'Comprobar el DOM',
+    } as any]);
+    assert.equal(newH1.status, 'pendiente');
+    assert.equal(newH1.userEvidence, undefined);
+    storageService.saveActionTasks(evidenceBusiness.id, [evidenceTask]);
+    const note = 'En Inspeccionar encontré un H1: Open Voley.';
+    storageService.updateTaskStatus(evidenceBusiness.id, evidenceTask.id, 'completada_manual', 'manual', note);
+    let [saved] = storageService.getActionTasks(evidenceBusiness.id);
+    assert.equal(saved.userEvidence, note);
+    assert.equal(saved.status, 'completada_manual');
+    storageService.updateTaskStatus(evidenceBusiness.id, saved.id, 'pendiente', null);
+    storageService.saveActionTasks(evidenceBusiness.id, [evidenceTask]);
+    [saved] = storageService.getActionTasks(evidenceBusiness.id);
+    assert.equal(saved.status, 'pendiente');
+    assert.equal(saved.userEvidence, note);
+    assert.equal(saved.completedAt ?? null, null);
+    storageService.setScope('different-workspace');
+    assert.deepEqual(storageService.getActionTasks(evidenceBusiness.id), []);
+    storageService.setScope('workspace-evidence');
+    assert.equal(storageService.getActionTasks(evidenceBusiness.id)[0].userEvidence, note);
+    storageService.updateTaskStatus(evidenceBusiness.id, saved.id, 'pendiente', null, null);
+    assert.equal(storageService.getActionTasks(evidenceBusiness.id)[0].userEvidence, null);
+  } finally {
+    storageService.setScope(originalScope);
+    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  }
+});
