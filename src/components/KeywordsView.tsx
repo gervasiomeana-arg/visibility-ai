@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyRound,
   ArrowUpRight,
@@ -26,6 +26,7 @@ import {
 import { storageService } from '../services/storageService';
 import { workspaceService } from '../services/workspaceService';
 import { authService } from '../services/authService';
+import { credentialState, propertyMatchesBusiness } from '../../shared/searchConsoleDiagnostics';
 
 interface KeywordsViewProps {
   business: Business;
@@ -58,6 +59,8 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     siteUrl: string; startDate: string; endDate: string; rowCount: number;
   } | null>(null);
   const queryVersion = useRef(0);
+  const statusVersion = useRef(0);
+  const [gscChecking, setGscChecking] = useState(true);
 
   useEffect(() => {
     setKeywords(initialKeywords);
@@ -73,43 +76,45 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     return () => { queryVersion.current += 1; };
   }, [business.id, business.workspaceId]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    searchConsoleService.status()
-      .then(async (status) => {
-        if (cancelled) return;
-        setGscStatus(status);
-        setGscConfigured(status.configured);
-        setGscConnected(status.connected);
-
-        if (status.connected) {
-          const sites = await searchConsoleService.sites();
-          if (cancelled) return;
-          setGscSites(sites);
-
-          let host = '';
-          try {
-            host = new URL(business.url).hostname.replace(/^www\./, '');
-          } catch {
-            host = '';
-          }
-
-          const preferred = sites.find((site) => site.siteUrl.includes(host)) || sites[0];
-          if (preferred) setSelectedSite(preferred.siteUrl);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setGscError(err?.message || 'No se pudo consultar Google Search Console.');
-      });
-
-    return () => {
-      cancelled = true;
-    };
+  const refreshSearchConsole = useCallback(async () => {
+    const version = ++statusVersion.current;
+    setGscChecking(true);
+    setGscError('');
+    setGscStatus(null);
+    setGscConfigured(false);
+    setGscConnected(false);
+    setGscSites([]);
+    setSelectedSite('');
+    setCopiedRedirectUri(false);
+    try {
+      const status = await searchConsoleService.status();
+      if (version !== statusVersion.current) return;
+      setGscStatus(status);
+      setGscConfigured(status.configured);
+      setGscConnected(status.connected);
+      if (status.connected) {
+        const sites = await searchConsoleService.sites();
+        if (version !== statusVersion.current) return;
+        setGscSites(sites);
+        const preferred = sites.find((site) => propertyMatchesBusiness(site.siteUrl, business.url));
+        if (preferred) setSelectedSite(preferred.siteUrl);
+      }
+    } catch (err: any) {
+      if (version === statusVersion.current) {
+        setGscError(err?.message || 'No se pudo consultar Google Search Console.');
+      }
+    } finally {
+      if (version === statusVersion.current) setGscChecking(false);
+    }
   }, [business.id, business.url, business.workspaceId]);
 
+  useEffect(() => {
+    void refreshSearchConsole();
+    return () => { statusVersion.current += 1; };
+  }, [refreshSearchConsole]);
+
   const handleLoadSearchConsole = async () => {
-    if (!selectedSite || gscLoading) return;
+    if (!selectedSite || gscLoading || !propertyMatchesBusiness(selectedSite, business.url)) return;
     const requestVersion = ++queryVersion.current;
 
     setGscLoading(true);
@@ -289,7 +294,11 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             <div className="flex items-center gap-2">
               <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${gscConnected ? 'bg-emerald-500 ring-4 ring-emerald-100' : 'bg-amber-400'}`}></span>
               <span>
-                {gscConnected
+                {gscChecking
+                  ? 'Comprobando conexión con Google Search Console…'
+                  : !gscStatus
+                  ? 'No se pudo comprobar la conexión. Volvé a consultar el estado.'
+                  : gscConnected
                   ? <><strong>GOOGLE SEARCH CONSOLE CONECTADO:</strong> podés consultar consultas, clics, impresiones, CTR y posición media reales.</>
                   : <><strong>FUENTE DE DATOS:</strong> Search Console todavía no está conectado. Las palabras clave DEMO siguen identificadas como ejemplo.</>}
               </span>
@@ -313,7 +322,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                       setGscLoading(false);
                     }
                   }}
-                  disabled={gscLoading}
+                  disabled={gscLoading || gscChecking || !gscStatus}
                   className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.985] text-white font-bold text-xs flex items-center gap-2 transition-all duration-300 shadow-sm cursor-pointer shrink-0"
                 >
                   <Globe className="w-4 h-4 text-blue-100" />
@@ -323,12 +332,12 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             )}
           </div>
 
-          {!gscConnected && !gscConfigured && (
+          {gscStatus && !gscConnected && !gscConfigured && (
             <div className="pt-2 border-t border-slate-200/70 flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-medium">
                 <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span>
-                  Faltan variables OAuth en el servidor ({gscStatus?.missing?.join(', ') || 'GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, APP_URL'}).
+                  Faltan variables OAuth en el servidor ({gscStatus.missing?.join(', ') || 'Revisá los requisitos de configuración'}).
                 </span>
               </span>
               <button
@@ -355,7 +364,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 }}
                 className="flex-1 px-3 py-2 rounded-xl ring-1 ring-slate-200 bg-white text-slate-800"
               >
-                {gscSites.length === 0 && <option value="">No hay propiedades disponibles</option>}
+                <option value="">{gscSites.length === 0 ? 'No hay propiedades disponibles' : 'Elegí la propiedad de este negocio'}</option>
                 {gscSites.map((site) => (
                   <option key={site.siteUrl} value={site.siteUrl}>
                     {site.siteUrl}
@@ -365,7 +374,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <button
                 type="button"
                 onClick={handleLoadSearchConsole}
-                disabled={!selectedSite || gscLoading}
+                disabled={!selectedSite || gscLoading || !propertyMatchesBusiness(selectedSite, business.url)}
                 className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] cursor-pointer"
               >
                 {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
@@ -373,7 +382,14 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             </div>
           )}
 
-          {gscConnected && gscSites.length === 0 && !gscError && (
+          {selectedSite && !propertyMatchesBusiness(selectedSite, business.url) && (
+            <p role="alert" className="text-amber-800">Esta propiedad no corresponde a la URL de {business.name} ({business.url}). Elegí una propiedad que incluya esa URL para guardar los datos en este negocio.</p>
+          )}
+          <button type="button" onClick={() => void refreshSearchConsole()} disabled={gscChecking || gscLoading}
+            className="font-semibold text-blue-600 hover:text-blue-800 disabled:text-slate-400 underline cursor-pointer">
+            {gscChecking ? 'Comprobando…' : 'Volver a comprobar conexión y configuración'}
+          </button>
+          {gscConnected && gscSites.length === 0 && !gscChecking && !gscError && (
             <p>Si el selector sigue vacío, comprobá que esta cuenta tenga acceso a una propiedad verificada en Google Search Console y recargá la página.</p>
           )}
           {gscResult && (
@@ -605,23 +621,26 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 <p className="text-slate-600 leading-relaxed text-[11px]">
                   Para habilitar la autenticación con Google se requiere registrar credenciales OAuth en Google Cloud e inyectar las siguientes variables en el servidor (sin exponer sus secretos al navegador):
                 </p>
+                <p className="text-slate-600 leading-relaxed text-[11px]">
+                  “Configurada” indica que el servidor recibió la variable. La validez de las credenciales se comprueba al completar la autorización con Google.
+                </p>
                 <div className="space-y-1.5 font-mono text-[11px]">
                   <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
                     <span className="font-semibold text-slate-800">GOOGLE_CLIENT_ID</span>
-                    <span className={gscStatus?.missing?.includes('GOOGLE_CLIENT_ID') ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
-                      {gscStatus?.missing?.includes('GOOGLE_CLIENT_ID') ? 'Faltante ❌' : 'Configurada ✅'}
+                    <span className={credentialState(gscStatus, 'GOOGLE_CLIENT_ID') === 'unknown' ? 'text-slate-500' : credentialState(gscStatus, 'GOOGLE_CLIENT_ID') === 'missing' ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                      {credentialState(gscStatus, 'GOOGLE_CLIENT_ID') === 'unknown' ? 'Sin comprobar' : credentialState(gscStatus, 'GOOGLE_CLIENT_ID') === 'missing' ? 'Faltante ❌' : 'Configurada ✅'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
                     <span className="font-semibold text-slate-800">GOOGLE_CLIENT_SECRET</span>
-                    <span className={gscStatus?.missing?.includes('GOOGLE_CLIENT_SECRET') ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
-                      {gscStatus?.missing?.includes('GOOGLE_CLIENT_SECRET') ? 'Faltante ❌' : 'Configurada ✅'}
+                    <span className={credentialState(gscStatus, 'GOOGLE_CLIENT_SECRET') === 'unknown' ? 'text-slate-500' : credentialState(gscStatus, 'GOOGLE_CLIENT_SECRET') === 'missing' ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                      {credentialState(gscStatus, 'GOOGLE_CLIENT_SECRET') === 'unknown' ? 'Sin comprobar' : credentialState(gscStatus, 'GOOGLE_CLIENT_SECRET') === 'missing' ? 'Faltante ❌' : 'Configurada ✅'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200">
                     <span className="font-semibold text-slate-800">APP_URL</span>
-                    <span className={gscStatus?.missing?.includes('APP_URL') ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
-                      {gscStatus?.missing?.includes('APP_URL') ? 'Faltante ❌' : 'Configurada ✅'}
+                    <span className={credentialState(gscStatus, 'APP_URL') === 'unknown' ? 'text-slate-500' : credentialState(gscStatus, 'APP_URL') === 'missing' ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>
+                      {credentialState(gscStatus, 'APP_URL') === 'unknown' ? 'Sin comprobar' : credentialState(gscStatus, 'APP_URL') === 'missing' ? 'Faltante ❌' : 'Configurada ✅'}
                     </span>
                   </div>
                 </div>
@@ -634,7 +653,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                     2. Cifrado de tokens persistentes (Supabase)
                   </span>
                   <span className={gscStatus?.hasTokenKey ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>
-                    {gscStatus?.hasTokenKey ? 'Configurada ✅' : 'Pendiente ⚠️'}
+                    {!gscStatus ? 'Sin comprobar' : gscStatus.hasTokenKey ? 'Configurada ✅' : 'Pendiente ⚠️'}
                   </span>
                 </div>
                 <p className="text-slate-600 leading-relaxed text-[11px]">
@@ -655,28 +674,36 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 </p>
                 <div className="flex items-center gap-2 p-2.5 rounded-xl bg-white border border-indigo-200 text-indigo-900 font-mono text-[11px] break-all">
                   <span className="flex-1 select-all">
-                    {gscStatus?.redirectUri || 'https://ais-dev-rwgx7qeqyl2myh7eaxpsuv-50992746135.us-west2.run.app/api/search-console/oauth/callback'}
+                    {gscStatus?.redirectUri || 'Sin comprobar: consultá el estado del servidor.'}
                   </span>
                   <button
                     type="button"
                     onClick={() => {
-                      const uri = gscStatus?.redirectUri || 'https://ais-dev-rwgx7qeqyl2myh7eaxpsuv-50992746135.us-west2.run.app/api/search-console/oauth/callback';
-                      navigator.clipboard.writeText(uri);
-                      setCopiedRedirectUri(true);
-                      setTimeout(() => setCopiedRedirectUri(false), 2000);
+                      const uri = gscStatus?.redirectUri;
+                      if (!uri) return;
+                      navigator.clipboard.writeText(uri).then(() => {
+                        setCopiedRedirectUri(true);
+                        setTimeout(() => setCopiedRedirectUri(false), 2000);
+                      }).catch(() => setGscError('No se pudo copiar. Seleccioná la URI y copiala manualmente.'));
                     }}
                     className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 cursor-pointer shrink-0"
+                    disabled={!gscStatus?.redirectUri}
                     title="Copiar URI"
                   >
                     {copiedRedirectUri ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
                 <div className="text-[10px] text-indigo-800 space-y-0.5">
-                  <p><strong>APP_URL actual:</strong> <code className="font-mono">{gscStatus?.appUrl || 'https://ais-dev-rwgx7qeqyl2myh7eaxpsuv-50992746135.us-west2.run.app'}</code></p>
+                  <p><strong>APP_URL actual:</strong> <code className="font-mono">{gscStatus?.appUrl || 'Sin comprobar'}</code></p>
                   <p><strong>Alcance requerido:</strong> <code className="font-mono">https://www.googleapis.com/auth/webmasters.readonly</code></p>
                 </div>
               </div>
 
+              {gscError && <p role="alert" className="text-rose-600">{gscError}</p>}
+              <button type="button" onClick={() => void refreshSearchConsole()} disabled={gscChecking || gscLoading}
+                className="font-semibold text-blue-600 disabled:text-slate-400 underline cursor-pointer">
+                {gscChecking ? 'Comprobando…' : 'Volver a comprobar después de guardar las variables'}
+              </button>
               {/* Botones de acción */}
               <div className="flex justify-end gap-2 pt-2">
                 <button
