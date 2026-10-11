@@ -1,3 +1,4 @@
+import { technicalScoreChange } from '../../shared/scoreEvidence';
 import React, { useState } from 'react';
 import { measuredSeries, comparableSearchPeriods, searchPositionChange } from '../../shared/reportEvidence';
 import {
@@ -37,9 +38,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const searchPositions = evolution.searchPositions || [];
 
   const technicalSeries = isRealHistory ? measuredSeries(months, evolution.visibility) : [];
-  const hasTechnicalComparison = technicalSeries.length >= 2;
-  const technicalChange = hasTechnicalComparison ? technicalSeries.at(-1)!.value - technicalSeries[0].value : null;
-  const hasSolvedProblemsSeries = hasTechnicalComparison && evolution.fixedProblems.length === evolution.visibility.length;
+  const technicalChange = technicalScoreChange(evolution);
+  const hasTechnicalComparison = technicalChange !== null;
+  const hasSolvedProblemsSeries = technicalSeries.length >= 2 && evolution.fixedProblems.length === evolution.visibility.length;
 
   const averagePositionDelta = searchPositionChange(evolution);
 
@@ -161,7 +162,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     evolution.searchPeriods?.[searchPeriodCount - 2], evolution.searchPeriods?.[searchPeriodCount - 1]
   );
   const completeLastPair = points.length >= 2 && points.at(-1)!.index === currentConfig.values.length - 1 && points.at(-2)!.index === currentConfig.values.length - 2;
-  const hasComparison = points.length >= 2 && (!isSearchMetric || (hasComparablePeriods && completeLastPair));
+  const hasComparison = points.length >= 2 && (effectiveSelectedMetric === 'visibility' ? hasTechnicalComparison : !isSearchMetric || (hasComparablePeriods && completeLastPair));
   const firstValue = isSearchMetric && hasComparison ? plottedValues.at(-2)! : plottedValues[0];
   const firstLabel = isSearchMetric && hasComparison ? plottedMonths.at(-2)! : plottedMonths[0];
   const lastValue = plottedValues.at(-1)!;
@@ -174,7 +175,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const unchanged = hasComparison && lastValue === firstValue;
 
   const comparisonLabel = !hasComparison
-    ? isSearchMetric ? 'Sin dos períodos comparables de igual duración y sin solapamiento' : 'Todavía no hay dos mediciones para comparar'
+    ? effectiveSelectedMetric === 'visibility' ? 'Sin comparación: las fuentes del índice faltan o cambiaron' : isSearchMetric ? 'Sin dos períodos comparables de igual duración y sin solapamiento' : 'Todavía no hay dos mediciones para comparar'
     : unchanged
     ? 'Sin cambio respecto del inicio'
     : currentConfig.lowerIsBetter

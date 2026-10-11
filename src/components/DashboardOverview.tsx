@@ -1,3 +1,5 @@
+import { webMeasurement } from '../../shared/scoreEvidence';
+import { measurementDateLabel } from '../../shared/reportEvidence';
 import React, { useState } from 'react';
 import {
   BarChart3,
@@ -20,6 +22,8 @@ import {
 import { Business, ActiveTab, ExecutiveIssue } from '../types';
 
 interface DashboardOverviewProps {
+  auditMeta?: any;
+  auditHistory?: { auditedAt: string; webScore: number | null }[];
   business: Business;
   issues: ExecutiveIssue[];
   searchConsoleMeta?: {
@@ -41,6 +45,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   business,
   issues,
   searchConsoleMeta,
+  auditMeta,
+  auditHistory,
   setActiveTab,
   onOpenAssistant,
   onUpdateBusinessProfile,
@@ -73,8 +79,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     web: 'demo',
     aiVisibility: 'demo',
   };
-  const labelForSource = (source: 'demo' | 'partial' | 'real') =>
-    source === 'real' ? 'DATO REAL' : source === 'partial' ? 'PARCIAL REAL' : 'DEMO';
+  const labelForSource = (source: 'demo' | 'partial' | 'real' | 'unavailable') =>
+    source === 'real' ? 'DATO REAL' : source === 'partial' ? 'PARCIAL REAL' : source === 'unavailable' ? 'SIN MEDICIÓN' : 'DEMO';
+  const web = webMeasurement(auditMeta, scores.web, scoreSources.web, auditHistory);
   const hasSearchConsole = Boolean(searchConsoleMeta && searchConsoleMeta.impressions >= 0);
 
   // Filter top issues
@@ -241,16 +248,18 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <BarChart3 className="w-5 h-5" />
               </div>
               <span className="text-2xl font-extrabold text-slate-900 font-heading">
-                {scores.web} <span className="text-xs text-slate-400 font-normal">/100</span>
+                {web.value !== null ? <>{web.value} <span className="text-xs text-slate-400 font-normal">/100</span></> : <span className="text-base text-slate-500">Sin medición actual</span>}
               </span>
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">Web</h3>
+            {web.state === 'real' && <p className="text-[10px] text-slate-500 mt-1">Medido: {measurementDateLabel(web.measuredAt, business.locale, business.timezone)}</p>}
+            {web.historical && <p className="text-xs text-slate-500 mt-2">Referencia histórica: {web.historical.webScore}/100 · {measurementDateLabel(web.historical.auditedAt, business.locale, business.timezone)}. No pertenece a la auditoría actual.</p>}
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Rendimiento móvil desde Google PageSpeed cuando está disponible, más señales técnicas del sitio.
+              {web.state === 'unavailable' ? 'La última fuente disponible no contiene una medición actual de PageSpeed. Esto no permite calificar el rendimiento del sitio.' : 'Rendimiento móvil medido por Google PageSpeed, en condiciones de laboratorio.'}
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded">
-                {labelForSource(scoreSources.web)}
+                {web.state === 'real' ? 'DATO REAL' : web.state === 'demo' ? 'DEMO' : 'SIN MEDICIÓN'}
               </span>
               <button
                 onClick={() => setActiveTab('seo')}
