@@ -967,6 +967,9 @@ export const storageService = {
     businessId: string,
     point: {
       loadedAt: string;
+      siteUrl?: string;
+      startDate?: string;
+      endDate?: string;
       clicks: number;
       impressions: number;
       ctr: number;
@@ -978,12 +981,15 @@ export const storageService = {
       const parsed = stored ? JSON.parse(stored) : {};
       const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
       const pointDay = new Date(point.loadedAt).toISOString().slice(0, 10);
-      const withoutSameDay = current.filter(
-        (entry: any) => new Date(entry.loadedAt).toISOString().slice(0, 10) !== pointDay
-      );
+      const withoutSameDay = current.filter((entry: any) => {
+        if (point.siteUrl && point.startDate && point.endDate) {
+          return entry.siteUrl !== point.siteUrl || entry.startDate !== point.startDate || entry.endDate !== point.endDate;
+        }
+        return new Date(entry.loadedAt).toISOString().slice(0, 10) !== pointDay;
+      });
 
       parsed[businessId] = [...withoutSameDay, point]
-        .sort((a: any, b: any) => new Date(a.loadedAt).getTime() - new Date(b.loadedAt).getTime())
+        .sort((a: any, b: any) => new Date(a.endDate || a.loadedAt).getTime() - new Date(b.endDate || b.loadedAt).getTime())
         .slice(-24);
 
       localStorage.setItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY), JSON.stringify(parsed));
@@ -994,6 +1000,9 @@ export const storageService = {
 
   getSearchConsoleHistory(businessId: string): Array<{
     loadedAt: string;
+    siteUrl?: string;
+    startDate?: string;
+    endDate?: string;
     clicks: number;
     impressions: number;
     ctr: number;
@@ -1342,10 +1351,13 @@ export const storageService = {
 
       return {
         source: 'real',
+        auditDates: history.map(entry => entry.auditedAt),
+        searchPeriods: searchHistory.map(({ loadedAt, siteUrl, startDate, endDate }) => ({ loadedAt, siteUrl, startDate, endDate })),
         months: labelDates.map((value) =>
           new Date(value).toLocaleDateString('es-AR', {
             day: '2-digit',
             month: 'short',
+            year: 'numeric',
           })
         ),
         visibility: history.map((entry) => entry.overallScore),
@@ -1358,12 +1370,9 @@ export const storageService = {
         searchImpressions: searchHistory.map((entry) => entry.impressions),
         searchClicks: searchHistory.map((entry) => entry.clicks),
         searchCtr: searchHistory.map((entry) => Number((entry.ctr * 100).toFixed(2))),
-        searchPositions: searchHistory.map((entry) => entry.position),
+        searchPositions: searchHistory.map((entry) => entry.impressions > 0 && entry.position > 0 ? entry.position : Number.NaN),
         searchMonths: searchHistory.map((entry) =>
-          new Date(entry.loadedAt).toLocaleDateString('es-AR', {
-            day: '2-digit',
-            month: 'short',
-          })
+          entry.startDate && entry.endDate ? `${entry.startDate} a ${entry.endDate}` : `Carga ${new Date(entry.loadedAt).toLocaleDateString('es-AR')}`
         ),
         monthComparison: {
           visibilityChangePercent,

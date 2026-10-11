@@ -191,6 +191,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
 
       storageService.saveSearchConsoleHistoryPoint(business.id, {
         loadedAt,
+        siteUrl: selectedSite,
+        startDate: result.startDate,
+        endDate: result.endDate,
         clicks,
         impressions,
         ctr,

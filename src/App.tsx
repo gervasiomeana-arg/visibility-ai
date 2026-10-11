@@ -857,6 +857,7 @@ export default function App() {
                 business={activeBusiness}
                 evolution={evolution}
                 issues={issues}
+                tasks={actionTasks}
               />
             )}
 

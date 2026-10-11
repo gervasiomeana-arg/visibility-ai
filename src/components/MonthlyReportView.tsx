@@ -1,222 +1,109 @@
 import React from 'react';
-import {
-  FileText,
-  Printer,
-  CheckCircle2,
-} from 'lucide-react';
-import { Business, MonthlyEvolution, ExecutiveIssue } from '../types';
+import { FileText, Printer } from 'lucide-react';
+import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask } from '../types';
+import { measuredSeries, reportEvidence, searchPositionChange, measurementDateLabel } from '../../shared/reportEvidence';
 
 interface MonthlyReportViewProps {
   business: Business;
   evolution: MonthlyEvolution;
   issues: ExecutiveIssue[];
+  tasks?: ActionTask[];
 }
 
-export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
-  business,
-  evolution,
-  issues,
-}) => {
-  const { monthComparison } = evolution;
-  const realIssues = issues.filter((issue) => issue.source === 'real');
-  const pendingIssues = issues.filter((issue) => issue.severity !== 'ok');
-  const hasRealEvolution =
-    evolution.source === 'real' &&
-    ((evolution.months?.length || 0) > 0 || (evolution.searchMonths?.length || 0) > 0);
-  const reportMode = hasRealEvolution || realIssues.length > 0 ? 'PARCIAL REAL' : 'DEMO';
-
-  const visibilityHasSeries = evolution.source === 'real' && evolution.visibility.length >= 2;
-  const searchPositions = evolution.searchPositions || [];
-  const positionHasSeries = evolution.source === 'real' && searchPositions.length >= 2;
-  const positionChange = positionHasSeries
-    ? Number((searchPositions[0] - searchPositions[searchPositions.length - 1]).toFixed(1))
-    : null;
-  const solvedProblems =
-    evolution.source === 'real' && evolution.fixedProblems.length > 0
-      ? evolution.fixedProblems[evolution.fixedProblems.length - 1]
-      : null;
-
-  const latestPeriod =
-    evolution.searchMonths?.[evolution.searchMonths.length - 1] ||
-    evolution.months?.[evolution.months.length - 1] ||
-    (reportMode === 'DEMO' ? 'Período de ejemplo' : 'Sin período registrado');
-
-  const metrics = [
-    {
-      label: 'Visibilidad técnica',
-      value:
-        evolution.source === 'demo'
-          ? `+${monthComparison.visibilityChangePercent}%`
-          : visibilityHasSeries
-          ? `${monthComparison.visibilityChangePercent > 0 ? '+' : ''}${monthComparison.visibilityChangePercent}%`
-          : '—',
-      source: evolution.source === 'demo' ? 'DEMO' : visibilityHasSeries ? 'AUDITORÍAS' : 'SIN SERIE',
-      note: 'score derivado',
-    },
-    {
-      label: 'Cambio posición media',
-      value:
-        evolution.source === 'demo'
-          ? String(monthComparison.improvedPositionsCount)
-          : positionChange !== null
-          ? `${positionChange > 0 ? '+' : ''}${positionChange}`
-          : '—',
-      source: evolution.source === 'demo' ? 'DEMO' : positionHasSeries ? 'SEARCH CONSOLE' : 'SIN SERIE',
-      note: positionHasSeries ? 'positivo = mejora' : 'requiere historial',
-    },
-    {
-      label: 'Problemas resueltos',
-      value:
-        evolution.source === 'demo'
-          ? String(monthComparison.solvedProblemsCount)
-          : solvedProblems !== null
-          ? String(solvedProblems)
-          : '—',
-      source: evolution.source === 'demo' ? 'DEMO' : solvedProblems !== null ? 'AUDITORÍAS' : 'SIN SERIE',
-      note: 'comparación técnica',
-    },
-    {
-      label: 'Hallazgos actuales',
-      value: reportMode === 'DEMO' ? String(issues.length) : String(realIssues.length),
-      source: reportMode === 'DEMO' ? 'DEMO' : 'AUDITORÍA REAL',
-      note: 'ítems evaluados',
-    },
-    {
-      label: 'Consultas / conversiones',
-      value: evolution.source === 'demo' ? String(monthComparison.consultationsTotal) : '—',
-      source: evolution.source === 'demo' ? 'DEMO' : 'SIN FUENTE',
-      note: evolution.source === 'demo' ? 'ejemplo' : 'requiere analítica/CRM',
-    },
-  ];
-
-  const priorities = pendingIssues.slice(0, 3);
-
-  const handlePrint = () => {
-    window.print();
+export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = [] }) => {
+  const dateLabel = (value?: string) => measurementDateLabel(value, business.locale || 'es-AR', business.timezone || 'America/Argentina/Buenos_Aires');
+  const evidence = reportEvidence(business.id, evolution, issues);
+  const { mode, priorities, useDemoMetrics } = evidence;
+  const isReal = mode === 'PARCIAL REAL';
+  const technical = evolution.source === 'real' ? measuredSeries(evolution.months, evolution.visibility) : [];
+  const technicalChange = technical.length >= 2 ? technical.at(-1)!.value - technical[0].value : null;
+  const positionChange = searchPositionChange(evolution);
+  const reduction = evolution.source === 'real' && technical.length >= 2 && evolution.fixedProblems.length === evolution.visibility.length
+    ? evolution.fixedProblems.at(-1) : undefined;
+  const currentTasks = tasks.filter(task => task.businessId === business.id && (task.source === 'seo-audit' || task.source === 'manual'));
+  const latestSearch = evolution.source === 'real' ? evolution.searchPeriods?.at(-1) : undefined;
+  const auditDates = evolution.source === 'real' ? evolution.auditDates || [] : [];
+  const lastIssueDate = evidence.realIssues.map(issue => issue.checkedAt).filter((date): date is string => !!date && Number.isFinite(Date.parse(date))).sort().at(-1);
+  const auditDate = auditDates.at(-1) || lastIssueDate;
+  const searchCount = evolution.source === 'real' ? measuredSeries(evolution.searchMonths || [], evolution.searchImpressions || []).length : 0;
+  const signed = (value: number) => `${value > 0 ? '+' : ''}${Number(value.toFixed(1))}`;
+  const searchValue = (values?: number[]) => {
+    if (evolution.source !== 'real') return null;
+    const index = (evolution.searchMonths?.length || 0) - 1;
+    const value = index >= 0 ? values?.[index] : undefined;
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
   };
-
-  return (
-    <div className="space-y-6 pb-12">
-      <div className="no-print vai-panel rounded-xl p-6 sm:p-8 ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 text-[11px] tracking-[0.12em] uppercase text-indigo-600 font-semibold mb-2">
-            <FileText className="w-3.5 h-3.5" />
-            <span>Reporting ejecutivo · {reportMode}</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-950 font-heading tracking-[-0.035em]">
-            Informe de Visibilidad
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-            {reportMode === 'PARCIAL REAL'
-              ? <>Resumen construido con las fuentes verificadas disponibles para <strong>{business.name}</strong>. Las métricas sin fuente permanecen vacías.</>
-              : <>Vista demostrativa del informe para <strong>{business.name}</strong>. Ninguna cifra DEMO debe interpretarse como una medición real.</>}
-          </p>
-        </div>
-
-        <button
-          onClick={handlePrint}
-          className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.1em] flex items-center justify-center gap-2"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Imprimir / Guardar PDF</span>
-        </button>
+  const clicks = searchValue(evolution.searchClicks);
+  const impressions = searchValue(evolution.searchImpressions);
+  const ctr = impressions !== null && impressions > 0 ? searchValue(evolution.searchCtr) : null;
+  const metrics = [
+    { label: 'Clics de consultas recuperadas', value: clicks !== null ? clicks.toLocaleString('es-AR') : '—', source: clicks !== null ? 'SEARCH CONSOLE' : 'SIN FUENTE', note: 'Último período medido; no equivale a consultas comerciales.' },
+    { label: 'Impresiones de consultas recuperadas', value: impressions !== null ? impressions.toLocaleString('es-AR') : '—', source: impressions !== null ? 'SEARCH CONSOLE' : 'SIN FUENTE', note: 'Último período medido; el alcance depende de las consultas disponibles.' },
+    { label: 'CTR de consultas recuperadas', value: ctr !== null ? `${ctr.toLocaleString('es-AR')}%` : '—', source: ctr !== null ? 'SEARCH CONSOLE' : 'SIN MEDICIÓN', note: 'Clics sobre impresiones. Sin impresiones no se calcula una tasa.' },
+    { label: 'Cambio del índice técnico', value: useDemoMetrics ? `+${evolution.monthComparison.visibilityChangePercent}%` : technicalChange !== null ? `${signed(technicalChange)} puntos` : '—', source: useDemoMetrics ? 'DEMO' : technicalChange !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Primera y última medición; no es una posición en Google.' },
+    { label: 'Cambio de posición media', value: useDemoMetrics ? String(evolution.monthComparison.improvedPositionsCount) : positionChange !== null ? signed(positionChange) : '—', source: useDemoMetrics ? 'DEMO' : positionChange !== null ? 'SEARCH CONSOLE' : 'SIN COMPARACIÓN', note: positionChange !== null ? 'Últimos dos períodos comparables; positivo = menor posición.' : 'Requiere períodos conocidos, de igual duración y sin solapamiento.' },
+    { label: 'Reducción neta de hallazgos', value: useDemoMetrics ? String(evolution.monthComparison.solvedProblemsCount) : typeof reduction === 'number' && Number.isFinite(reduction) ? String(reduction) : '—', source: useDemoMetrics ? 'DEMO' : reduction !== undefined ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Menos hallazgos respecto del inicio; no acredita tareas resueltas.' },
+    { label: 'Factores evaluados', value: evidence.usableIssues.length ? String(evidence.usableIssues.length) : '—', source: useDemoMetrics ? 'DEMO' : evidence.realIssues.length ? 'AUDITORÍA REAL' : 'SIN DATOS', note: 'Incluye factores correctos, advertencias y errores.' },
+    { label: 'Consultas / ventas', value: useDemoMetrics ? String(evolution.monthComparison.consultationsTotal) : '—', source: useDemoMetrics ? 'DEMO' : 'SIN FUENTE', note: 'No se deducen de los clics ni del índice técnico.' },
+  ];
+  return <div className="space-y-6 pb-12">
+    <div className="no-print vai-panel rounded-xl p-6 sm:p-8 ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <div className="flex items-center gap-2 text-xs text-indigo-600 mb-2"><FileText className="w-4 h-4" />Resumen ejecutivo · {mode}</div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-950 font-heading">Informe de visibilidad</h1>
+        <p className="text-sm text-slate-600 mt-2">Revisá las fuentes y prioridades antes de entregar este informe. Las fechas indican el alcance disponible, que puede no coincidir con un mes calendario.</p>
       </div>
-
-      <div className="bg-white rounded-[1.75rem] p-5 sm:p-10 border border-slate-200 shadow-lg max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-8 border-b-2 border-slate-900">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-8 h-8 rounded-lg bg-slate-950 text-white flex items-center justify-center font-bold text-sm">
-                V
-              </div>
-              <span className="text-base font-extrabold text-slate-900 tracking-tight font-heading">
-                VISIBILITY <span className="text-indigo-600">AI</span>
-              </span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">
-              Informe de Evolución Digital · {reportMode}
-            </h2>
-            <p className="text-sm font-semibold text-slate-600 mt-0.5">
-              {business.name} · {business.category} · {business.city || business.country}
-            </p>
-          </div>
-
-          <div className="text-left sm:text-right text-xs text-slate-500">
-            <span className="text-slate-400 block uppercase font-bold text-[10px]">Último período disponible</span>
-            <span className="font-bold text-slate-900 text-sm block">{latestPeriod}</span>
-            <span>{reportMode === 'DEMO' ? 'Datos de ejemplo' : 'Fuentes mixtas identificadas'}</span>
-          </div>
-        </div>
-
-        <div>
-          <span className="text-xs font-bold uppercase tracking-widest text-indigo-600 block mb-3 font-heading">
-            Resumen de métricas
-          </span>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
-            {metrics.map((metric) => (
-              <div key={metric.label} className="p-4 rounded-2xl bg-slate-50/80 ring-1 ring-slate-200/70 text-center">
-                <span className="text-[10px] font-semibold text-slate-500 block uppercase tracking-wider">
-                  {metric.label}
-                </span>
-                <span className="text-2xl font-black text-slate-950 font-heading mt-1 block font-tabular">
-                  {metric.value}
-                </span>
-                <span className="text-[9px] text-indigo-600 font-bold block mt-1 uppercase tracking-wider">
-                  {metric.source}
-                </span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">
-                  {metric.note}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-slate-50 ring-1 ring-slate-200/70 text-xs sm:text-sm text-slate-700 leading-relaxed">
-          <p className="font-bold text-slate-900 mb-1">
-            Conclusión del período para {business.name}:
-          </p>
-          <p>
-            {reportMode === 'PARCIAL REAL'
-              ? 'Este informe resume únicamente los datos que Visibility AI puede reconstruir desde auditorías técnicas y fuentes conectadas. No se atribuyen consultas, ventas ni mejoras comerciales sin una fuente específica.'
-              : 'Este es un ejemplo de presentación. Las cifras mostradas como DEMO sirven para validar la experiencia del producto y no representan resultados del negocio.'}
-          </p>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-3 font-heading">
-            Prioridades para el próximo período
-          </h3>
-
-          <div className="space-y-2.5">
-            {priorities.length > 0 ? (
-              priorities.map((issue) => (
-                <div key={issue.id} className="p-3.5 rounded-xl ring-1 ring-slate-200 flex items-start gap-3 text-xs sm:text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-slate-900 block">{issue.name}</strong>
-                    <span className="text-slate-500 text-xs">
-                      {issue.source === 'real'
-                        ? issue.possibleSolution
-                        : 'Prioridad de ejemplo. Debe validarse con una fuente real antes de ejecutarla.'}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-4 rounded-xl bg-slate-50 ring-1 ring-slate-200 text-xs text-slate-500">
-                No hay prioridades verificadas pendientes para mostrar en este informe.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-2">
-          <span>VISIBILITY AI · Plataforma de Visibilidad Digital para Empresas</span>
-          <span>Próxima revisión: cuando se actualicen las fuentes conectadas</span>
-        </div>
-      </div>
+      <button onClick={() => window.print()} className="vai-button vai-button-primary shrink-0"><Printer className="w-4 h-4" />Imprimir / Guardar PDF</button>
     </div>
-  );
+    <article className="vai-report-document bg-white rounded-2xl p-5 sm:p-10 border border-slate-200 shadow-sm max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
+      <header className="pb-6 border-b border-slate-200 space-y-2">
+        <p className="text-xs font-bold tracking-widest text-indigo-600">VISIBILITY · {mode}</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">{business.name}</h2>
+        <p className="text-sm text-slate-600">{business.description || business.category}</p>
+        <p className="text-xs text-slate-500 break-all">Sitio del negocio: {business.url}</p>
+        <p className="text-xs text-slate-500">Documento preparado: {dateLabel(new Date().toISOString())}. Esta fecha no reemplaza la fecha de medición.</p>
+        {useDemoMetrics && <p className="font-semibold text-amber-800">EJEMPLO DEMOSTRATIVO. No representa resultados medidos de este negocio.</p>}
+        {mode === 'SIN DATOS' && <p className="font-semibold text-slate-700">Todavía no hay mediciones reales disponibles para este informe.</p>}
+      </header>
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-900">Fuentes y alcance</h3>
+        <div className="grid sm:grid-cols-2 gap-3 text-xs">
+          <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Auditorías técnicas</strong>
+            <p>{isReal && (technical.length || evidence.realIssues.length) ? `Última medición: ${dateLabel(auditDate)}.` : 'Sin auditoría real disponible.'}</p>
+            {auditDates.length > 1 && <p>Historial: {dateLabel(auditDates[0])} a {dateLabel(auditDates.at(-1))}.</p>}
+            <p>El análisis del HTML inicial no ejecuta JavaScript. Un hallazgo puede requerir comprobar la página renderizada.</p>
+          </div>
+          <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Google Search Console</strong>
+            <p>{searchCount ? `Período: ${latestSearch?.startDate && latestSearch.endDate ? `${latestSearch.startDate} a ${latestSearch.endDate}` : 'No registrado en el historial anterior'}.` : 'Sin mediciones guardadas disponibles.'}</p>
+            {latestSearch && <><p className="break-all">Propiedad: {latestSearch.siteUrl || 'No registrada'}.</p><p>Cargado: {dateLabel(latestSearch.loadedAt)}.</p></>}
+            <p>Las cifras agregan las consultas recuperadas; no representan necesariamente todos los clics del sitio. Una medición guardada no confirma que la conexión siga activa.</p>
+          </div>
+        </div>
+      </section>
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-900">Qué muestran las mediciones</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{metrics.map(metric => <div key={metric.label} className="rounded-xl border border-slate-200 p-4">
+          <p className="text-xs text-slate-600">{metric.label}</p><p className="text-xl font-bold text-slate-900 my-1">{metric.value}</p>
+          <p className="text-[10px] font-semibold text-indigo-600">{metric.source}</p><p className="text-xs text-slate-500 mt-1">{metric.note}</p>
+        </div>)}</div>
+      </section>
+      <section className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-900">Tres prioridades para la próxima revisión</h3>
+        {priorities.length ? <ol className="space-y-3">{priorities.map((issue, index) => <li key={issue.id} className="rounded-xl border border-slate-200 p-4 text-sm">
+          <strong>{index + 1}. {issue.name}</strong><p className="text-xs text-slate-600 mt-1">{issue.simpleExplanation}</p>
+          <p className="text-xs text-slate-600 mt-1">Propuesta: {issue.possibleSolution}</p>
+          <p className="text-[10px] text-slate-500 mt-2">{useDemoMetrics ? 'Prioridad de ejemplo' : `Hallazgo de auditoría · ${dateLabel(issue.checkedAt)}`}. Validar el cambio antes de ejecutarlo.</p>
+        </li>)}</ol> : <p className="text-sm text-slate-500">No hay prioridades verificadas pendientes en las fuentes disponibles. Esto no equivale a una revisión completa de todo el sitio.</p>}
+      </section>
+      {isReal && <section className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-900">Estado del plan de acción</h3>
+        {currentTasks.length ? <><p className="text-xs text-slate-600">{currentTasks.filter(t => t.status === 'pendiente' || t.status === 'en_progreso').length} tareas pendientes o en curso · {currentTasks.filter(t => t.status === 'completada' || t.status === 'completada_manual').length} marcadas como completadas manualmente · {currentTasks.filter(t => t.status === 'verificada_auditoria').length} registradas como verificadas por auditoría.</p>
+          <p className="text-xs text-slate-500">Los estados y notas reflejan el registro del plan. Una nota o un marcado manual no constituye verificación técnica.</p></> : <p className="text-sm text-slate-500">Sin tareas reales o manuales registradas para este negocio.</p>}
+      </section>}
+      <footer className="border-t border-slate-200 pt-4 text-xs text-slate-500 space-y-1">
+        <p>Las propuestas requieren revisión y autorización antes de modificar o publicar el sitio.</p>
+        <p>No se atribuyen consultas, ventas ni cambios de posición a una corrección técnica sin evidencia específica.</p>
+      </footer>
+    </article>
+  </div>;
 };
