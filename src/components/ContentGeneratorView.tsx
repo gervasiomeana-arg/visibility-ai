@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   PenTool,
   Sparkles,
@@ -10,11 +10,10 @@ import {
   Share2,
   Layers,
   CheckCircle2,
-  AlertCircle,
   Loader2,
-  RotateCcw,
 } from 'lucide-react';
 import { ContentGenerationRequest, Business, ActiveTab } from '../types';
+import { storageService } from '../services/storageService';
 import { aiService } from '../services/aiService';
 
 interface ContentGeneratorViewProps {
@@ -23,43 +22,57 @@ interface ContentGeneratorViewProps {
   setActiveTab: (tab: ActiveTab) => void;
 }
 
-export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
+const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
   business,
   initialParams,
   setActiveTab,
 }) => {
+  const [savedDraft] = useState(() => storageService.getContentDraft(business.id));
+  const live = useRef(true);
+  const busy = useRef(false);
+  const [error, setError] = useState('');
+  const [saveFailed, setSaveFailed] = useState(false);
+  useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
   const [contentType, setContentType] = useState<ContentGenerationRequest['contentType']>(
-    initialParams?.contentType || 'web_page'
+    initialParams?.contentType || savedDraft?.request.contentType || 'web_page'
   );
   const [topic, setTopic] = useState(
-    initialParams?.topic || 'Alojamiento para familias con niños, pileta climatizada y habitaciones amplias'
+    initialParams?.topic ?? savedDraft?.request.topic ?? ('')
   );
   const [keyword, setKeyword] = useState(
-    initialParams?.keyword || 'hotel familiar en Mar del Plata'
+    initialParams?.keyword ?? savedDraft?.request.keyword ?? ('')
   );
-  const [city, setCity] = useState(initialParams?.city || business.city || 'Mar del Plata');
+  const [city, setCity] = useState(initialParams?.city ?? savedDraft?.request.city ?? (business.city || ''));
   const [businessType, setBusinessType] = useState(
-    initialParams?.businessType || business.category || 'Hotel turístico'
+    initialParams?.businessType ?? savedDraft?.request.businessType ?? (business.category || '')
   );
   const [goal, setGoal] = useState(
-    initialParams?.goal || 'Conseguir más consultas directas de reservas por WhatsApp'
+    initialParams?.goal ?? savedDraft?.request.goal ?? ('Recibir consultas sobre el servicio')
   );
-  const [tone, setTone] = useState('Profesional, cálido, confiable y persuasivo');
+  const [tone, setTone] = useState(initialParams?.tone ?? savedDraft?.request.tone ?? 'Profesional, cálido, confiable y persuasivo');
 
-  const [generatedResult, setGeneratedResult] = useState<string>('');
+  const [generatedResult, setGeneratedResult] = useState<string>(savedDraft?.text || '');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [isApproved, setIsApproved] = useState<boolean>(false);
+  const [isApproved, setIsApproved] = useState<boolean>(savedDraft?.approved || false);
+
+  useEffect(() => {
+    setSaveFailed(!storageService.saveContentDraft(business.id, {
+      request: { contentType, topic, keyword, city, businessType, goal, tone },
+      text: generatedResult, approved: isApproved,
+    }));
+  }, [business.id, contentType, topic, keyword, city, businessType, goal, tone, generatedResult, isApproved]);
 
   // Update if initialParams changed
   useEffect(() => {
     if (initialParams) {
-      if (initialParams.contentType) setContentType(initialParams.contentType);
-      if (initialParams.topic) setTopic(initialParams.topic);
-      if (initialParams.keyword) setKeyword(initialParams.keyword);
-      if (initialParams.city) setCity(initialParams.city);
-      if (initialParams.businessType) setBusinessType(initialParams.businessType);
-      if (initialParams.goal) setGoal(initialParams.goal);
+      if (initialParams.contentType !== undefined) setContentType(initialParams.contentType);
+      if (initialParams.topic !== undefined) setTopic(initialParams.topic);
+      if (initialParams.keyword !== undefined) setKeyword(initialParams.keyword);
+      if (initialParams.city !== undefined) setCity(initialParams.city);
+      if (initialParams.businessType !== undefined) setBusinessType(initialParams.businessType);
+      if (initialParams.goal !== undefined) setGoal(initialParams.goal);
+      if (initialParams.tone !== undefined) setTone(initialParams.tone);
     }
   }, [initialParams]);
 
@@ -74,8 +87,14 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
 
   const handleGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (busy.current) return;
+    if (!topic.trim() || !keyword.trim() || !businessType.trim() || !goal.trim()) {
+      setError('Completá el tema, la palabra clave, el tipo de negocio y el objetivo.');
+      return;
+    }
+    busy.current = true;
+    setError('');
     setIsGenerating(true);
-    setIsApproved(false);
     try {
       const result = await aiService.generateContent(
         {
@@ -90,24 +109,34 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
         {
           workspaceId: business.workspaceId,
           businessId: business.id,
+          businessContext: { name: business.name, description: business.description, url: business.url },
         }
       );
-      setGeneratedResult(result);
+      if (live.current) { setGeneratedResult(result); setIsApproved(false); setCopied(false); }
     } catch (err) {
-      console.error(err);
+      if (live.current) setError(err instanceof Error ? err.message : 'No se pudo generar el texto. Intentá nuevamente.');
     } finally {
-      setIsGenerating(false);
+      busy.current = false;
+      if (live.current) setIsGenerating(false);
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(generatedResult);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedResult);
+      if (!live.current) return;
+      setCopied(true);
+      setTimeout(() => { if (live.current) setCopied(false); }, 2500);
+    } catch {
+      if (live.current) setError('No se pudo copiar. Seleccioná el texto y copialo manualmente.');
+    }
   };
 
   return (
     <div className="space-y-6 pb-12">
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
+      {saveFailed && <p role="alert" className="text-sm text-amber-800">No se pudo guardar el borrador en este navegador. Copiá el texto antes de salir.</p>}
+      <p className="text-xs text-slate-500">El borrador se guarda en este navegador para este negocio. No se sincroniza entre dispositivos.</p>
       {/* Header */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -120,7 +149,7 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
               Redacción Inteligente para tu Negocio
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              Crea contenido persuasivo y optimizado para Google adaptado a <strong>{business.name}</strong> sin depender de redactores externos.
+              Prepará borradores basados en el perfil confirmado de <strong>{business.name}</strong> y revisalos antes de publicar.
             </p>
           </div>
 
@@ -145,7 +174,8 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => setContentType(t.id as any)}
+                  aria-pressed={isSelected}
+                  onClick={() => setContentType(t.id as ContentGenerationRequest['contentType'])}
                   className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer flex flex-col justify-between ${
                     isSelected
                       ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-200 text-indigo-950 shadow-xs'
@@ -182,41 +212,43 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
 
           <form onSubmit={handleGenerate} className="space-y-4 text-xs">
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">
+              <label htmlFor="content-topic" className="font-semibold text-slate-700 block mb-1">
                 Tema principal del texto:
               </label>
               <textarea
                 rows={2}
                 required
-                value={topic}
+                id="content-topic"
+                  value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="Ej: Alojamiento para familias con niños, comodidades..."
+                placeholder="Describí un tema relacionado con los servicios reales del negocio"
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label htmlFor="content-keyword" className="font-semibold text-slate-700 block mb-1">
                   Palabra clave a posicionar:
                 </label>
                 <input
                   type="text"
                   required
+                  id="content-keyword"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="Ej: hotel familiar Mar del Plata"
+                  placeholder="Una búsqueda relacionada con este tema"
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label htmlFor="content-city" className="font-semibold text-slate-700 block mb-1">
                   Ciudad o Localidad:
                 </label>
                 <input
                   type="text"
-                  required
+                  id="content-city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Ej: Mar del Plata"
@@ -227,30 +259,32 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label htmlFor="content-businessType" className="font-semibold text-slate-700 block mb-1">
                   Tipo de negocio:
                 </label>
                 <input
                   type="text"
                   required
+                  id="content-businessType"
                   value={businessType}
                   onChange={(e) => setBusinessType(e.target.value)}
-                  placeholder="Ej: Hotel 3 estrellas"
+                  placeholder="Categoría confirmada del negocio"
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-slate-700 block mb-1">
+                <label htmlFor="content-tone" className="font-semibold text-slate-700 block mb-1">
                   Tono de redacción:
                 </label>
                 <select
+                  id="content-tone"
                   value={tone}
                   onChange={(e) => setTone(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900 bg-white"
                 >
                   <option value="Profesional, cálido, confiable y persuasivo">Cálido y Confiable</option>
-                  <option value="Comercial directo con llamados a la acción">Comercial & Reservas</option>
+                  <option value="Comercial directo con llamados a la acción">Comercial directo</option>
                   <option value="Elegante y exclusivo">Elegante / Premium</option>
                   <option value="Cercano y amigable">Cercano & Familiar</option>
                 </select>
@@ -258,15 +292,16 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
             </div>
 
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">
+              <label htmlFor="content-goal" className="font-semibold text-slate-700 block mb-1">
                 Objetivo comercial del texto:
               </label>
               <input
                 type="text"
                 required
-                value={goal}
+                id="content-goal"
+                  value={goal}
                 onChange={(e) => setGoal(e.target.value)}
-                placeholder="Ej: Conseguir consultas directas de reservas por WhatsApp"
+                placeholder="¿Qué debería poder hacer el lector después de leer?"
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
               />
             </div>
@@ -334,7 +369,8 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
               <div className="flex-1 flex flex-col space-y-3">
                 <textarea
                   value={generatedResult}
-                  onChange={(e) => setGeneratedResult(e.target.value)}
+                  aria-label="Borrador editable"
+                  onChange={(e) => { setGeneratedResult(e.target.value); setIsApproved(false); setCopied(false); }}
                   className="w-full flex-1 min-h-[360px] p-4 text-xs sm:text-sm font-mono leading-relaxed text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 resize-y"
                 />
 
@@ -343,7 +379,7 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
                     Palabras: <strong>{generatedResult.split(/\s+/).filter(Boolean).length}</strong>
                   </span>
                   <span className="text-slate-500 italic">
-                    Texto en formato Markdown listo para pegar en WordPress, Shopify o código
+                    Borrador en Markdown: adaptá el formato al editor de destino
                   </span>
                 </div>
               </div>
@@ -360,10 +396,10 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
                 </p>
                 <button
                   type="button"
-                  onClick={() => handleGenerate()}
+                  onClick={() => document.getElementById('content-topic')?.focus()}
                   className="mt-4 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold cursor-pointer"
                 >
-                  Generar ejemplo sugerido ahora
+                  Completar los datos
                 </button>
               </div>
             )}
@@ -373,3 +409,7 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
     </div>
   );
 };
+
+export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = (props) => (
+  <ContentGeneratorForm key={`${storageService.getScope()}:${props.business.workspaceId || 'local'}:${props.business.id}`} {...props} />
+);
