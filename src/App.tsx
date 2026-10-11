@@ -90,6 +90,7 @@ export default function App() {
 
   // Content Generator pre-fill params
   const [contentGenParams, setContentGenParams] = useState<Partial<ContentGenerationRequest> | undefined>();
+  useEffect(() => { if (activeTab !== 'content-generator') setContentGenParams(undefined); }, [activeTab]);
 
   // New Business Modal
   const [newBizModalOpen, setNewBizModalOpen] = useState(false);
@@ -318,6 +319,7 @@ export default function App() {
 
   // Handlers
   const handleSelectBusiness = (bizId: string) => {
+    setContentGenParams(undefined);
     setActiveBusinessId(bizId);
     storageService.setActiveBusinessId(bizId);
   };

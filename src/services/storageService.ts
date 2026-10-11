@@ -1,6 +1,7 @@
 import { performanceSolution, legacyPerformanceMetric } from '../../shared/performanceSolution';
 import {
   Business,
+  ContentDraft,
   ExecutiveIssue,
   SeoAuditItem,
   KeywordItem,
@@ -378,6 +379,23 @@ export function deduplicateAndReconcileTasks(
 }
 
 export const storageService = {
+  getContentDraft(businessId: string): ContentDraft | null {
+    try {
+      const value = JSON.parse(localStorage.getItem(scopedKey(`visibility_content_draft:${businessId}`)) || 'null');
+      if (!value || typeof value.text !== 'string' || typeof value.approved !== 'boolean' ||
+          !value.request || !['topic', 'keyword', 'city', 'businessType', 'goal', 'tone', 'contentType']
+            .every(field => typeof value.request[field] === 'string')) return null;
+      return value;
+    } catch { return null; }
+  },
+
+  saveContentDraft(businessId: string, draft: ContentDraft): boolean {
+    try {
+      localStorage.setItem(scopedKey(`visibility_content_draft:${businessId}`), JSON.stringify(draft));
+      return true;
+    } catch { return false; }
+  },
+
   getLegacyMigrationBundles(): LegacyBusinessBundle[] {
     try {
       const rawBusinesses = localStorage.getItem(STORAGE_KEYS.BUSINESSES);

@@ -234,6 +234,12 @@ export interface ContentGenerationRequest {
   tone?: string;
 }
 
+export interface ContentDraft {
+  request: ContentGenerationRequest;
+  text: string;
+  approved: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';

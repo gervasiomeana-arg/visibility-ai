@@ -1,4 +1,5 @@
 import express from 'express';
+import { validateContentInput, buildContentPrompt } from '../shared/contentContext';
 import { GoogleGenAI } from '@google/genai';
 import { requireSupabaseAuth } from './supabaseAuth';
 import {
@@ -138,72 +139,16 @@ router.post(
   try {
     const {
       contentType,
-      topic,
-      keyword,
-      city,
-      businessType,
-      goal,
-      tone,
       workspaceId,
       businessId,
     } = req.body;
 
-    if (!topic && !keyword) {
-      return res.status(400).json({
-        error: 'Topic or keyword is required',
-      });
-    }
-
-    const fields = [
-      contentType,
-      topic,
-      keyword,
-      city,
-      businessType,
-      goal,
-      tone,
-    ];
-
-    if (
-      fields.some(
-        (value) =>
-          typeof value === 'string' &&
-          value.length > MAX_FIELD_LENGTH
-      )
-    ) {
-      return res.status(413).json({
-        error: 'One or more fields are too long',
-      });
-    }
-
+    const validationError = validateContentInput(req.body);
+    if (validationError) return res.status(400).json({ error: validationError });
     if (!aiClient) {
-      return res.json({
-        content: null,
-        note: 'No GEMINI_API_KEY configured, client fallback will be used.',
-      });
+      return res.status(503).json({ error: 'El generador no está configurado. Revisá GEMINI_API_KEY en el servidor.' });
     }
-
-    const typeNames: Record<string, string> = {
-      web_page: 'Página web completa de servicio o destino',
-      blog_article: 'Artículo de blog informativo de alto valor',
-      service_description: 'Descripción atractiva de servicio',
-      faq: 'Sección de Preguntas Frecuentes (FAQ) para clientes e Inteligencia Artificial',
-      seo_meta: 'Título optimizado (Title tag), Meta Description y encabezados H1/H2',
-      google_post: 'Publicación promocional atractiva para ficha de Google Business Profile (Google Maps)',
-    };
-
-    const promptText = `Genera contenido para un negocio de tipo "${businessType || 'comercio'}" en la ciudad de "${city || 'localidad'}".
-Tipo de contenido requerido: ${typeNames[contentType] || contentType}.
-Tema principal: ${topic}
-Palabra clave principal a posicionar en Google: ${keyword}
-Objetivo comercial del texto: ${goal || 'Conseguir más consultas de clientes'}
-Tono deseado: ${tone || 'Profesional, cálido, confiable y persuasivo'}
-
-Instrucciones:
-1. El texto debe estar en español excelente, listo para ser copiado y pegado en la web o red social.
-2. Debe convencer al cliente de elegir este negocio por encima de la competencia.
-3. Incluir llamadas a la acción claras (WhatsApp, reserva o visita).
-4. No incluir explicaciones meta, entrega directamente el contenido formateado en Markdown limpio.`;
+    const promptText = buildContentPrompt(req.body);
 
     const response = await aiClient.models.generateContent({
       model: 'gemini-3.8-flash',
@@ -232,11 +177,12 @@ Instrucciones:
       },
     });
 
+    if (!response.text?.trim()) return res.status(502).json({ error: 'El generador no devolvió contenido. Intentá nuevamente.' });
     return res.json({ content: response.text });
   } catch (error: any) {
     console.error('Error in /api/content/generate:', error);
     return res.status(500).json({
-      error: error.message || 'Internal server error',
+      error: 'No se pudo generar el contenido. Intentá nuevamente y revisá la configuración del servicio si persiste.',
     });
   }
 });
