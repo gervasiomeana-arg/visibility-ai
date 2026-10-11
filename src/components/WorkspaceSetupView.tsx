@@ -123,7 +123,7 @@ export const WorkspaceSetupView: React.FC<WorkspaceSetupViewProps> = ({ onCreate
           <button
             type="submit"
             disabled={loading}
-            className="group w-full py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold uppercase tracking-[0.12em] flex items-center justify-center gap-2 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
+            className="group w-full py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold uppercase tracking-[0.12em] flex items-center justify-center gap-2 transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
           >
             {loading ? 'Creando...' : 'Crear espacio'}
             {!loading && <ArrowRight className="w-4 h-4" />}

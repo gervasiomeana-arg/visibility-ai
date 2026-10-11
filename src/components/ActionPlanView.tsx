@@ -84,7 +84,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
   return (
     <div className="space-y-6 pb-14">
       {/* Header */}
-      <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
+      <div className="vai-panel rounded-xl p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold mb-2">
@@ -98,7 +98,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-              Plan de Acción Priorizado
+              Plan de acción
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
               {planSource === 'real'
@@ -119,7 +119,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 {completedCount} de {tasks.length} {tasks.length === 1 ? 'tarea resuelta' : 'tareas resueltas'}
               </span>
             </div>
-            <div className="w-10 h-10 rounded-full border-2 border-emerald-400 flex items-center justify-center font-bold text-xs text-emerald-400">
+            <div className="w-10 h-10 shrink-0 rounded-full border-2 border-emerald-400 flex items-center justify-center font-bold text-xs text-emerald-400">
               {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%
             </div>
           </div>
@@ -129,7 +129,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-6 pt-6 border-t border-slate-100">
           <button
             onClick={() => setPriorityFilter('all')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               priorityFilter === 'all'
                 ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50/70'
@@ -141,7 +141,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
 
           <button
             onClick={() => setPriorityFilter('URGENTE')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               priorityFilter === 'URGENTE'
                 ? 'bg-rose-50 text-rose-950 border-rose-400 ring-2 ring-rose-200'
                 : 'bg-white text-rose-900 border-slate-200 hover:bg-rose-50/50'
@@ -156,7 +156,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
 
           <button
             onClick={() => setPriorityFilter('IMPORTANTE')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               priorityFilter === 'IMPORTANTE'
                 ? 'bg-amber-50 text-amber-950 border-amber-400 ring-2 ring-amber-200'
                 : 'bg-white text-amber-900 border-slate-200 hover:bg-amber-50/50'
@@ -171,7 +171,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
 
           <button
             onClick={() => setPriorityFilter('RECOMENDADO')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               priorityFilter === 'RECOMENDADO'
                 ? 'bg-emerald-50 text-emerald-950 border-emerald-400 ring-2 ring-emerald-200'
                 : 'bg-white text-emerald-900 border-slate-200 hover:bg-emerald-50/50'
@@ -211,7 +211,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
           return (
             <div
               key={task.id}
-              className={`bg-white rounded-2xl p-5 sm:p-6 border transition-all shadow-xs ${
+              className={`bg-white rounded-2xl p-5 sm:p-6 border transition-[background-color,color,transform] shadow-xs ${
                 isDone
                   ? isAuditVerified
                     ? 'border-emerald-200 bg-emerald-50/25'
@@ -224,7 +224,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex items-start gap-3.5">
+                <div className="flex items-start gap-3.5 min-w-0">
                   {/* Status Toggle Button */}
                   <button
                     onClick={() => {
@@ -258,7 +258,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                     )}
                   </button>
 
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
                       <span
                         className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
@@ -361,7 +361,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
 
                   <button
                     onClick={() => setSelectedTask(task)}
-                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] shadow-xs"
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold flex items-center gap-1 cursor-pointer transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] shadow-xs"
                   >
                     <span>Ver solución</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -507,7 +507,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                     onUpdateStatus(selectedTask.id, 'completada_manual', 'manual', evidenceDraft.trim() || null);
                     setSelectedTask(null);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-[background-color,color,transform] ${
                     selectedTask.status === 'completada_manual'
                       ? 'bg-sky-600 text-white shadow-xs'
                       : 'bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100'
@@ -523,7 +523,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                     onUpdateStatus(selectedTask.id, 'en_progreso', null, evidenceDraft.trim() || null);
                     setSelectedTask(null);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-[background-color,color,transform] ${
                     selectedTask.status === 'en_progreso'
                       ? 'bg-amber-600 text-white shadow-xs'
                       : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
@@ -536,7 +536,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                     onUpdateStatus(selectedTask.id, 'pendiente', null, evidenceDraft.trim() || null);
                     setSelectedTask(null);
                   }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-[background-color,color,transform] ${
                     selectedTask.status === 'pendiente'
                       ? 'bg-slate-800 text-white shadow-xs'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'

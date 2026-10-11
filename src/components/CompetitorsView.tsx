@@ -100,7 +100,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
             return (
               <div
                 key={comp.id}
-                className={`bg-white rounded-2xl p-5 sm:p-6 border transition-all shadow-xs ${
+                className={`bg-white rounded-2xl p-5 sm:p-6 border transition-[background-color,color,transform] shadow-xs ${
                   isSelf
                     ? 'border-indigo-400 bg-indigo-50/20 ring-2 ring-indigo-200'
                     : 'border-slate-200 hover:border-slate-300'
@@ -237,7 +237,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({
       </div>
 
       {/* Competitive opportunities */}
-      <div className="bg-slate-950 text-white rounded-[1.5rem] p-6 sm:p-8 shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
+      <div className="bg-slate-950 text-white rounded-xl p-6 sm:p-8 shadow-[0_24px_60px_rgba(15,23,42,0.16)]">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-300 mb-2">
           <Lightbulb className="w-4 h-4" />
           <span>{isRealCompetitiveData ? 'Oportunidades frente a competidores' : 'Qué mostrará esta sección'}</span>

@@ -271,7 +271,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <span>POSICIONAMIENTO EN GOOGLE</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-              Palabras Clave de Búsqueda
+              Búsquedas en Google
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
               Monitoreo de las búsquedas con las que tus clientes potenciales te encuentran en Google y dónde se encuentra <strong>{business.name}</strong>.
@@ -281,7 +281,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.1em] shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.1em] shadow-[0_10px_22px_rgba(15,23,42,0.12)] transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] flex items-center gap-1.5 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Rastrear palabra clave</span>
@@ -305,7 +305,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             </div>
 
             {!gscConnected && (
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
                 <button
                   type="button"
                   onClick={async () => {
@@ -323,7 +323,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                     }
                   }}
                   disabled={gscLoading || gscChecking || !gscStatus}
-                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.985] text-white font-bold text-xs flex items-center gap-2 transition-all duration-300 shadow-sm cursor-pointer shrink-0"
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.985] text-white font-bold text-xs flex items-center gap-2 transition-[background-color,color,transform] duration-300 shadow-sm cursor-pointer max-w-full justify-center"
                 >
                   <Globe className="w-4 h-4 text-blue-100" />
                   <span>{gscLoading ? 'Iniciando OAuth...' : 'Conectar Google Search Console'}</span>
@@ -375,7 +375,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 type="button"
                 onClick={handleLoadSearchConsole}
                 disabled={!selectedSite || gscLoading || !propertyMatchesBusiness(selectedSite, business.url)}
-                className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] cursor-pointer"
               >
                 {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
               </button>
@@ -415,7 +415,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <button
                 key={intent}
                 onClick={() => setIntentFilter(intent)}
-                className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-medium transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
                   intentFilter === intent
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -432,7 +432,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Filtrar palabra clave..."
-              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 text-xs text-slate-900 focus:outline-none focus:ring-indigo-300 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 text-xs text-slate-900 focus:outline-none focus:ring-indigo-300 transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]"
             />
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           </div>
@@ -441,7 +441,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       </div>
 
       {/* Keywords Table matching user prompt exactly */}
-      <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
+      <div className="vai-panel rounded-xl ring-1 ring-slate-200/60 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs sm:text-sm">
             <thead>

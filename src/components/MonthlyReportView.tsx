@@ -97,7 +97,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
-      <div className="no-print vai-panel rounded-[1.5rem] p-6 sm:p-8 ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="no-print vai-panel rounded-xl p-6 sm:p-8 ring-1 ring-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="inline-flex items-center gap-2 text-[11px] tracking-[0.12em] uppercase text-indigo-600 font-semibold mb-2">
             <FileText className="w-3.5 h-3.5" />

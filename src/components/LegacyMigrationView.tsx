@@ -82,7 +82,7 @@ export const LegacyMigrationView: React.FC<LegacyMigrationViewProps> = ({
               type="button"
               onClick={onSkip}
               disabled={loading}
-              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all"
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-[background-color,color,transform]"
             >
               <X className="w-3.5 h-3.5 inline mr-1.5" />
               Omitir por ahora
@@ -92,7 +92,7 @@ export const LegacyMigrationView: React.FC<LegacyMigrationViewProps> = ({
               type="button"
               onClick={handleImport}
               disabled={loading}
-              className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all"
+              className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold flex items-center justify-center gap-2 transition-[background-color,color,transform]"
             >
               {loading ? 'Importando...' : 'Importar al workspace'}
               {!loading && <ArrowRight className="w-4 h-4" />}
