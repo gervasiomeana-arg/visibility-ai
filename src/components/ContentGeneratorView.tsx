@@ -88,8 +88,8 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
   const handleGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (busy.current) return;
-    if (!topic.trim() || !keyword.trim() || !businessType.trim() || !goal.trim()) {
-      setError('Completá el tema, la palabra clave, el tipo de negocio y el objetivo.');
+    if (!topic.trim() || !businessType.trim() || !goal.trim()) {
+      setError('Completá el tema, el tipo de negocio y el objetivo.');
       return;
     }
     busy.current = true;
@@ -229,11 +229,10 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="content-keyword" className="font-semibold text-slate-700 block mb-1">
-                  Palabra clave a posicionar:
+                  Palabra clave (opcional):
                 </label>
                 <input
                   type="text"
-                  required
                   id="content-keyword"
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}

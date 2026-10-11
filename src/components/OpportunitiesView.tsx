@@ -1,15 +1,8 @@
 import React from 'react';
-import {
-  Lightbulb,
-  Sparkles,
-  ArrowRight,
-  TrendingUp,
-  Search,
-  CheckCircle2,
-  Building2,
-  Users,
-} from 'lucide-react';
+import { Lightbulb, Sparkles, ArrowRight } from 'lucide-react';
 import { Opportunity, Business, ActiveTab } from '../types';
+import { opportunityEvidence, opportunityKind } from '../../shared/opportunityEvidence';
+import { measurementDateLabel } from '../../shared/reportEvidence';
 
 interface OpportunitiesViewProps {
   business: Business;
@@ -18,119 +11,47 @@ interface OpportunitiesViewProps {
   onSelectOpportunityForAI: (opp: Opportunity) => void;
 }
 
-export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({
-  business,
-  opportunities,
-  setActiveTab,
-  onSelectOpportunityForAI,
-}) => {
-  const realCount = opportunities.filter((opp) => opp.source === 'search-console' || opp.source === 'seo-audit').length;
-  const isReal = opportunities.length > 0 && realCount === opportunities.length;
-
-  return (
-    <div className="space-y-6 pb-14">
-      {/* Header */}
-      <div className="vai-panel rounded-xl p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-semibold mb-2">
-              <Lightbulb className="w-3.5 h-3.5 text-amber-600" />
-              <span>CRECIMIENTO COMERCIAL</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-              {isReal ? 'Oportunidades de Negocio · DATOS REALES' : 'Oportunidades de Negocio · DEMO'}
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
-              {isReal
-                ? <>Oportunidades generadas a partir de evidencia verificable de <strong>{business.name}</strong>.</>
-                : <>Esta vista muestra cómo transformaremos hallazgos verificados en recomendaciones comerciales para <strong>{business.name}</strong>.</>}
-            </p>
-          </div>
-
-          <div className="p-3.5 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 shrink-0">
-            <span className="font-bold block mb-0.5">Visibilidad = Más Consultas</span>
-            <span className="text-indigo-700">
-              {isReal
-                ? 'La evidencia mostrada proviene de fuentes reales conectadas. No usamos impresiones como sinónimo de volumen de búsqueda.'
-                : 'En esta fase las oportunidades son ejemplos; la demanda real se incorporará desde una fuente verificable.'}
-            </span>
-          </div>
+export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({ business, opportunities, setActiveTab, onSelectOpportunityForAI }) => {
+  const { visible, mode } = opportunityEvidence(opportunities, business.id);
+  return <div className="space-y-6 pb-14">
+    <header className="vai-panel rounded-xl p-6 sm:p-8 ring-1 ring-slate-200/60">
+      <p className="flex items-center gap-2 text-xs text-indigo-600 mb-2"><Lightbulb className="w-4 h-4" />{mode}</p>
+      <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">Oportunidades para revisar</h1>
+      <p className="text-sm text-slate-600 mt-2">Propuestas para <strong>{business.name}</strong>. Las mediciones respaldan el dato observado; la acción sugerida requiere revisión.</p>
+      <p className="text-xs text-slate-500 mt-3">Las impresiones no equivalen al volumen total de búsquedas ni garantizan consultas. La prioridad es orientativa y no predice resultados comerciales.</p>
+    </header>
+    {!visible.length && <div className="vai-panel p-8 text-center text-sm text-slate-600">Todavía no hay oportunidades con evidencia disponible para este negocio. Ejecutá una auditoría o cargá datos de Search Console.</div>}
+    <div className="space-y-5">{visible.map((opp, index) => {
+      const technical = opportunityKind(opp) === 'technical';
+      const backed = (opp.source === 'seo-audit' || opp.source === 'search-console') && !!opp.evidenceText?.trim();
+      const isDemo = opp.source === 'demo';
+      const canAct = backed || isDemo;
+      return <article key={opp.id} className="vai-panel rounded-xl p-6 sm:p-7 border border-slate-200 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+          <span className="font-semibold text-indigo-600">{index + 1}. {isDemo ? 'EJEMPLO DEMO' : backed ? `PROPUESTA · ${opp.source === 'seo-audit' ? 'AUDITORÍA' : 'SEARCH CONSOLE'}` : 'SIN EVIDENCIA VERIFICABLE'}</span>
+          <span className="text-slate-500">Prioridad propuesta: {opp.potentialImpact}</span>
         </div>
-      </div>
-
-      {/* Opportunities Cards Grid */}
-      <div className="space-y-5">
-        {opportunities.length === 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-            Todavía no hay oportunidades disponibles para este negocio.
+        <h2 className="text-lg font-bold text-slate-900 font-heading break-words">{opp.detectedProblem}</h2>
+        <p className="text-sm text-slate-600 break-words">{opp.simpleExplanation}</p>
+        {backed && <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600 space-y-1 break-words">
+          <p><strong>Dato y criterio:</strong> {opp.evidenceText}</p>
+          <p>Medición o carga: {measurementDateLabel(opp.checkedAt, business.locale || 'es-AR', business.timezone || 'America/Argentina/Buenos_Aires')}.</p>
+          {opp.evidenceUrl && <p className="break-all">Fuente: {opp.evidenceUrl}</p>}
+          {opp.periodStart && opp.periodEnd && <p>Período: {opp.periodStart} a {opp.periodEnd}.</p>}
+          <p>Esta evidencia no garantiza el resultado de la propuesta.</p>
+        </div>}
+        {isDemo && <p className="text-xs text-amber-800">Los datos y la demanda de este ejemplo no son mediciones del negocio.</p>}
+        {!isDemo && !backed && <p className="text-xs text-amber-800">Falta evidencia para usar este registro como recomendación del cliente.</p>}
+        <div className="rounded-xl border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="min-w-0"><p className="text-xs font-semibold text-slate-500 mb-1">{technical ? 'Revisión técnica propuesta' : 'Contenido propuesto'}</p>
+            <p className="text-sm text-slate-900 break-words">{opp.commercialAction}</p>
+            {!technical && <p className="text-xs text-slate-500 mt-2">Antes de redactar, confirmá que el tema corresponde a un servicio real del negocio. Un borrador no modifica ni publica la web.</p>}
           </div>
-        )}
-        {opportunities.map((opp, idx) => (
-          <div
-            key={opp.id}
-            className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200 hover:border-indigo-300 shadow-sm transition-[background-color,color,transform] relative overflow-hidden"
-          >
-            {/* Top Indicator */}
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-800 font-bold text-xs flex items-center justify-center shrink-0">
-                  {idx + 1}
-                </span>
-                <span className="text-xs font-bold text-amber-700 uppercase tracking-wider">
-                  {opp.source === 'search-console' ? 'OPORTUNIDAD REAL · SEARCH CONSOLE' : opp.source === 'seo-audit' ? 'OPORTUNIDAD REAL · SEO' : 'OPORTUNIDAD DEMO'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs">
-                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-medium">
-                  Impacto: <strong className="text-slate-900">{opp.potentialImpact}</strong>
-                </span>
-                <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-medium">
-                  {opp.searchDemand}
-                </span>
-              </div>
-            </div>
-
-            {/* Problem Statement */}
-            <blockquote className="text-base sm:text-lg font-bold text-slate-900 leading-snug font-heading my-2">
-              “{opp.detectedProblem}”
-            </blockquote>
-
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed mt-2">
-              {opp.simpleExplanation}
-            </p>
-
-            {opp.evidenceText && (
-              <p className="mt-2 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2.5 py-2">
-                Evidencia: {opp.evidenceText}
-              </p>
-            )}
-
-            {/* Action Box */}
-            <div className="mt-5 p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block mb-0.5">
-                  Acción recomendada:
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-slate-900">
-                  {opp.commercialAction}
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Título sugerido: <em>{opp.suggestedPageTitle}</em>
-                </p>
-              </div>
-
-              <button
-                onClick={() => onSelectOpportunityForAI(opp)}
-                className="px-5 py-3 rounded-xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider shadow-md hover:shadow-indigo-200 transition-[background-color,color,transform] flex items-center justify-center gap-2 shrink-0 cursor-pointer  active:scale-95"
-              >
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>GENERAR CON IA</span>
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+          <button disabled={!canAct} onClick={() => technical ? setActiveTab('seo') : onSelectOpportunityForAI(opp)} className="vai-button vai-button-primary shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+            {technical ? <ArrowRight className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}{technical ? 'Revisar en auditoría' : 'Preparar borrador'}
+          </button>
+        </div>
+      </article>;
+    })}</div>
+  </div>;
 };

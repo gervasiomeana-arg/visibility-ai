@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { opportunityKind } from '../shared/opportunityEvidence';
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { LandingPage } from './components/LandingPage';
@@ -588,6 +589,8 @@ export default function App() {
   };
 
   const handleSelectOpportunityForAI = (opp: Opportunity) => {
+    if (opp.businessId !== activeBusiness.id) return;
+    if (opportunityKind(opp) === 'technical') { setActiveTab('seo'); return; }
     setContentGenParams({
       contentType: opp.contentParams.contentType,
       topic: opp.contentParams.topic,
