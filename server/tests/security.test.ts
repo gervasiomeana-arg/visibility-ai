@@ -261,7 +261,7 @@ test('buildRealSeoAudit generates structured whyItMatters, detectedData, propose
   const result = await buildRealSeoAudit('https://example.com', {
     fetchPage: async (url) => ({
       finalUrl: url,
-      response: url === 'https://example.com'
+      response: url === 'https://example.com/'
         ? new Response('<!doctype html><html><head><title>Scouting y estadísticas para entrenadores</title></head><body><div id="root"></div><script src="/app.js"></script></body></html>', {
             status: 200, headers: { 'content-type': 'text/html' },
           })
