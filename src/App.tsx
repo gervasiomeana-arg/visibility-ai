@@ -77,6 +77,10 @@ export default function App() {
   const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [activeTab, activeBusinessId]);
+
   // Pending scan URL
   const [analyzingUrl, setAnalyzingUrl] = useState<string>('');
 
@@ -680,7 +684,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="vai-app min-h-screen flex flex-col">
       {/* Navbar (displayed on all screens; has link to landing) */}
       <Navbar
         activeTab={activeTab}
@@ -717,7 +721,7 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1">
+      <main id="main-content" tabIndex={-1} className="flex-1">
         {activeTab === 'landing' && (
           <LandingPage
             onAnalyze={handleStartAnalysis}
@@ -874,12 +878,12 @@ export default function App() {
             setAssistantInitialPrompt('');
             setAssistantOpen(true);
           }}
-          className="no-print fixed bottom-6 right-6 z-40 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-xl hover:shadow-indigo-300 transition-all flex items-center gap-2 font-bold text-xs uppercase tracking-wider cursor-pointer group hover:scale-105 active:scale-95"
+          className="vai-floating-assistant vai-button vai-button-primary no-print"
           aria-label="Abrir asistente de negocio"
         >
-          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-          <span className="hidden sm:inline">Preguntar al Asistente IA</span>
-          <span className="sm:hidden">IA</span>
+          <Sparkles className="w-4 h-4" />
+          <span className="hidden sm:inline">Consultar asistente</span>
+          <span className="sm:hidden">Consultar</span>
         </button>
       )}
 

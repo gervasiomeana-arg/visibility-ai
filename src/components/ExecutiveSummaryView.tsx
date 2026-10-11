@@ -64,7 +64,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
-              Resumen Ejecutivo de Visibilidad
+              Resumen ejecutivo de Visibilidad
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
               {summarySource === 'real' ? (
@@ -79,7 +79,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
 
           <button
             onClick={() => setActiveTab('action-plan')}
-            className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.1em] transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-[0.985]"
+            className="px-5 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.1em] transition-[background-color,color,transform] flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-[0.985]"
           >
             <span>IR AL PLAN DE ACCIÓN</span>
             <ArrowRight className="w-4 h-4" />
@@ -90,7 +90,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-6 pt-6 border-t border-slate-100">
           <button
             onClick={() => setActiveFilter('all')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               activeFilter === 'all'
                 ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                 : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
@@ -102,7 +102,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
 
           <button
             onClick={() => setActiveFilter('high')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               activeFilter === 'high'
                 ? 'bg-rose-50 text-rose-900 border-rose-400 ring-2 ring-rose-200'
                 : 'bg-white text-rose-800 border-slate-200 hover:bg-rose-50/50'
@@ -117,7 +117,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
 
           <button
             onClick={() => setActiveFilter('medium')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               activeFilter === 'medium'
                 ? 'bg-amber-50 text-amber-900 border-amber-400 ring-2 ring-amber-200'
                 : 'bg-white text-amber-800 border-slate-200 hover:bg-amber-50/50'
@@ -132,7 +132,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
 
           <button
             onClick={() => setActiveFilter('ok')}
-            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+            className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer ${
               activeFilter === 'ok'
                 ? 'bg-emerald-50 text-emerald-900 border-emerald-400 ring-2 ring-emerald-200'
                 : 'bg-white text-emerald-800 border-slate-200 hover:bg-emerald-50/50'
@@ -164,7 +164,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
           return (
             <div
               key={issue.id}
-              className={`vai-panel rounded-[1.4rem] ring-1 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
+              className={`vai-panel rounded-[1.4rem] ring-1 transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]  ${
                 isHigh
                   ? 'ring-rose-200/80 hover:ring-rose-300'
                   : isMedium

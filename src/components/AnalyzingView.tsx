@@ -111,7 +111,7 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
                 <span className="text-indigo-600">{progressPercent}%</span>
               </div>
               <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
-                <div className="h-full bg-indigo-600 rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+                <div className="h-full bg-indigo-600 rounded-full transition-[background-color,color,transform] duration-150" style={{ width: `${progressPercent}%` }} />
               </div>
             </div>
 

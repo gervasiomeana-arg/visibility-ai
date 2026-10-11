@@ -383,7 +383,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       <div className="flex items-center gap-1.5 p-1.5 rounded-[1.15rem] bg-slate-100/80 ring-1 ring-slate-200/70 text-xs font-semibold overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveAdminTab('businesses')}
-          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'businesses'
               ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
               : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
@@ -393,7 +393,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
         </button>
         <button
           onClick={() => setActiveAdminTab('members')}
-          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'members'
               ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
               : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
@@ -403,7 +403,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
         </button>
         <button
           onClick={() => setActiveAdminTab('plans')}
-          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'plans'
               ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
               : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
@@ -413,7 +413,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
         </button>
         <button
           onClick={() => setActiveAdminTab('ai-usage')}
-          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'ai-usage'
               ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
               : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
@@ -423,7 +423,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
         </button>
         <button
           onClick={() => setActiveAdminTab('integrations')}
-          className={`px-4 py-2.5 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
+          className={`px-4 py-2.5 rounded-xl transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer whitespace-nowrap ${
             activeTab === 'integrations'
               ? 'bg-white text-slate-950 shadow-[0_6px_16px_rgba(15,23,42,0.08)]'
               : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
@@ -435,7 +435,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {/* Tab: Businesses */}
       {activeTab === 'businesses' && (
-        <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
+        <div className="vai-panel rounded-xl ring-1 ring-slate-200/60 overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-base font-bold text-slate-900 font-heading">
               Negocios y Clientes Registrados
@@ -496,8 +496,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           {plans.map((p) => (
             <div
               key={p.id}
-              className={`vai-panel rounded-[1.4rem] p-5 ring-1 flex flex-col justify-between transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 ${
-                p.popular ? 'ring-indigo-300 shadow-[0_18px_40px_rgba(79,70,229,0.10)]' : 'ring-slate-200/60'
+              className={`vai-panel rounded-[1.4rem] p-5 ring-1 flex flex-col justify-between transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]  ${
+                p.popular ? 'ring-indigo-300 shadow-[0_18px_40px_rgba(36,99,87,0.08)]' : 'ring-slate-200/60'
               }`}
             >
               <div>
@@ -545,7 +545,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {activeTab === 'members' && (
         <div className="space-y-4">
-          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+          <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -587,7 +587,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             {workspaceMessage && <p className="mt-2 text-xs font-semibold text-emerald-700">{workspaceMessage}</p>}
             {workspaceError && <p className="mt-2 text-xs font-semibold text-rose-600">{workspaceError}</p>}
           </div>
-          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+          <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60">
             <h2 className="text-base font-bold text-slate-900 font-heading">Colaboradores del workspace</h2>
             <p className="mt-1 text-xs text-slate-500">
               Los roles controlan quién puede administrar el espacio. La invitación se comparte por enlace seguro.
@@ -614,7 +614,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               </select>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
+                className="px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
               >
                 Crear invitación
               </button>
@@ -629,7 +629,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             {inviteError && <p className="mt-2 text-xs font-semibold text-rose-600">{inviteError}</p>}
           </div>
 
-          <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
+          <div className="vai-panel rounded-xl ring-1 ring-slate-200/60 overflow-hidden">
             <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Miembros activos</div>
             <div className="divide-y divide-slate-100">
               {members.map((member) => {
@@ -700,7 +700,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             </div>
           </div>
 
-          <div className="vai-panel rounded-[1.45rem] ring-1 ring-slate-200/60 overflow-hidden">
+          <div className="vai-panel rounded-xl ring-1 ring-slate-200/60 overflow-hidden">
             <div className="p-4 border-b border-slate-200 font-bold text-sm text-slate-900">Invitaciones</div>
             <div className="divide-y divide-slate-100">
               {invites.map((invite) => (
@@ -728,7 +728,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
       {/* Tab: AI Usage */}
       {activeTab === 'ai-usage' && (
-        <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60 space-y-4">
+        <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60 space-y-4">
           <h2 className="text-base font-bold text-slate-900 font-heading">
             Consumo y Auditoría de Modelos de IA
           </h2>
@@ -761,7 +761,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
       {/* Tab: Integrations */}
       {activeTab === 'integrations' && (
         <div className="space-y-4">
-          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+          <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-600">
@@ -852,7 +852,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           </div>
 
           {productionHealth && (
-            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+            <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -919,7 +919,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           )}
 
           {productionHealth?.integrations.supabase && (
-            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+            <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -937,7 +937,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   type="button"
                   onClick={handleSchemaReadinessTest}
                   disabled={schemaReadinessLoading}
-                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-[background-color,color,transform]"
                 >
                   {schemaReadinessLoading ? 'Verificando...' : 'Verificar schema'}
                 </button>
@@ -1016,7 +1016,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           )}
 
           {productionHealth?.integrations.supabase && (
-            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+            <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -1034,7 +1034,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   type="button"
                   onClick={handleRlsIsolationTest}
                   disabled={rlsTestLoading}
-                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-[background-color,color,transform]"
                 >
                   {rlsTestLoading ? 'Probando...' : 'Probar aislamiento RLS'}
                 </button>
@@ -1112,7 +1112,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           )}
 
           {productionHealth?.integrations.supabase && (
-            <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60">
+            <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
@@ -1130,7 +1130,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   type="button"
                   onClick={handlePersistenceTest}
                   disabled={persistenceTestLoading}
-                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold transition-[background-color,color,transform]"
                 >
                   {persistenceTestLoading ? 'Probando...' : 'Probar persistencia'}
                 </button>
@@ -1168,7 +1168,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
           )}
 
           {productionHealth && !productionHealth.integrations.supabase && (
-            <div className="rounded-[1.45rem] bg-amber-50 ring-1 ring-amber-200 p-5">
+            <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 p-5">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                 <div>
@@ -1184,7 +1184,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             </div>
           )}
 
-          <div className="vai-panel rounded-[1.45rem] p-6 ring-1 ring-slate-200/60 space-y-4">
+          <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60 space-y-4">
             <h2 className="text-base font-bold text-slate-900 font-heading">
               Conectores y APIs externas
             </h2>

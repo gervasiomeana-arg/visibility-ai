@@ -160,6 +160,7 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
 
           <button
             onClick={onClose}
+            aria-label="Cerrar asistente"
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -243,7 +244,7 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
             <button
               type="submit"
               disabled={!inputVal.trim() || isLoading}
-              className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+              className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-[background-color,color,transform] disabled:opacity-50 cursor-pointer shadow-xs"
             >
               <Send className="w-4 h-4" />
             </button>

@@ -146,7 +146,7 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
                   key={t.id}
                   type="button"
                   onClick={() => setContentType(t.id as any)}
-                  className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  className={`p-3 rounded-xl border text-left transition-[background-color,color,transform] cursor-pointer flex flex-col justify-between ${
                     isSelected
                       ? 'bg-indigo-50/80 border-indigo-500 ring-2 ring-indigo-200 text-indigo-950 shadow-xs'
                       : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
@@ -274,7 +274,7 @@ export const ContentGeneratorView: React.FC<ContentGeneratorViewProps> = ({
             <button
               type="submit"
               disabled={isGenerating}
-              className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold uppercase tracking-wider text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold uppercase tracking-wider text-xs shadow-md transition-[background-color,color,transform] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {isGenerating ? (
                 <>

@@ -282,7 +282,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
   return (
     <div className="space-y-6 pb-14">
-      <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
+      <div className="vai-panel rounded-xl p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
@@ -301,7 +301,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
           <button
             onClick={() => setActiveTab('monthly-report')}
-            className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider transition-all shrink-0 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-wider transition-[background-color,color,transform] shrink-0 cursor-pointer"
           >
             Ver informe mensual
           </button>
@@ -348,7 +348,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               <button
                 key={key}
                 onClick={() => setSelectedMetric(key)}
-                className={`px-4 py-2 rounded-xl whitespace-nowrap font-semibold transition-all cursor-pointer ${
+                className={`px-4 py-2 rounded-xl whitespace-nowrap font-semibold transition-[background-color,color,transform] cursor-pointer ${
                   isSelected
                     ? 'bg-slate-950 text-white shadow-xs'
                     : 'bg-white ring-1 ring-slate-200 text-slate-700 hover:bg-slate-50'
@@ -362,7 +362,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       )}
 
       {hasHistory && (
-        <div className="vai-panel rounded-[1.5rem] p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
+        <div className="vai-panel rounded-xl p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900 font-heading">
@@ -408,11 +408,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
                     <div className="w-full max-w-[48px] h-[150px] bg-slate-100 rounded-t-xl overflow-hidden flex flex-col justify-end p-0.5">
                       <div
-                        className={`w-full rounded-t-lg transition-all duration-700 bg-gradient-to-t ${
-                          isLast
-                            ? currentConfig.gradient
-                            : 'from-slate-300 to-slate-500 group-hover:from-indigo-400 group-hover:to-blue-500'
-                        }`}
+                        className={`w-full rounded-t-sm ${isLast ? 'bg-indigo-600' : 'bg-slate-300'}`}
                         style={{ height: `${heightPercent}%` }}
                       />
                     </div>

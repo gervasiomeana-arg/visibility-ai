@@ -94,7 +94,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
           <button
             type="button"
             onClick={onReanalyze}
-            className="w-full px-3 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.12em] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
+            className="w-full px-3 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold uppercase tracking-[0.12em] transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
           >
             Volver a analizar
           </button>
@@ -127,7 +127,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
+                className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-medium transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] cursor-pointer ${
                   selectedCategory === cat
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -145,7 +145,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar factor SEO..."
-              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 text-xs text-slate-900 focus:outline-none focus:ring-indigo-300 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]"
+              className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-50/70 ring-1 ring-slate-200/70 text-xs text-slate-900 focus:outline-none focus:ring-indigo-300 transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]"
             />
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
           </div>
@@ -210,7 +210,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
           return (
             <div
               key={item.id}
-              className={`vai-panel rounded-[1.35rem] p-5 ring-1 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-0.5 flex flex-col justify-between ${
+              className={`vai-panel rounded-xl p-5 ring-1 transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]  flex flex-col justify-between ${
                 isError
                   ? 'ring-rose-200/80 hover:ring-rose-300'
                   : isWarning
