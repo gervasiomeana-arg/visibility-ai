@@ -11,13 +11,16 @@ interface AnalyzingViewProps {
   businessId?: string;
 }
 
-export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
+const AnalyzingRequest: React.FC<AnalyzingViewProps> = ({
   url,
   onComplete,
   onCancel,
   workspaceId,
   businessId,
 }) => {
+  const [requestUrl, setRequestUrl] = useState(url);
+  const [retryUrl, setRetryUrl] = useState(url);
+  const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'running' | 'success' | 'error'>('running');
   const [error, setError] = useState('');
   const [result, setResult] = useState<SeoAuditResult | null>(null);
@@ -34,11 +37,15 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
 
   useEffect(() => {
     let cancelled = false;
+    setStatus('running');
+    setResult(null);
+    setError('');
+    setCurrentStep(0);
     const timer = window.setInterval(() => {
       setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
     }, 700);
 
-    seoAuditService.audit(url, { workspaceId, businessId })
+    seoAuditService.audit(requestUrl, { workspaceId, businessId })
       .then((data) => {
         if (cancelled) return;
         window.clearInterval(timer);
@@ -57,7 +64,7 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [url, workspaceId, businessId]);
+  }, [requestUrl, attempt, workspaceId, businessId]);
 
   useEffect(() => {
     if (status !== 'success' || !result) return;
@@ -90,7 +97,7 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
 
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-semibold mb-3 max-w-full">
           <Globe className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-          <span className="truncate">{url}</span>
+          <span className="truncate">{requestUrl}</span>
         </div>
 
         <h2 className="text-2xl font-bold text-slate-900 font-heading">
@@ -144,6 +151,12 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
               <strong className="block mb-1">Detalle:</strong>
               {error}
             </div>
+            <form onSubmit={event => { event.preventDefault(); setRequestUrl(retryUrl); setAttempt(value => value + 1); }} className="mt-4 space-y-3 text-left">
+              <label htmlFor="audit-retry-url" className="block text-xs font-semibold text-slate-700">Dirección web para reintentar</label>
+              <input id="audit-retry-url" type="text" inputMode="url" autoComplete="url" required value={retryUrl} onChange={event => setRetryUrl(event.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
+              <p className="text-xs text-slate-500">Podés escribir el dominio sin protocolo: agregamos https:// automáticamente.</p>
+              <button type="submit" className="vai-button vai-button-primary w-full">Reintentar auditoría</button>
+            </form>
             <div className="mt-4 flex justify-center">
               <button type="button" onClick={onCancel} className="px-4 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
                 Volver
@@ -155,3 +168,7 @@ export const AnalyzingView: React.FC<AnalyzingViewProps> = ({
     </div>
   );
 };
+
+export const AnalyzingView: React.FC<AnalyzingViewProps> = props => (
+  <AnalyzingRequest key={`${props.workspaceId || 'local'}:${props.businessId || ''}:${props.url}`} {...props} />
+);

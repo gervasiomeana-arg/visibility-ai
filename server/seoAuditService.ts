@@ -1,3 +1,4 @@
+import { normalizeAuditUrl } from '../shared/auditUrl';
 import { performanceSolution } from '../shared/performanceSolution';
 import dns from 'dns/promises';
 import https from 'https';
@@ -570,6 +571,7 @@ export async function buildRealSeoAudit(
   requestedUrl: string,
   dependencies: { fetchPage?: typeof safeFetch; fetchPageSpeed?: typeof fetchPageSpeedMetrics } = {},
 ) {
+  requestedUrl = normalizeAuditUrl(requestedUrl);
   const fetchPage = dependencies.fetchPage || safeFetch;
   const fetchPageSpeed = dependencies.fetchPageSpeed || fetchPageSpeedMetrics;
   const startedAt = Date.now();

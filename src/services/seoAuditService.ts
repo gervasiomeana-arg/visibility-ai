@@ -1,3 +1,4 @@
+import { normalizeAuditUrl } from '../../shared/auditUrl';
 import { SeoAuditResult } from '../types';
 import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
@@ -13,7 +14,7 @@ export const seoAuditService = {
         'Content-Type': 'application/json',
       }),
       body: JSON.stringify({
-        url,
+        url: normalizeAuditUrl(url),
         workspaceId: context?.workspaceId,
         businessId: context?.businessId,
       }),

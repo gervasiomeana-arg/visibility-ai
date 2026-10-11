@@ -1,4 +1,5 @@
 import express from 'express';
+import { normalizeAuditUrl } from '../shared/auditUrl';
 import { requireSupabaseAuth } from './supabaseAuth';
 import { buildRealSeoAudit } from './seoAuditService';
 import {
@@ -32,7 +33,10 @@ router.post(
       return res.status(413).json({ error: 'URL is too long' });
     }
 
-    const result = await buildRealSeoAudit(url);
+    let normalized: string;
+    try { normalized = normalizeAuditUrl(url); }
+    catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'La dirección web no es válida.' }); }
+    const result = await buildRealSeoAudit(normalized);
 
     recordUsageEventSafe(req, {
       workspaceId:

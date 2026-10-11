@@ -1,3 +1,4 @@
+import { normalizeAuditUrl } from '../../shared/auditUrl';
 import React, { useState } from 'react';
 import { ArrowUpRight, ArrowRight, Search, BarChart3, ListChecks, Check } from 'lucide-react';
 import { Brand } from './Brand';
@@ -16,11 +17,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onAnalyze, onSelectPre
     event.preventDefault();
     if (!analysisEnabled) { setErrorMsg('Tu rol es de solo lectura. Pedí a un miembro con permisos que inicie la auditoría.'); return; }
     if (!urlInput.trim()) { setErrorMsg('Ingresá la dirección web de tu negocio.'); return; }
-    const normalized = /^https?:\/\//i.test(urlInput.trim()) ? urlInput.trim() : `https://${urlInput.trim()}`;
-    try {
-      const parsed = new URL(normalized);
-      if (!parsed.hostname.includes('.') || parsed.protocol !== 'https:') throw new Error('invalid');
-    } catch { setErrorMsg('Ingresá una dirección HTTPS válida, por ejemplo https://tu-negocio.com.'); return; }
+    let normalized: string;
+    try { normalized = normalizeAuditUrl(urlInput); }
+    catch (error) { setErrorMsg(error instanceof Error ? error.message : 'Ingresá una dirección HTTPS válida.'); return; }
     setErrorMsg('');
     onAnalyze(normalized);
   };
