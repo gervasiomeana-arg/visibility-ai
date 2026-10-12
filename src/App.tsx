@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { keywordContentParams, keywordRequestScope } from '../shared/keywordWorkflow';
+import { reconcileCloudKeywords, searchCacheSignature } from '../shared/keywordCloudState';
 
 
 import { opportunityKind } from '../shared/opportunityEvidence';
@@ -247,6 +248,9 @@ export default function App() {
   useEffect(() => {
     if (!authService.isConfigured() || !activeWorkspace?.id || activeBusiness.id === 'no-business') return;
     let cancelled = false;
+    const initialSearchSignature = searchCacheSignature(
+      storageService.getKeywords(activeBusiness.id), storageService.getSearchConsoleMeta(activeBusiness.id)
+    );
     workspaceService.loadBusinessState(activeWorkspace.id, activeBusiness.id)
       .then((state) => {
         if (cancelled) return;
@@ -276,7 +280,13 @@ export default function App() {
           storageService.saveOpportunities(activeBusiness.id, state.opportunities);
         }
 
-        if (state.searchConsole) {
+        const reconciledSearch = reconcileCloudKeywords({
+          businessId: activeBusiness.id, businessUrl: activeBusiness.url,
+          current: storageService.getKeywords(activeBusiness.id), cloud: state.keywords || [],
+          currentMeta: storageService.getSearchConsoleMeta(activeBusiness.id),
+          initialSignature: initialSearchSignature, snapshot: state.searchConsole,
+        });
+        if (reconciledSearch.applySnapshot) {
           storageService.saveSearchConsoleMeta(activeBusiness.id, {
             siteUrl: state.searchConsole.site_url,
             startDate: state.searchConsole.period_start,
@@ -294,9 +304,7 @@ export default function App() {
           );
         }
 
-        if (Array.isArray(state.keywords) && state.keywords.length > 0) {
-          storageService.saveKeywords(activeBusiness.id, state.keywords);
-        }
+        storageService.saveKeywords(activeBusiness.id, reconciledSearch.keywords);
 
         if (Array.isArray(state.auditHistory)) {
           state.auditHistory.forEach((point) => {
@@ -316,7 +324,7 @@ export default function App() {
         // Local workspace cache remains available as fallback.
       });
     return () => { cancelled = true; };
-  }, [activeWorkspace?.id, activeBusiness.id]);
+  }, [activeWorkspace?.id, activeBusiness.id, activeBusiness.url]);
 
   // Keep action tasks synced when activeBusiness changes
   useEffect(() => {
