@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ContentGenerationRequest, Business, ActiveTab } from '../types';
 import { storageService } from '../services/storageService';
+import { validateContentInput, validateContentOutput } from '../../shared/contentContext';
 import { aiService } from '../services/aiService';
 
 interface ContentGeneratorViewProps {
@@ -39,6 +40,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
   const [topic, setTopic] = useState(
     initialParams?.topic ?? savedDraft?.request.topic ?? ('')
   );
+  const [topicRelation, setTopicRelation] = useState(initialParams ? '' : savedDraft?.request.topicRelation || '');
   const [keyword, setKeyword] = useState(
     initialParams?.keyword ?? savedDraft?.request.keyword ?? ('')
   );
@@ -54,18 +56,20 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
   const [generatedResult, setGeneratedResult] = useState<string>(savedDraft?.text || '');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [isApproved, setIsApproved] = useState<boolean>(savedDraft?.approved || false);
+  const [isApproved, setIsApproved] = useState<boolean>(Boolean(savedDraft?.approved && !validateContentOutput(savedDraft?.text || '')));
 
   useEffect(() => {
     setSaveFailed(!storageService.saveContentDraft(business.id, {
-      request: { contentType, topic, keyword, city, businessType, goal, tone },
+      request: { contentType, topic, keyword, city, businessType, goal, tone, topicRelation },
       text: generatedResult, approved: isApproved,
     }));
-  }, [business.id, contentType, topic, keyword, city, businessType, goal, tone, generatedResult, isApproved]);
+  }, [business.id, contentType, topic, keyword, city, businessType, goal, tone, topicRelation, generatedResult, isApproved]);
 
   // Update if initialParams changed
   useEffect(() => {
     if (initialParams) {
+      setTopicRelation('');
+      setIsApproved(false);
       if (initialParams.contentType !== undefined) setContentType(initialParams.contentType);
       if (initialParams.topic !== undefined) setTopic(initialParams.topic);
       if (initialParams.keyword !== undefined) setKeyword(initialParams.keyword);
@@ -92,6 +96,8 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
       setError('Completá el tema, el tipo de negocio y el objetivo.');
       return;
     }
+    const validation = validateContentInput({ contentType, topic, keyword, city, businessType, goal, tone, topicRelation, businessContext: { name: business.name, description: business.description, url: business.url } });
+    if (validation) { setError(validation); return; }
     busy.current = true;
     setError('');
     setIsGenerating(true);
@@ -105,6 +111,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
           businessType,
           goal,
           tone,
+          topicRelation,
         },
         {
           workspaceId: business.workspaceId,
@@ -211,6 +218,10 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
           </h2>
 
           <form onSubmit={handleGenerate} className="space-y-4 text-xs">
+            {!business.description?.trim() && <div role="alert" className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-amber-900">
+              <p>Falta la descripción confirmada del negocio. Completala para evitar textos genéricos o servicios supuestos.</p>
+              <button type="button" onClick={() => setActiveTab('dashboard')} className="underline font-semibold mt-2 cursor-pointer">Ir a Panorama → Editar perfil</button>
+            </div>}
             <div>
               <label htmlFor="content-topic" className="font-semibold text-slate-700 block mb-1">
                 Tema principal del texto:
@@ -220,12 +231,20 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
                 required
                 id="content-topic"
                   value={topic}
-                onChange={(e) => setTopic(e.target.value)}
+                onChange={(e) => {setTopic(e.target.value);setTopicRelation('');setIsApproved(false);}}
                 placeholder="Describí un tema relacionado con los servicios reales del negocio"
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
               />
             </div>
 
+            <div>
+              <label htmlFor="content-relation" className="font-semibold text-slate-700 block mb-1">¿Qué relación tiene este tema con el negocio?</label>
+              <textarea id="content-relation" rows={2} required maxLength={2000} value={topicRelation}
+                onChange={(e) => {setTopicRelation(e.target.value);setIsApproved(false);}}
+                placeholder="Indicá el servicio real o vínculo confirmado. Si es otro negocio sin relación, cambiá el tema."
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900" />
+              <p className="text-slate-500 mt-1">Agregar una palabra en Búsquedas no confirma que sea un servicio o marca de este negocio.</p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="content-keyword" className="font-semibold text-slate-700 block mb-1">
@@ -235,7 +254,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
                   type="text"
                   id="content-keyword"
                   value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
+                  onChange={(e) => {setKeyword(e.target.value);setTopicRelation('');setIsApproved(false);}}
                   placeholder="Una búsqueda relacionada con este tema"
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 text-slate-900"
                 />
@@ -340,7 +359,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
             {generatedResult && (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsApproved(!isApproved)}
+                  onClick={() => { const issue = validateContentOutput(generatedResult);if (issue) {setError(issue);setIsApproved(false);return;}setIsApproved(!isApproved);}}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                     isApproved
                       ? 'bg-emerald-100 text-emerald-800'
