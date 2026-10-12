@@ -28,11 +28,14 @@ import { workspaceService } from '../services/workspaceService';
 import { authService } from '../services/authService';
 import { credentialState, propertyMatchesBusiness } from '../../shared/searchConsoleDiagnostics';
 
+import { keywordRequestScope, measuredKeywords, mergeMeasuredKeywords } from '../../shared/keywordWorkflow';
+
 interface KeywordsViewProps {
   business: Business;
   keywords: KeywordItem[];
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistant: () => void;
+  onSelectKeywordForAI: (keyword: KeywordItem) => void;
 }
 
 export const KeywordsView: React.FC<KeywordsViewProps> = ({
@@ -40,6 +43,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   keywords: initialKeywords,
   setActiveTab,
   onOpenAssistant,
+  onSelectKeywordForAI,
 }) => {
   const [keywords, setKeywords] = useState<KeywordItem[]>(initialKeywords);
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,6 +63,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     siteUrl: string; startDate: string; endDate: string; rowCount: number;
   } | null>(null);
   const queryVersion = useRef(0);
+  const scope = keywordRequestScope(business, storageService.getScope());
+  const liveScope = useRef(scope);
+  liveScope.current = scope;
   const statusVersion = useRef(0);
   const [gscChecking, setGscChecking] = useState(true);
 
@@ -74,10 +81,13 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setGscSites([]);
     setSelectedSite('');
     return () => { queryVersion.current += 1; };
-  }, [business.id, business.workspaceId]);
+  }, [scope]);
 
   const refreshSearchConsole = useCallback(async () => {
     const version = ++statusVersion.current;
+    queryVersion.current += 1;
+    setGscLoading(false);
+    setGscResult(null);
     setGscChecking(true);
     setGscError('');
     setGscStatus(null);
@@ -106,7 +116,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     } finally {
       if (version === statusVersion.current) setGscChecking(false);
     }
-  }, [business.id, business.url, business.workspaceId]);
+  }, [scope]);
 
   useEffect(() => {
     void refreshSearchConsole();
@@ -114,8 +124,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   }, [refreshSearchConsole]);
 
   const handleLoadSearchConsole = async () => {
-    if (!selectedSite || gscLoading || !propertyMatchesBusiness(selectedSite, business.url)) return;
+    if (!selectedSite || gscLoading || gscChecking || !propertyMatchesBusiness(selectedSite, business.url)) return;
     const requestVersion = ++queryVersion.current;
+    const requestScope = scope;
+    const stillCurrent = () => requestVersion === queryVersion.current && requestScope === liveScope.current;
 
     setGscLoading(true);
     setGscError('');
@@ -130,28 +142,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           businessId: business.id,
         }
       );
-      if (requestVersion !== queryVersion.current) return;
-      const realKeywords: KeywordItem[] = result.rows.map((row, index) => ({
-        id: `gsc-${business.id}-${index}`,
-        businessId: business.id,
-        keyword: row.query,
-        position: row.position > 0 ? Math.round(row.position * 10) / 10 : 0,
-        searchVolume: 0,
-        difficulty: 'Media',
-        evolution: 0,
-        intent: 'Informativa',
-        url: business.url,
-        source: 'search-console',
-        clicks: row.clicks,
-        impressions: row.impressions,
-        ctr: row.ctr,
-      }));
-
-      // Refresh the measured source without deleting words the user added manually.
-      const updatedKeywords = [
-        ...keywords.filter((kw) => kw.source === 'manual'),
-        ...realKeywords,
-      ];
+      if (!stillCurrent()) return;
+      const realKeywords = measuredKeywords(business, result.rows);
+      // Read the current cache after the response, including manual additions made while waiting.
+      const updatedKeywords = mergeMeasuredKeywords(business.id, storageService.getKeywords(business.id), realKeywords);
       setKeywords(updatedKeywords);
       storageService.saveKeywords(business.id, updatedKeywords);
       setGscResult({
@@ -217,23 +211,23 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         });
       }
 
-      if (requestVersion !== queryVersion.current) return;
+      if (!stillCurrent()) return;
       storageService.updateBusinessScores(
         business.id,
         {},
         { google: 'partial' }
       );
     } catch (error: any) {
-      if (requestVersion === queryVersion.current) {
+      if (stillCurrent()) {
         setGscError(error?.message || 'No se pudieron cargar datos de Search Console.');
       }
     } finally {
-      if (requestVersion === queryVersion.current) setGscLoading(false);
+      if (stillCurrent()) setGscLoading(false);
     }
   };
 
   const filteredKeywords = keywords.filter((kw) => {
-    if (intentFilter !== 'all' && kw.intent !== intentFilter) return false;
+    if (intentFilter !== 'all' && (kw.source === 'search-console' ? 'Sin clasificar' : kw.intent) !== intentFilter) return false;
     if (searchTerm && !kw.keyword.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
@@ -248,9 +242,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       keyword: newKeywordInput.trim(),
       position: 0,
       searchVolume: 0,
-      difficulty: 'Media',
+      difficulty: 'Sin medición',
       evolution: 0,
-      intent: 'Comercial',
+      intent: 'Sin clasificar',
       url: business.url,
       source: 'manual',
     };
@@ -377,7 +371,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <button
                 type="button"
                 onClick={handleLoadSearchConsole}
-                disabled={!selectedSite || gscLoading || !propertyMatchesBusiness(selectedSite, business.url)}
+                disabled={!selectedSite || gscLoading || gscChecking || !propertyMatchesBusiness(selectedSite, business.url)}
                 className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] cursor-pointer"
               >
                 {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
@@ -414,7 +408,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         {/* Search & Filters */}
         <div className="mt-6 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs overflow-x-auto no-scrollbar pb-1">
-            {['all', 'Comercial', 'Local', 'Transaccional', 'Informativa'].map((intent) => (
+            {['all', 'Comercial', 'Local', 'Transaccional', 'Informativa', 'Sin clasificar'].map((intent) => (
               <button
                 key={intent}
                 onClick={() => setIntentFilter(intent)}
@@ -450,7 +444,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[11px]">
                 <th className="py-3.5 px-4 sm:px-6">Palabra clave</th>
-                <th className="py-3.5 px-4 text-center">Posición</th>
+                <th className="py-3.5 px-4 text-center">Posición media</th>
                 <th className="py-3.5 px-4 text-right">Impresiones</th>
                 <th className="py-3.5 px-4 text-right">Clics / CTR</th>
                 <th className="py-3.5 px-4 text-center">Fuente</th>
@@ -482,7 +476,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                       <div className="font-semibold text-slate-900">{kw.keyword}</div>
                       <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
                         <span className="bg-slate-100 px-1.5 py-0.2 rounded text-slate-600 font-medium">
-                          {kw.intent}
+                          {kw.source === 'search-console' ? 'Sin clasificar' : kw.intent}
                         </span>
                         <span className="truncate max-w-[200px]">{kw.url}</span>
                       </div>
@@ -498,7 +492,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                             : 'bg-slate-100 text-slate-700'
                         }`}
                       >
-                        {hasMeasurement ? `#${kw.position}` : 'Pendiente'}
+                        {hasMeasurement ? kw.position : 'Sin medición'}
                       </span>
                     </td>
 
@@ -527,7 +521,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
 
                     <td className="py-3.5 px-4 sm:px-6 text-right">
                       <button
-                        onClick={() => setActiveTab('content-generator')}
+                        onClick={() => onSelectKeywordForAI(kw)}
                         className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center justify-end gap-1 ml-auto cursor-pointer"
                       >
                         <Sparkles className="w-3 h-3 text-amber-500" />
