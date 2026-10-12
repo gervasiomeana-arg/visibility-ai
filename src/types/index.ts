@@ -260,6 +260,7 @@ export interface ContentGenerationRequest {
 }
 
 export interface ContentDraft {
+  generatedFor?: string;
   request: ContentGenerationRequest;
   text: string;
   approved: boolean;
