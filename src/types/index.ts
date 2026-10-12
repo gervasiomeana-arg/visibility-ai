@@ -85,6 +85,7 @@ export interface ExecutiveIssue {
 }
 
 export interface SeoAuditItem {
+  lcpDiagnostics?: import('../../shared/lcpDiagnostics').LcpDiagnostics;
   id: string;
   key: string;
   title: string;
@@ -111,6 +112,7 @@ export interface SeoAuditResult {
   responseTimeMs: number;
   items: SeoAuditItem[];
   pageSpeed?: {
+    lcpDiagnostics?: import('../../shared/lcpDiagnostics').LcpDiagnostics;
     performanceScore: number | null;
     firstContentfulPaint: { displayValue: string | null; numericValue: number | null; score: number | null };
     largestContentfulPaint: { displayValue: string | null; numericValue: number | null; score: number | null };
@@ -183,6 +185,7 @@ export interface Opportunity {
 }
 
 export interface ActionTask {
+  lcpDiagnostics?: import('../../shared/lcpDiagnostics').LcpDiagnostics;
   metricValue?: string;
   id: string;
   businessId: string;

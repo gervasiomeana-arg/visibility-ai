@@ -247,6 +247,9 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
                     <strong className="text-slate-900 block font-heading">Solución recomendada:</strong>
                     <span className="text-[10px] text-slate-400">Sin suponer WordPress o Wix</span>
                   </div>
+                  {item.detectedData && (
+                    <p className="text-[11px] leading-relaxed break-words"><strong className="text-slate-800">Dato medido:</strong> {item.detectedData}</p>
+                  )}
                   {proposedChange ? (
                     <div className="space-y-1.5 text-[11px] leading-relaxed">
                       <p><strong className="text-slate-800">Propuesta:</strong> {proposedChange}</p>

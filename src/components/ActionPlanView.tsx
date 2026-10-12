@@ -428,7 +428,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 <span className="text-[10px] uppercase font-bold text-indigo-600 tracking-wider block mb-1">
                   2. ¿Qué se detectó? (Dato medido)
                 </span>
-                <p className="font-semibold leading-relaxed">
+                <p className="font-semibold leading-relaxed break-words">
                   {selectedTask.detectedData || selectedTask.simpleExplanation}
                 </p>
               </div>

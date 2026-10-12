@@ -317,7 +317,7 @@ export function deduplicateAndReconcileTasks(
   const reconciled = mergedTasks.map((task) => {
     const fType = extractFindingType(task);
     const metricValue = task.metricValue || legacyPerformanceMetric(task.quickActionPrompt);
-    const performance = task.source !== 'demo' ? performanceSolution(fType, metricValue) : undefined;
+    const performance = task.source !== 'demo' ? performanceSolution(fType, metricValue, task.lcpDiagnostics) : undefined;
     if (performance) {
       return {
         ...task,
@@ -752,6 +752,7 @@ export const storageService = {
           source: 'seo-audit' as const,
           findingType: item.key,
           metricValue: item.metricValue,
+          lcpDiagnostics: item.lcpDiagnostics,
           title: item.title,
           priority,
           status,
