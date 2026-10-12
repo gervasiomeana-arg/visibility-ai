@@ -1,5 +1,6 @@
 import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
+import { beginOAuthNavigation } from '../../shared/oauthNavigation';
 
 export interface SearchConsoleSite {
   siteUrl: string;
@@ -44,7 +45,8 @@ export const searchConsoleService = {
     });
   },
 
-  async connect(returnTo = '/'): Promise<void> {
+  async connect(returnTo = '/'): Promise<'new-tab' | 'redirect'> {
+    return beginOAuthNavigation(window, async () => {
     const data = await apiFetchJson<{ authUrl?: string }>(
       '/api/search-console/auth/start',
       {
@@ -56,13 +58,8 @@ export const searchConsoleService = {
       }
     );
 
-    if (!data.authUrl) {
-      throw new Error(
-        'Search Console no devolvió una URL de autorización.'
-      );
-    }
-
-    window.location.href = data.authUrl;
+      return data.authUrl;
+    });
   },
 
   async disconnect(): Promise<void> {

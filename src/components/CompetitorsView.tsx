@@ -1,3 +1,4 @@
+import { CompetitorResearchPanel } from './CompetitorResearchPanel';
 import React from 'react';
 import { Users2, ExternalLink } from 'lucide-react';
 import { Competitor, Business, ActiveTab } from '../types';
@@ -25,6 +26,7 @@ export const CompetitorsView: React.FC<CompetitorsViewProps> = ({ business, comp
       <p className="text-sm text-slate-600 mt-2">Referencias para <strong>{business.name}</strong>. Visibility todavía no dispone de una fuente integrada que mida posiciones o brechas entre estos negocios.</p>
       <p className="text-xs text-slate-500 mt-3">Una URL o un registro marcado como real no verifica sus puntajes, ventajas ni debilidades. Los ejemplos se identifican por separado y los puntajes sin método de medición permanecen vacíos.</p>
     </header>
+    <CompetitorResearchPanel business={business}/>
     {!own.length && <div className="vai-panel p-8 text-center text-sm text-slate-600">No hay referencias registradas para este negocio. Esto no significa que no tenga competidores.</div>}
     <div className="space-y-4">{own.map(comp => {
       const isDemo = comp.source === 'demo';
