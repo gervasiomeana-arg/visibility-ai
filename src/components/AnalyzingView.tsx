@@ -32,7 +32,7 @@ const AnalyzingRequest: React.FC<AnalyzingViewProps> = ({
     'Revisando title, description y encabezados',
     'Comprobando canonical, indexación e imágenes ALT',
     'Buscando robots.txt y sitemap.xml',
-    'Guardando resultados verificables',
+    'Esperando la respuesta de la auditoría y PageSpeed',
   ];
 
   useEffect(() => {
@@ -107,14 +107,14 @@ const AnalyzingRequest: React.FC<AnalyzingViewProps> = ({
         <p className="text-xs sm:text-sm text-slate-500 mt-2">
           {status === 'error'
             ? 'No guardamos resultados incompletos.'
-            : 'Esta fase revisa señales técnicas verificables del sitio. Rankings, tráfico y Core Web Vitals se conectarán por separado.'}
+            : 'Revisamos el HTML y consultamos PageSpeed en móvil. Esa consulta puede tardar hasta 60 segundos; si no responde, conservamos los resultados técnicos y avisamos qué medición falta.'}
         </p>
 
         {status !== 'error' && (
           <>
             <div className="mt-8">
               <div className="flex justify-between text-xs font-semibold text-slate-600 mb-2">
-                <span>Auditoría técnica</span>
+                <span>{status === 'success' ? 'Auditoría técnica' : 'Progreso orientativo'}</span>
                 <span className="text-indigo-600">{progressPercent}%</span>
               </div>
               <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200">
@@ -124,7 +124,7 @@ const AnalyzingRequest: React.FC<AnalyzingViewProps> = ({
 
             <div className="mt-8 text-left space-y-2.5">
               {steps.map((step, index) => {
-                const isDone = status === 'success' || index < currentStep;
+                const isDone = status === 'success';
                 const isCurrent = status === 'running' && index === currentStep;
                 return (
                   <div key={step} className={`flex items-center gap-3 p-2.5 rounded-xl ${
