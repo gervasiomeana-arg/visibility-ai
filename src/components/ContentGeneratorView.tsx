@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { ContentGenerationRequest, Business, ActiveTab } from '../types';
 import { storageService } from '../services/storageService';
+import { contentRequestSignature, contentDraftState } from '../../shared/contentDraftState';
 import { validateContentInput, validateContentOutput } from '../../shared/contentContext';
 import { aiService } from '../services/aiService';
 
@@ -56,14 +57,17 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
   const [generatedResult, setGeneratedResult] = useState<string>(savedDraft?.text || '');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
-  const [isApproved, setIsApproved] = useState<boolean>(Boolean(savedDraft?.approved && !validateContentOutput(savedDraft?.text || '')));
+  const [generatedFor, setGeneratedFor] = useState(savedDraft?.generatedFor || '');
+  const currentSignature = contentRequestSignature({ contentType, topic, keyword, city, businessType, goal, tone, topicRelation }, business);
+  const draftState = contentDraftState(generatedResult, generatedFor, currentSignature, error, isGenerating);
+  const [isApproved, setIsApproved] = useState<boolean>(Boolean(savedDraft?.approved && generatedFor === currentSignature && !validateContentOutput(savedDraft?.text || '')));
 
   useEffect(() => {
     setSaveFailed(!storageService.saveContentDraft(business.id, {
       request: { contentType, topic, keyword, city, businessType, goal, tone, topicRelation },
-      text: generatedResult, approved: isApproved,
+      text: generatedResult, generatedFor, approved: isApproved && draftState.canApprove && !validateContentOutput(generatedResult),
     }));
-  }, [business.id, contentType, topic, keyword, city, businessType, goal, tone, topicRelation, generatedResult, isApproved]);
+  }, [business.id, contentType, topic, keyword, city, businessType, goal, tone, topicRelation, generatedResult, generatedFor, isApproved, error, isGenerating]);
 
   // Update if initialParams changed
   useEffect(() => {
@@ -98,6 +102,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
     }
     const validation = validateContentInput({ contentType, topic, keyword, city, businessType, goal, tone, topicRelation, businessContext: { name: business.name, description: business.description, url: business.url } });
     if (validation) { setError(validation); return; }
+    const requestSignature = currentSignature;
     busy.current = true;
     setError('');
     setIsGenerating(true);
@@ -119,7 +124,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
           businessContext: { name: business.name, description: business.description, url: business.url },
         }
       );
-      if (live.current) { setGeneratedResult(result); setIsApproved(false); setCopied(false); }
+      if (live.current) { setGeneratedResult(result); setGeneratedFor(requestSignature); setIsApproved(false); setCopied(false); }
     } catch (err) {
       if (live.current) setError(err instanceof Error ? err.message : 'No se pudo generar el texto. Intentá nuevamente.');
     } finally {
@@ -141,7 +146,6 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
 
   return (
     <div className="space-y-6 pb-12">
-      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
       {saveFailed && <p role="alert" className="text-sm text-amber-800">No se pudo guardar el borrador en este navegador. Copiá el texto antes de salir.</p>}
       <p className="text-xs text-slate-500">El borrador se guarda en este navegador para este negocio. No se sincroniza entre dispositivos.</p>
       {/* Header */}
@@ -218,6 +222,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
           </h2>
 
           <form onSubmit={handleGenerate} className="space-y-4 text-xs">
+            {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</p>}
             {!business.description?.trim() && <div role="alert" className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-amber-900">
               <p>Falta la descripción confirmada del negocio. Completala para evitar textos genéricos o servicios supuestos.</p>
               <button type="button" onClick={() => setActiveTab('dashboard')} className="underline font-semibold mt-2 cursor-pointer">Ir a Panorama → Editar perfil</button>
@@ -349,7 +354,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-sm font-bold text-slate-900 font-heading">
-                Resultado Editable
+                {draftState.title}
               </h2>
               <span className="text-[11px] text-slate-500">
                 Podes modificar el texto directamente antes de copiarlo a tu web
@@ -359,15 +364,16 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
             {generatedResult && (
               <div className="flex items-center gap-2">
                 <button
+                  disabled={!draftState.canApprove || Boolean(validateContentOutput(generatedResult))}
                   onClick={() => { const issue = validateContentOutput(generatedResult);if (issue) {setError(issue);setIsApproved(false);return;}setIsApproved(!isApproved);}}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
                     isApproved
                       ? 'bg-emerald-100 text-emerald-800'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{isApproved ? 'Aprobado por usuario' : 'Aprobar texto'}</span>
+                  <span>{isApproved && draftState.canApprove ? 'Aprobado por usuario' : 'Aprobar texto'}</span>
                 </button>
 
                 <button
@@ -375,12 +381,15 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
                   className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copied ? '¡Copiado!' : 'Copiar texto'}</span>
+                  <span>{copied ? '¡Copiado!' : draftState.outdated || error ? 'Copiar borrador anterior' : 'Copiar texto'}</span>
                 </button>
               </div>
             )}
           </div>
 
+          {generatedResult && (draftState.outdated || error) && <p role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+            Este texto se conserva de un borrador anterior. No es el resultado de una nueva generación con los datos actuales. Revisá el formulario y el mensaje de error antes de volver a generar.
+          </p>}
           {/* Text Area */}
           <div className="mt-4 flex-1 flex flex-col">
             {generatedResult ? (
