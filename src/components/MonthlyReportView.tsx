@@ -1,17 +1,18 @@
-import { technicalScoreChange } from '../../shared/scoreEvidence';
+import { technicalScoreChange, webMeasurement } from '../../shared/scoreEvidence';
 import React from 'react';
 import { FileText, Printer } from 'lucide-react';
-import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask } from '../types';
-import { measuredSeries, reportEvidence, searchPositionChange, measurementDateLabel } from '../../shared/reportEvidence';
+import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, SeoAuditResult } from '../types';
+import { measuredSeries, reportEvidence, searchPositionChange, measurementDateLabel, technicalFindingReduction, taskPlanEvidence } from '../../shared/reportEvidence';
 
 interface MonthlyReportViewProps {
   business: Business;
   evolution: MonthlyEvolution;
   issues: ExecutiveIssue[];
   tasks?: ActionTask[];
+  auditMeta?: Partial<SeoAuditResult> | null;
 }
 
-export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = [] }) => {
+export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = [], auditMeta }) => {
   const dateLabel = (value?: string) => measurementDateLabel(value, business.locale || 'es-AR', business.timezone || 'America/Argentina/Buenos_Aires');
   const evidence = reportEvidence(business.id, evolution, issues);
   const { mode, priorities, useDemoMetrics } = evidence;
@@ -19,9 +20,10 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
   const technical = evolution.source === 'real' ? measuredSeries(evolution.months, evolution.visibility) : [];
   const technicalChange = technicalScoreChange(evolution);
   const positionChange = searchPositionChange(evolution);
-  const reduction = evolution.source === 'real' && technical.length >= 2 && evolution.fixedProblems.length === evolution.visibility.length
-    ? evolution.fixedProblems.at(-1) : undefined;
-  const currentTasks = tasks.filter(task => task.businessId === business.id && (task.source === 'seo-audit' || task.source === 'manual'));
+  const reduction = technicalFindingReduction(evolution);
+  const plan = taskPlanEvidence(business.id, tasks);
+  const currentTasks = plan.tasks.filter(task => task.source !== 'demo');
+  const performance = webMeasurement(auditMeta, business.scores.web, business.scoreSources?.web || 'unavailable');
   const latestSearch = evolution.source === 'real' ? evolution.searchPeriods?.at(-1) : undefined;
   const auditDates = evolution.source === 'real' ? evolution.auditDates || [] : [];
   const lastIssueDate = evidence.realIssues.map(issue => issue.checkedAt).filter((date): date is string => !!date && Number.isFinite(Date.parse(date))).sort().at(-1);
@@ -43,7 +45,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     { label: 'CTR de consultas recuperadas', value: ctr !== null ? `${ctr.toLocaleString('es-AR')}%` : '—', source: ctr !== null ? 'SEARCH CONSOLE' : 'SIN MEDICIÓN', note: 'Clics sobre impresiones. Sin impresiones no se calcula una tasa.' },
     { label: 'Cambio del índice técnico', value: useDemoMetrics ? `+${evolution.monthComparison.visibilityChangePercent}%` : technicalChange !== null ? `${signed(technicalChange)} puntos` : '—', source: useDemoMetrics ? 'DEMO' : technicalChange !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Primera y última medición con las mismas fuentes; no es una posición en Google.' },
     { label: 'Cambio de posición media', value: useDemoMetrics ? String(evolution.monthComparison.improvedPositionsCount) : positionChange !== null ? signed(positionChange) : '—', source: useDemoMetrics ? 'DEMO' : positionChange !== null ? 'SEARCH CONSOLE' : 'SIN COMPARACIÓN', note: positionChange !== null ? 'Últimos dos períodos comparables; positivo = menor posición.' : 'Requiere períodos conocidos, de igual duración y sin solapamiento.' },
-    { label: 'Reducción neta de hallazgos', value: useDemoMetrics ? String(evolution.monthComparison.solvedProblemsCount) : typeof reduction === 'number' && Number.isFinite(reduction) ? String(reduction) : '—', source: useDemoMetrics ? 'DEMO' : reduction !== undefined ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Menos hallazgos respecto del inicio; no acredita tareas resueltas.' },
+    { label: 'Reducción neta de hallazgos', value: useDemoMetrics ? String(evolution.monthComparison.solvedProblemsCount) : reduction !== null ? String(reduction) : '—', source: useDemoMetrics ? 'DEMO' : reduction !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Requiere auditorías con las mismas fuentes. No acredita tareas resueltas.' },
     { label: 'Factores evaluados', value: evidence.usableIssues.length ? String(evidence.usableIssues.length) : '—', source: useDemoMetrics ? 'DEMO' : evidence.realIssues.length ? 'AUDITORÍA REAL' : 'SIN DATOS', note: 'Incluye factores correctos, advertencias y errores.' },
     { label: 'Consultas / ventas', value: useDemoMetrics ? String(evolution.monthComparison.consultationsTotal) : '—', source: useDemoMetrics ? 'DEMO' : 'SIN FUENTE', note: 'No se deducen de los clics ni del índice técnico.' },
   ];
@@ -74,6 +76,11 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
             {auditDates.length > 1 && <p>Historial: {dateLabel(auditDates[0])} a {dateLabel(auditDates.at(-1))}.</p>}
             <p>El análisis del HTML inicial no ejecuta JavaScript. Un hallazgo puede requerir comprobar la página renderizada.</p>
           </div>
+          {isReal && <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Google PageSpeed · Móvil</strong>
+            <p>{performance.state === 'real' ? `${performance.value}/100 · medido el ${dateLabel(performance.measuredAt)}.` : 'Sin medición actual de rendimiento disponible.'}</p>
+            {performance.state !== 'real' && <p>La revisión del HTML no aprueba LCP, FCP ni CLS. {auditMeta?.pageSpeedError || 'Es necesario obtener una medición móvil.'}</p>}
+            <p>Prueba de laboratorio; no representa la experiencia de todos los visitantes.</p>
+          </div>}
           <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Google Search Console</strong>
             <p>{searchCount ? `Período: ${latestSearch?.startDate && latestSearch.endDate ? `${latestSearch.startDate} a ${latestSearch.endDate}` : 'No registrado en el historial anterior'}.` : 'Sin mediciones guardadas disponibles.'}</p>
             {latestSearch && <><p className="break-all">Propiedad: {latestSearch.siteUrl || 'No registrada'}.</p><p>Cargado: {dateLabel(latestSearch.loadedAt)}.</p></>}
@@ -98,7 +105,11 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
       </section>
       {isReal && <section className="space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Estado del plan de acción</h3>
-        {currentTasks.length ? <><p className="text-xs text-slate-600">{currentTasks.filter(t => t.status === 'pendiente' || t.status === 'en_progreso').length} tareas pendientes o en curso · {currentTasks.filter(t => t.status === 'completada' || t.status === 'completada_manual').length} marcadas como completadas manualmente · {currentTasks.filter(t => t.status === 'verificada_auditoria').length} registradas como verificadas por auditoría.</p>
+        {currentTasks.length ? <><p className="text-xs text-slate-600">{plan.pending} tareas pendientes o en curso · {plan.manualCompleted} marcadas como completadas manualmente · {plan.verified} registradas como verificadas por auditoría.</p>
+          {plan.notes.map(task => <div key={task.id} className="rounded-xl border border-slate-200 p-3 text-xs space-y-1">
+            <strong>{task.title} · Nota manual</strong><p className="whitespace-pre-wrap break-words text-slate-600">{task.userEvidence}</p>
+            <p className="text-slate-500">Actualizada: {dateLabel(task.manualUpdatedAt || task.completedAt || undefined)}. Registro de avance, no medición técnica.</p>
+          </div>)}
           <p className="text-xs text-slate-500">Los estados y notas reflejan el registro del plan. Una nota o un marcado manual no constituye verificación técnica.</p></> : <p className="text-sm text-slate-500">Sin tareas reales o manuales registradas para este negocio.</p>}
       </section>}
       <footer className="border-t border-slate-200 pt-4 text-xs text-slate-500 space-y-1">

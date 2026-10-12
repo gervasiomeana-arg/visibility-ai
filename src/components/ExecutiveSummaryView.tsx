@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { summaryEvidence } from '../../shared/reportEvidence';
 import {
   FileCheck2,
   AlertCircle,
@@ -20,12 +21,13 @@ interface ExecutiveSummaryViewProps {
 
 export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
   business,
-  issues,
+  issues: suppliedIssues,
   setActiveTab,
   onOpenAssistant,
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'high' | 'medium' | 'ok'>('all');
   const [expandedIssueId, setExpandedIssueId] = useState<string | null>(null);
+  const { issues, mode: summarySource } = summaryEvidence(business.id, suppliedIssues);
 
   const filteredIssues = issues.filter((issue) => {
     if (activeFilter === 'all') return true;
@@ -35,13 +37,6 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
   const highCount = issues.filter((i) => i.severity === 'high').length;
   const mediumCount = issues.filter((i) => i.severity === 'medium').length;
   const okCount = issues.filter((i) => i.severity === 'ok').length;
-  const realCount = issues.filter((i) => i.source === 'real').length;
-  const summarySource =
-    issues.length > 0 && realCount === issues.length
-      ? 'real'
-      : realCount > 0
-      ? 'partial'
-      : 'demo';
   const toggleExpand = (id: string) => {
     setExpandedIssueId(expandedIssueId === id ? null : id);
   };
@@ -58,9 +53,9 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
               <span>
                 {summarySource === 'real'
                   ? 'RESUMEN CON DATOS REALES'
-                  : summarySource === 'partial'
-                  ? 'RESUMEN PARCIAL'
-                  : 'RESUMEN DEMO'}
+                  : summarySource === 'demo'
+                  ? 'RESUMEN DEMO'
+                  : 'SIN MEDICIONES'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
@@ -69,10 +64,10 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
               {summarySource === 'real' ? (
                 <>Encontramos <strong>{issues.length} hallazgos técnicos verificados</strong> para <strong>{business.name}</strong>, priorizados por severidad e impacto.</>
-              ) : summarySource === 'partial' ? (
-                <>Este resumen combina <strong>{realCount} hallazgos verificados</strong> con elementos todavía identificados como DEMO.</>
-              ) : (
+              ) : summarySource === 'demo' ? (
                 <>Esta es una vista demostrativa del diagnóstico de <strong>{business.name}</strong>. Los ítems DEMO no representan mediciones verificadas.</>
+              ) : (
+                <>Todavía no hay hallazgos medidos disponibles para <strong>{business.name}</strong>. Ejecutá una auditoría para generar el resumen.</>
               )}
             </p>
           </div>

@@ -1,4 +1,28 @@
-import type { ExecutiveIssue, MonthlyEvolution, SearchHistoryPeriod } from '../src/types';
+import type { ActionTask, ExecutiveIssue, MonthlyEvolution, SearchHistoryPeriod } from '../src/types';
+import { technicalScoreChange } from './scoreEvidence';
+
+export function summaryEvidence(businessId: string, supplied: ExecutiveIssue[]) {
+  const own = supplied.filter(issue => issue.businessId === businessId);
+  const real = own.filter(issue => issue.source === 'real');
+  const issues = real.length ? real : own.filter(issue => issue.source === 'demo');
+  return { issues, mode: real.length ? 'real' : issues.length ? 'demo' : 'empty' } as const;
+}
+
+export function taskPlanEvidence(businessId: string, supplied: ActionTask[]) {
+  const own = supplied.filter(task => task.businessId === businessId);
+  const backed = own.filter(task => task.source === 'seo-audit' || task.source === 'manual');
+  const tasks = backed.length ? backed : own.filter(task => task.source === 'demo');
+  const verified = tasks.filter(task => task.status === 'verificada_auditoria' || (task.status === 'completada' && task.completionType === 'auditoria')).length;
+  const manualCompleted = tasks.filter(task => task.status === 'completada_manual' || (task.status === 'completada' && task.completionType !== 'auditoria')).length;
+  const pending = tasks.filter(task => task.status === 'pendiente' || task.status === 'en_progreso').length;
+  return { tasks, verified, manualCompleted, pending, notes: backed.filter(task => task.userEvidence?.trim()).slice(0, 3) };
+}
+
+export function technicalFindingReduction(evolution: MonthlyEvolution): number | null {
+  if (technicalScoreChange(evolution) === null || evolution.fixedProblems.length !== evolution.visibility.length) return null;
+  const value = evolution.fixedProblems.at(-1);
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
 
 export function measuredSeries(labels: string[], values: number[], positiveOnly = false) {
   return labels.flatMap((label, index) => {
