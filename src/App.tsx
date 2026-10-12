@@ -2,6 +2,8 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
+import { keywordContentParams, keywordRequestScope } from '../shared/keywordWorkflow';
+
 
 import { opportunityKind } from '../shared/opportunityEvidence';
 import React, { useState, useEffect } from 'react';
@@ -90,6 +92,7 @@ export default function App() {
   const [assistantInitialPrompt, setAssistantInitialPrompt] = useState<string>('');
 
   // Content Generator pre-fill params
+  const [contentGenOwner, setContentGenOwner] = useState('');
   const [contentGenParams, setContentGenParams] = useState<Partial<ContentGenerationRequest> | undefined>();
   useEffect(() => { if (activeTab !== 'content-generator') setContentGenParams(undefined); }, [activeTab]);
 
@@ -592,9 +595,18 @@ export default function App() {
     return { storage: 'local' as const };
   };
 
+  const handleSelectKeywordForAI = (keyword: KeywordItem) => {
+    const params = keywordContentParams(activeBusiness, keyword);
+    if (!params) return;
+    setContentGenOwner(keywordRequestScope(activeBusiness, storageService.getScope()));
+    setContentGenParams(params);
+    setActiveTab('content-generator');
+  };
+
   const handleSelectOpportunityForAI = (opp: Opportunity) => {
     if (opp.businessId !== activeBusiness.id) return;
     if (opportunityKind(opp) === 'technical') { setActiveTab('seo'); return; }
+    setContentGenOwner(keywordRequestScope(activeBusiness, storageService.getScope()));
     setContentGenParams({
       contentType: opp.contentParams.contentType,
       topic: opp.contentParams.topic,
@@ -806,6 +818,7 @@ export default function App() {
               <KeywordsView
                 business={activeBusiness}
                 keywords={keywords}
+                onSelectKeywordForAI={handleSelectKeywordForAI}
                 setActiveTab={setActiveTab}
                 onOpenAssistant={() => {
                   setAssistantInitialPrompt('¿Cuáles son las mejores palabras clave para posicionar mi negocio en mi ciudad?');
@@ -838,7 +851,7 @@ export default function App() {
             {activeTab === 'content-generator' && (
               <ContentGeneratorView
                 business={activeBusiness}
-                initialParams={contentGenParams}
+                initialParams={contentGenOwner === keywordRequestScope(activeBusiness, storageService.getScope()) ? contentGenParams : undefined}
                 setActiveTab={setActiveTab}
               />
             )}

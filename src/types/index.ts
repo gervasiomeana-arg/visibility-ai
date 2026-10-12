@@ -130,9 +130,9 @@ export interface KeywordItem {
   keyword: string;
   position: number;
   searchVolume: number;
-  difficulty: 'Baja' | 'Media' | 'Alta';
+  difficulty: 'Baja' | 'Media' | 'Alta' | 'Sin medición';
   evolution: number; // +3, -1, 0
-  intent: 'Comercial' | 'Informativa' | 'Local' | 'Transaccional';
+  intent: 'Comercial' | 'Informativa' | 'Local' | 'Transaccional' | 'Sin clasificar';
   url: string;
   source?: 'demo' | 'manual' | 'search-console';
   clicks?: number;
