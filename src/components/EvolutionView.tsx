@@ -1,6 +1,6 @@
 import { technicalScoreChange } from '../../shared/scoreEvidence';
 import React, { useState } from 'react';
-import { measuredSeries, comparableSearchPeriods, searchPositionChange } from '../../shared/reportEvidence';
+import { measuredSeries, comparableSearchPeriods, searchPositionChange, technicalFindingReduction } from '../../shared/reportEvidence';
 import {
   TrendingUp,
   Calendar,
@@ -40,13 +40,12 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const technicalSeries = isRealHistory ? measuredSeries(months, evolution.visibility) : [];
   const technicalChange = technicalScoreChange(evolution);
   const hasTechnicalComparison = technicalChange !== null;
-  const hasSolvedProblemsSeries = technicalSeries.length >= 2 && evolution.fixedProblems.length === evolution.visibility.length;
+  const reduction = technicalFindingReduction(evolution);
+  const hasSolvedProblemsSeries = reduction !== null;
 
   const averagePositionDelta = searchPositionChange(evolution);
 
-  const solvedProblems = hasSolvedProblemsSeries
-    ? evolution.fixedProblems[evolution.fixedProblems.length - 1]
-    : null;
+  const solvedProblems = reduction;
 
   const metricConfigs: Record<MetricKey, {
     label: string;
@@ -140,6 +139,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const availableMetricKeys = (Object.keys(metricConfigs) as MetricKey[]).filter(key => {
     const config = metricConfigs[key];
     if (isRealHistory && config.source === 'DEMO') return false;
+    if (isRealHistory && key === 'fixedProblems' && !hasSolvedProblemsSeries) return false;
     const labels = key.startsWith('search') ? searchMonths : months;
     return measuredSeries(labels, config.values, config.lowerIsBetter).length > 0;
   });

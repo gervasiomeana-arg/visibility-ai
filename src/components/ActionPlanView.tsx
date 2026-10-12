@@ -24,6 +24,7 @@ import {
   ActiveTab,
 } from '../types';
 import { sortTasksByPriority } from '../services/storageService';
+import { taskPlanEvidence } from '../../shared/reportEvidence';
 
 interface ActionPlanViewProps {
   business: Business;
@@ -89,7 +90,8 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
   const formatTaskCount = (count: number) =>
     `${count} ${count === 1 ? 'tarea' : 'tareas'}`;
 
-  const sortedTasks = sortTasksByPriority(tasks);
+  const plan = taskPlanEvidence(business.id, tasks);
+  const sortedTasks = sortTasksByPriority(plan.tasks);
 
   const filteredTasks = sortedTasks.filter((t) => {
     if (priorityFilter === 'all') return true;
@@ -111,9 +113,9 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
   const planSource =
     sortedTasks.length > 0 && realTaskCount === sortedTasks.length
       ? 'real'
-      : realTaskCount > 0
+      : realTaskCount > 0 || plan.tasks.some(task => task.source === 'manual')
       ? 'partial'
-      : 'demo';
+      : sortedTasks.length ? 'demo' : 'empty';
 
   return (
     <div className="space-y-6 pb-14">
@@ -128,7 +130,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                   ? 'PLAN BASADO EN HALLAZGOS REALES'
                   : planSource === 'partial'
                   ? 'PLAN PARCIAL'
-                  : 'HOJA DE RUTA DEMO'}
+                  : planSource === 'demo' ? 'HOJA DE RUTA DEMO' : 'SIN TAREAS'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-heading">
@@ -139,7 +141,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 ? 'Tareas generadas automáticamente desde la última auditoría SEO técnica verificada.'
                 : planSource === 'partial'
                 ? `${realTaskCount} ${realTaskCount === 1 ? 'tarea proviene' : 'tareas provienen'} de hallazgos verificados; las demás mantienen su fuente identificada.`
-                : 'Tareas DEMO organizadas por prioridad para validar la experiencia. Las prioridades reales dependerán de hallazgos verificados.'}
+                : planSource === 'demo' ? 'Tareas DEMO organizadas por prioridad para validar la experiencia. Las prioridades reales dependerán de hallazgos verificados.' : 'Ejecutá una auditoría para generar tareas respaldadas por hallazgos.'}
             </p>
           </div>
 
@@ -147,14 +149,15 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
           <div className="bg-slate-900 text-white rounded-xl p-4 shrink-0 flex items-center gap-4">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                Progreso de implementación
+                Registro del plan
               </span>
               <span className="text-xl font-bold font-heading">
-                {completedCount} de {tasks.length} {tasks.length === 1 ? 'tarea resuelta' : 'tareas resueltas'}
+                {completedCount} de {sortedTasks.length} con cierre registrado
               </span>
+              <p className="text-[10px] text-slate-300 mt-1">{plan.manualCompleted} manuales · {plan.verified} por auditoría</p>
             </div>
             <div className="w-10 h-10 shrink-0 rounded-full border-2 border-emerald-400 flex items-center justify-center font-bold text-xs text-emerald-400">
-              {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}%
+              {sortedTasks.length > 0 ? Math.round((completedCount / sortedTasks.length) * 100) : 0}%
             </div>
           </div>
         </div>
@@ -170,7 +173,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
             }`}
           >
             <span className="text-[10px] uppercase tracking-wider font-semibold opacity-80 block">Todas las tareas</span>
-            <span className="text-lg font-bold font-heading">{formatTaskCount(tasks.length)}</span>
+            <span className="text-lg font-bold font-heading">{formatTaskCount(sortedTasks.length)}</span>
           </button>
 
           <button

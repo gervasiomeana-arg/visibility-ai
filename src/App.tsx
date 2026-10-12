@@ -867,6 +867,7 @@ export default function App() {
                 evolution={evolution}
                 issues={issues}
                 tasks={actionTasks}
+                auditMeta={seoAuditMeta}
               />
             )}
 
