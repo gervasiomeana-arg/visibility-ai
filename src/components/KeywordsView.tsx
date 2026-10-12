@@ -1,3 +1,4 @@
+import { searchSaveFeedback, type SearchSaveState } from '../../shared/searchSaveFeedback';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyRound,
@@ -56,6 +57,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const [gscLoading, setGscLoading] = useState(false);
   const [gscError, setGscError] = useState('');
   const [gscNotice, setGscNotice] = useState('');
+  const [gscSaveState, setGscSaveState] = useState<SearchSaveState | null>(null);
   const connecting = useRef(false);
   const [gscSites, setGscSites] = useState<SearchConsoleSite[]>([]);
   const [selectedSite, setSelectedSite] = useState('');
@@ -79,6 +81,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     queryVersion.current += 1;
     setGscLoading(false);
     setGscResult(null);
+    setGscSaveState(null);
     setGscError('');
     setGscNotice('');
     setGscSites([]);
@@ -91,6 +94,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     queryVersion.current += 1;
     setGscLoading(false);
     setGscResult(null);
+    setGscSaveState(null);
     setGscChecking(true);
     setGscError('');
     setGscNotice('');
@@ -158,6 +162,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setGscLoading(true);
     setGscError('');
     setGscResult(null);
+    setGscSaveState(null);
 
     try {
       const result = await searchConsoleService.query(
@@ -173,7 +178,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       // Read the current cache after the response, including manual additions made while waiting.
       const updatedKeywords = mergeMeasuredKeywords(business.id, storageService.getKeywords(business.id), realKeywords);
       setKeywords(updatedKeywords);
-      storageService.saveKeywords(business.id, updatedKeywords);
+      const keywordsSaved = storageService.saveKeywords(business.id, updatedKeywords);
       setGscResult({
         siteUrl: selectedSite,
         startDate: result.startDate,
@@ -198,7 +203,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
 
       const loadedAt = new Date().toISOString();
 
-      storageService.saveSearchConsoleMeta(business.id, {
+      const metaSaved = storageService.saveSearchConsoleMeta(business.id, {
         siteUrl: selectedSite,
         startDate: result.startDate,
         endDate: result.endDate,
@@ -209,7 +214,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         loadedAt,
       });
 
-      storageService.saveSearchConsoleHistoryPoint(business.id, {
+      const historySaved = storageService.saveSearchConsoleHistoryPoint(business.id, {
         loadedAt,
         siteUrl: selectedSite,
         startDate: result.startDate,
@@ -220,21 +225,27 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         position,
       });
 
-      if (authService.isConfigured() && business.workspaceId) {
-        await workspaceService.saveSearchConsoleSnapshot({
-          workspaceId: business.workspaceId,
-          businessId: business.id,
-          siteUrl: selectedSite,
-          periodStart: result.startDate,
-          periodEnd: result.endDate,
-          clicks,
-          impressions,
-          ctr,
-          position,
-          payload: { keywords: realKeywords },
-        }).catch(() => {
-          // Local cache remains available if remote persistence is temporarily unavailable.
-        });
+      const localSaved = keywordsSaved && metaSaved && historySaved;
+      const cloudAvailable = authService.isConfigured() && !!business.workspaceId;
+      setGscSaveState({ local: localSaved, cloud: cloudAvailable ? 'pending' : 'unavailable' });
+      if (cloudAvailable && business.workspaceId) {
+        try {
+          await workspaceService.saveSearchConsoleSnapshot({
+            workspaceId: business.workspaceId,
+            businessId: business.id,
+            siteUrl: selectedSite,
+            periodStart: result.startDate,
+            periodEnd: result.endDate,
+            clicks,
+            impressions,
+            ctr,
+            position,
+            payload: { keywords: realKeywords },
+          });
+          if (stillCurrent()) setGscSaveState({ local: localSaved, cloud: 'saved' });
+        } catch {
+          if (stillCurrent()) setGscSaveState({ local: localSaved, cloud: 'failed' });
+        }
       }
 
       if (!stillCurrent()) return;
@@ -277,7 +288,8 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
 
     const updated = [newItem, ...keywords];
     setKeywords(updated);
-    storageService.saveKeywords(business.id, updated);
+    const saved = storageService.saveKeywords(business.id, updated);
+    setGscError(saved ? '' : 'La palabra clave se añadió a la lista, pero el navegador no pudo guardarla. Podría perderse al recargar.');
     setNewKeywordInput('');
     setShowAddModal(false);
   };
@@ -370,6 +382,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 onChange={(e) => {
                   setSelectedSite(e.target.value);
                   setGscResult(null);
+    setGscSaveState(null);
                   setGscError('');
                 }}
                 className="flex-1 px-3 py-2 rounded-xl ring-1 ring-slate-200 bg-white text-slate-800"
@@ -414,6 +427,12 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 <p className="mt-1">La conexión sigue activa. Revisá el mismo período en Search Console; si Google indica que está procesando datos, volvé a consultar cuando estén disponibles.</p>
               )}
             </div>
+          )}
+          {gscSaveState && (
+            <p role={searchSaveFeedback(gscSaveState).warning ? 'alert' : 'status'}
+              className={searchSaveFeedback(gscSaveState).warning ? 'text-xs text-amber-800' : 'text-xs text-slate-600'}>
+              {searchSaveFeedback(gscSaveState).message}
+            </p>
           )}
           {gscNotice && <p role="status" className="text-xs text-blue-700">{gscNotice}</p>}
           {gscError && <p role="alert" className="text-[11px] font-semibold text-rose-600">{gscError}</p>}

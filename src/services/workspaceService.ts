@@ -601,7 +601,7 @@ export const workspaceService = {
     position: number;
     payload: unknown;
   }): Promise<void> {
-    if (!supabase) return;
+    if (!supabase) throw new Error('Supabase no está configurado para guardar este resultado.');
 
     const { error } = await supabase.from('search_console_snapshots').insert({
       workspace_id: params.workspaceId,
