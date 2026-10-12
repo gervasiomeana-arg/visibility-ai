@@ -276,6 +276,11 @@ export function deduplicateAndReconcileTasks(
         items.find((i) => Boolean(i.userEvidence?.trim()))?.userEvidence ||
         primary.userEvidence;
 
+      // A newer explicit edit wins over stale remote state or a newly generated audit.
+      // This also preserves intentional clearing of a note or reopening of a task.
+      const latestManual = [...items].filter(item => item.manualUpdatedAt && Number.isFinite(Date.parse(item.manualUpdatedAt)))
+        .sort((a, b) => Date.parse(b.manualUpdatedAt!) - Date.parse(a.manualUpdatedAt!))[0];
+
       const completedAt =
         items.find((i) => Boolean(i.completedAt))?.completedAt ||
         (resolvedStatus === 'completada' ||
@@ -309,6 +314,13 @@ export function deduplicateAndReconcileTasks(
         completionType: resolvedCompletionType,
         userEvidence,
         completedAt,
+        ...(latestManual ? {
+          status: latestManual.status,
+          completionType: latestManual.completionType ?? null,
+          userEvidence: latestManual.userEvidence,
+          completedAt: latestManual.completedAt ?? null,
+          manualUpdatedAt: latestManual.manualUpdatedAt,
+        } : {}),
       });
     }
   }
@@ -1210,6 +1222,7 @@ export const storageService = {
     userEvidence?: string | null
   ): ActionTask[] {
     const currentTasks = this.getActionTasks(businessId);
+    if (!currentTasks.some(task => task.id === taskId)) throw new Error('La tarea ya no está disponible en este negocio. Volvé a abrir el plan de acción.');
     const updated = currentTasks.map((t) => {
       if (t.id !== taskId) return t;
       const isCompleted =
@@ -1234,6 +1247,7 @@ export const storageService = {
         completionType: resolvedCompletionType,
         userEvidence: userEvidence !== undefined ? userEvidence : t.userEvidence,
         completedAt: isCompleted ? t.completedAt || new Date().toISOString() : null,
+        manualUpdatedAt: new Date(Math.max(Date.now(), (Date.parse(t.manualUpdatedAt || '') || 0) + 1)).toISOString(),
       };
     });
 
@@ -1250,7 +1264,7 @@ export const storageService = {
       allTasks[businessId] = sorted;
       localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(allTasks));
     } catch {
-      // Ignore
+      throw new Error('No se pudo guardar la tarea en este navegador. La nota no se confirmó como guardada.');
     }
     return sorted;
   },
