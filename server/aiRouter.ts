@@ -1,5 +1,5 @@
 import express from 'express';
-import { validateContentInput, buildContentPrompt } from '../shared/contentContext';
+import { validateContentInput, buildContentPrompt, validateContentOutput } from '../shared/contentContext';
 import { GoogleGenAI } from '@google/genai';
 import { requireSupabaseAuth } from './supabaseAuth';
 import {
@@ -179,6 +179,8 @@ router.post(
     });
 
     if (!response.text?.trim()) return res.status(502).json({ error: 'El generador no devolvió contenido. Intentá nuevamente.' });
+    const outputError = validateContentOutput(response.text);
+    if (outputError) return res.status(422).json({ error: outputError });
     return res.json({ content: response.text });
   } catch (error: any) {
     console.error('Error in /api/content/generate:', error);

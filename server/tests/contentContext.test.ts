@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildContentPrompt, validateContentInput } from '../../shared/contentContext';
+import { buildContentPrompt, validateContentInput, validateContentOutput } from '../../shared/contentContext';
 import { storageService } from '../../src/services/storageService';
 
 const request = {
-  contentType: 'seo_meta' as const, topic: 'Análisis de recepción', keyword: 'scouting de voleibol',
+  topicRelation: 'La herramienta ofrece análisis de recepción para entrenadores', contentType: 'seo_meta' as const, topic: 'Análisis de recepción', keyword: 'scouting de voleibol',
   city: '', businessType: 'Software', goal: 'Consultar funciones', tone: 'Profesional',
   businessContext: { name: 'Open Voley', description: 'Scouting y estadísticas para entrenadores', url: 'https://openvoley.com' },
 };
@@ -63,4 +63,18 @@ test('blocked browser storage reports that the draft was not saved', () => {
     if (original) Object.defineProperty(globalThis, 'localStorage', original);
     else delete (globalThis as any).localStorage;
   }
+});
+
+test('missing business facts and an unconfirmed query relationship stop generation', () => {
+  assert.match(validateContentInput({ ...request, businessContext: { ...request.businessContext, name: 'Nuevohorizontehotel', description: '' }, topic: 'hotel balluk', keyword: 'hotel balluk' })!, /descripción confirmada/);
+  assert.match(validateContentInput({ ...request, topicRelation: ' ' })!, /relación confirmada/);
+  assert.match(buildContentPrompt(request), /no inventes asociaciones/i);
+  assert.match(buildContentPrompt(request), /No conviertas el tono/);
+});
+
+test('placeholder pages are rejected instead of presented as usable copy', () => {
+  assert.match(validateContentOutput('Servicios: [dato por confirmar]')!, /Completá el perfil/);
+  assert.ok(validateContentOutput('Ubicación: [ DATOS POR CONFIRMAR ]'));
+  assert.equal(validateContentOutput('Open Voley: scouting y estadísticas para entrenadores.'), null);
+  assert.match(validateContentOutput('[ACLARACIÓN NECESARIA] ¿Qué servicio confirmado debe describir esta página?')!, /Antes de redactar:.*servicio confirmado/);
 });

@@ -55,7 +55,7 @@ test('client opportunity lists separate backed proposals from examples and other
 });
 
 test('content drafts do not require inventing a keyword to review a title', () => {
-  assert.equal(validateContentInput({ contentType: 'seo_meta', topic: 'Revisar el título principal', keyword: '', city: '', businessType: 'Software', goal: 'Describir funciones confirmadas', tone: 'Profesional', businessContext: { name: 'Open Voley' } }), null);
+  assert.equal(validateContentInput({ contentType: 'seo_meta', topic: 'Revisar el título principal', keyword: '', city: '', businessType: 'Software', goal: 'Describir funciones confirmadas', tone: 'Profesional', topicRelation: 'Revisar el título que describe la herramienta de scouting', businessContext: { name: 'Open Voley', description: 'Herramienta de scouting y estadísticas para entrenadores' } }), null);
 });
 
 test('competitor links allow only HTTP(S) URLs without embedded credentials', () => {

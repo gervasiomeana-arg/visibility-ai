@@ -249,6 +249,7 @@ export interface MonthlyEvolution {
 }
 
 export interface ContentGenerationRequest {
+  topicRelation?: string;
   contentType: 'web_page' | 'blog_article' | 'service_description' | 'faq' | 'seo_meta' | 'google_post';
   topic: string;
   keyword: string;
