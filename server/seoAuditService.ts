@@ -414,6 +414,32 @@ function findLinkHref(html: string, relValue: string): string | null {
   return null;
 }
 
+export function indexingDirectives(html: string, header: string | null) {
+  const evidence: string[] = [];
+  let noIndex = false;
+  const restrictive = (value: string) => value.toLowerCase().split(/[\s,]+/).some(token => token === 'noindex' || token === 'none');
+  const markup = html.replace(/<!--[^]*?-->/g, '').replace(/<script\b[^>]*>[^]*?<\/script\s*>/gi, '');
+  for (const tag of getTagMatches(markup, 'meta')) {
+    const name = (getAttribute(tag, 'name') || '').toLowerCase();
+    if (name !== 'robots' && name !== 'googlebot') continue;
+    const value = getAttribute(tag, 'content') || '';
+    evidence.push(`meta ${name}: ${value}`);
+    if (restrictive(value)) noIndex = true;
+  }
+  if (header) {
+    evidence.push(`X-Robots-Tag: ${header}`);
+    let agent = '';
+    for (const part of header.split(',')) {
+      const scoped = part.trim().match(/^([\w*-]+):\s*(.*)$/);
+      if (scoped && ['unavailable_after', 'max-snippet', 'max-image-preview', 'max-video-preview'].includes(scoped[1].toLowerCase())) continue;
+      if (scoped) agent = scoped[1].toLowerCase();
+      const value = scoped ? scoped[2] : part;
+      if ((!agent || agent === '*' || agent === 'googlebot') && restrictive(value)) noIndex = true;
+    }
+  }
+  return { noIndex, evidence: evidence.join('; ') };
+}
+
 type AuditStatus = 'ok' | 'warning' | 'error';
 type AuditImpact = 'Alto' | 'Medio' | 'Bajo';
 type AuditCategory = 'Contenido y On-Page' | 'Técnico e Indexación' | 'Velocidad y Móvil' | 'Seguridad y Datos';
@@ -598,7 +624,14 @@ export async function buildRealSeoAudit(
   }
 
   const html = await readTextLimited(response);
+  const responseTimeMs = Date.now() - startedAt;
   const final = new URL(finalUrl);
+  // Start the independent PageSpeed request while checking robots and sitemap.
+  // Capture rejection immediately so an optional service failure never becomes unhandled.
+  const pageSpeedPromise = (async () => {
+    try { return { pageSpeed: await fetchPageSpeed(finalUrl), error: null }; }
+    catch (error: any) { return { pageSpeed: null, error }; }
+  })();
   const items: any[] = [];
 
   const title = getPairedTagText(html, 'title')[0] || '';
@@ -858,8 +891,9 @@ export async function buildRealSeoAudit(
         )
   );
 
-  const robotsMeta = (findMetaContent(html, 'name', 'robots') || '').toLowerCase();
-  const noIndex = robotsMeta.includes('noindex');
+  const directives = indexingDirectives(html, response.headers.get('x-robots-tag'));
+  const robotsMeta = directives.evidence;
+  const noIndex = directives.noIndex;
   items.push(
     noIndex
       ? auditItem(
@@ -868,14 +902,14 @@ export async function buildRealSeoAudit(
           'Técnico e Indexación',
           'error',
           'NOINDEX',
-          'La página indica a los buscadores que no la indexen.',
+          'Se detectó noindex o none aplicable a Google en el HTML inicial o la respuesta HTTP.',
           'Confirmar si noindex es intencional; si la página debe aparecer en Google, retirarlo.',
           'Alto',
           robotsMeta,
           {
             whyItMatters: 'La directiva noindex instruye a los buscadores a no incluir esta URL en su índice.',
-            detectedData: `Directiva robots encontrada: "${robotsMeta}".`,
-            proposedChange: 'Retirar noindex si la página debe ser descubrible e indexada.',
+            detectedData: `Directivas recibidas: ${robotsMeta}. Esto no comprueba el estado actual del índice de Google.`,
+            proposedChange: 'Revisar si noindex o none es intencional y retirarlo de la etiqueta o cabecera correspondiente solo si esta URL debe ser pública e indexable.',
             howToVerify: 'Comprobar la etiqueta <meta name="robots"> o la cabecera HTTP X-Robots-Tag.',
           }
         )
@@ -884,16 +918,16 @@ export async function buildRealSeoAudit(
           'Directiva de indexación',
           'Técnico e Indexación',
           'ok',
-          'Indexable',
-          'No detectamos una directiva noindex en la página.',
+          'Sin noindex detectado',
+          'No se detectó noindex o none aplicable a Google en el HTML inicial y la cabecera X-Robots-Tag. Esto no confirma que Google haya indexado la URL.',
           'Mantener la indexación habilitada si esta página debe aparecer en buscadores.',
           'Alto',
           robotsMeta || 'Sin noindex',
           {
-            whyItMatters: 'Permite que los motores de búsqueda evalúen e indexen la URL.',
-            detectedData: robotsMeta ? `Directiva robots: "${robotsMeta}" (sin noindex).` : 'Sin etiqueta noindex restrictiva.',
+            whyItMatters: 'Las directivas de indexación pueden restringir la inclusión de una URL; su ausencia no garantiza su aparición en Google.',
+            detectedData: `${robotsMeta || 'Sin directivas robots/googlebot ni X-Robots-Tag detectadas'}. Sin noindex o none aplicable a Google en esta respuesta. No se comprobaron robots.txt, el DOM renderizado ni el índice real como parte de este factor.`,
             proposedChange: 'Conservar la indexación activa para páginas principales.',
-            howToVerify: 'Comprobar que no existan etiquetas noindex en el código fuente.',
+            howToVerify: 'Revisar todas las etiquetas meta robots/googlebot y la cabecera X-Robots-Tag en la pestaña Red. Para verificar el estado real en Google, usar Inspección de URLs en Search Console.',
           }
         )
   );
@@ -1261,18 +1295,18 @@ export async function buildRealSeoAudit(
         )
   );
 
-  let pageSpeed: any = null;
+  const pageSpeedOutcome = await pageSpeedPromise;
+  const pageSpeed = pageSpeedOutcome.pageSpeed;
   let pageSpeedError: string | null = null;
-  try {
-    pageSpeed = await fetchPageSpeed(finalUrl);
+  if (pageSpeed) {
     items.push(...pageSpeedItems(pageSpeed));
-  } catch (error: any) {
+  } else {
+    const error = pageSpeedOutcome.error;
     pageSpeedError = error?.name === 'AbortError'
       ? 'PageSpeed tardó demasiado en responder'
       : error?.message || 'No se pudo obtener PageSpeed';
   }
 
-  const responseTimeMs = Date.now() - startedAt;
   items.push(
     response.ok
       ? auditItem(
@@ -1287,7 +1321,7 @@ export async function buildRealSeoAudit(
           `HTTP ${response.status} · ${responseTimeMs} ms`,
           {
             whyItMatters: 'Un estado 200 confirma que el servidor entregó el documento sin errores.',
-            detectedData: `Código de respuesta: HTTP ${response.status} en ${responseTimeMs} ms.`,
+            detectedData: `Código de respuesta: HTTP ${response.status}. Obtención del HTML inicial, incluidas redirecciones: ${responseTimeMs} ms. No incluye consultas a robots.txt, sitemap ni PageSpeed y no equivale a TTFB.`,
             proposedChange: 'Mantener la disponibilidad y estabilidad del servidor.',
             howToVerify: 'Comprobar el código de estado en la pestaña Red de las herramientas de desarrollo.',
           }
