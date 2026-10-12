@@ -175,6 +175,9 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
                 ? `Medición móvil real: ${auditMeta.pageSpeed.performanceScore}/100`
                 : 'Sin medición disponible'}
             </p>
+            {(!auditMeta?.pageSpeed || auditMeta?.pageSpeedError) && (
+              <p className="mt-2 text-xs text-amber-900">Los factores del HTML no incluyen una medición de velocidad. LCP, FCP y CLS siguen pendientes; no se consideran aprobados.</p>
+            )}
           </div>
         </div>
       )}

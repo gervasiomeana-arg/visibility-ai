@@ -494,7 +494,7 @@ export async function fetchPageSpeedMetrics(pageUrl: string): Promise<NonNullabl
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 60000);
 
   try {
     const response = await fetch(endpoint.toString(), {
@@ -508,6 +508,9 @@ export async function fetchPageSpeedMetrics(pageUrl: string): Promise<NonNullabl
 
     const data: any = await response.json();
     const lighthouse = data?.lighthouseResult;
+    if (!lighthouse || lighthouse.runtimeError) {
+      throw new Error(lighthouse?.runtimeError?.message || 'PageSpeed no devolvió una medición Lighthouse');
+    }
     const audits = lighthouse?.audits || {};
     const performanceScore =
       typeof lighthouse?.categories?.performance?.score === 'number'
@@ -1303,7 +1306,7 @@ export async function buildRealSeoAudit(
   } else {
     const error = pageSpeedOutcome.error;
     pageSpeedError = error?.name === 'AbortError'
-      ? 'PageSpeed tardó demasiado en responder'
+      ? 'PageSpeed superó el límite de espera de 60 segundos. Los resultados técnicos del HTML se conservaron.'
       : error?.message || 'No se pudo obtener PageSpeed';
   }
 
