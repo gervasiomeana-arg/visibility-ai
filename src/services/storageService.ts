@@ -919,14 +919,15 @@ export const storageService = {
       : [];
   },
 
-  saveKeywords(businessId: string, keywords: KeywordItem[]): void {
+  saveKeywords(businessId: string, keywords: KeywordItem[]): boolean {
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.KEYWORDS));
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = keywords;
       localStorage.setItem(scopedKey(STORAGE_KEYS.KEYWORDS), JSON.stringify(parsed));
+      return true;
     } catch {
-      // Ignore
+      return false;
     }
   },
 
@@ -942,14 +943,15 @@ export const storageService = {
       position: number;
       loadedAt: string;
     }
-  ): void {
+  ): boolean {
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_META));
       const parsed = stored ? JSON.parse(stored) : {};
       parsed[businessId] = meta;
       localStorage.setItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_META), JSON.stringify(parsed));
+      return true;
     } catch {
-      // Ignore
+      return false;
     }
   },
 
@@ -965,7 +967,7 @@ export const storageService = {
       ctr: number;
       position: number;
     }
-  ): void {
+  ): boolean {
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY));
       const parsed = stored ? JSON.parse(stored) : {};
@@ -983,8 +985,9 @@ export const storageService = {
         .slice(-24);
 
       localStorage.setItem(scopedKey(STORAGE_KEYS.SEARCH_CONSOLE_HISTORY), JSON.stringify(parsed));
+      return true;
     } catch {
-      // Ignore
+      return false;
     }
   },
 
