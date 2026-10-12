@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   CheckSquare,
   AlertCircle,
@@ -19,6 +19,7 @@ import {
   PriorityLevel,
   TaskStatus,
   TaskCompletionType,
+  TaskSaveResult,
   Business,
   ActiveTab,
 } from '../types';
@@ -32,7 +33,7 @@ interface ActionPlanViewProps {
     status: TaskStatus,
     completionType?: TaskCompletionType | null,
     userEvidence?: string | null
-  ) => void;
+  ) => TaskSaveResult | Promise<TaskSaveResult>;
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistantWithPrompt: (prompt: string) => void;
 }
@@ -46,9 +47,42 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
 }) => {
   const [selectedTask, setSelectedTask] = useState<ActionTask | null>(null);
   const [evidenceDraft, setEvidenceDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const selectionVersion = useRef(0);
   useEffect(() => {
+    selectionVersion.current++;
     setEvidenceDraft(selectedTask?.userEvidence || '');
-  }, [selectedTask]);
+    setSaving(false);
+    setSaveMessage('');
+    setSaveError('');
+  }, [selectedTask?.id, business.id]);
+  useEffect(() => { setSelectedTask(null); }, [business.id]);
+
+  const saveSelected = async (status?: TaskStatus, completionType?: TaskCompletionType | null) => {
+    if (!selectedTask || saving) return;
+    const task = selectedTask;
+    const version = selectionVersion.current;
+    const note = evidenceDraft.trim() || null;
+    const nextStatus = status ?? task.status;
+    const nextCompletion = completionType === undefined ? task.completionType ?? null : completionType;
+    setSaving(true);
+    setSaveMessage('');
+    setSaveError('');
+    try {
+      const result = await onUpdateStatus(task.id, nextStatus, nextCompletion, note);
+      if (version !== selectionVersion.current) return;
+      setSelectedTask({ ...task, status: nextStatus, completionType: nextCompletion, userEvidence: note });
+      setSaveMessage(result.storage === 'cloud'
+        ? `Guardado en el espacio de trabajo para «${task.title}».`
+        : `Guardado solo en este navegador para «${task.title}».`);
+    } catch (error) {
+      if (version === selectionVersion.current) setSaveError(error instanceof Error ? error.message : 'No se pudo confirmar el guardado. Reintentá.');
+    } finally {
+      if (version === selectionVersion.current) setSaving(false);
+    }
+  };
 
   const [priorityFilter, setPriorityFilter] = useState<'all' | PriorityLevel>('all');
 
@@ -225,25 +259,12 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
             >
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5 min-w-0">
-                  {/* Status Toggle Button */}
+                  {/* Status indicator opens explicit controls; it never completes a task. */}
                   <button
-                    onClick={() => {
-                      if (isDone) {
-                        onUpdateStatus(task.id, 'pendiente', null);
-                      } else if (task.status === 'pendiente') {
-                        onUpdateStatus(task.id, 'en_progreso', null);
-                      } else {
-                        onUpdateStatus(task.id, 'completada_manual', 'manual');
-                      }
-                    }}
+                    onClick={() => setSelectedTask(task)}
                     className="mt-0.5 shrink-0 text-slate-400 hover:text-indigo-600 cursor-pointer"
-                    title={
-                      isDone
-                        ? 'Completada (clic para volver a pendiente)'
-                        : isInProgress
-                        ? 'En curso (clic para marcar como completada manualmente)'
-                        : 'Pendiente (clic para iniciar)'
-                    }
+                    title="Revisar estado y nota"
+                    aria-label={`Revisar estado y nota de ${task.title}`}
                   >
                     {isDone ? (
                       <CheckCircle2
@@ -395,6 +416,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 </h3>
               </div>
               <button
+                disabled={saving}
                 onClick={() => setSelectedTask(null)}
                 className="p-1 rounded-xl text-slate-400 hover:text-slate-600 cursor-pointer"
               >
@@ -438,15 +460,14 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                   Tu comprobación o nota de avance
                 </label>
                 <textarea id="task-evidence" value={evidenceDraft} onChange={(event) => setEvidenceDraft(event.target.value)}
-                  rows={3} maxLength={4000} placeholder="Por ejemplo: inspeccioné la página publicada y encontré un H1. Texto: …"
+                  disabled={saving} rows={3} maxLength={4000} placeholder={`Escribí una comprobación o avance para ${selectedTask.title}`}
                   className="w-full p-2 rounded-lg border border-sky-200 bg-white text-slate-900" />
-                <p className="mt-1 text-sky-700">Se guarda en esta tarea y negocio como nota manual. No es una medición automática.</p>
-                <button type="button" onClick={() => {
-                  onUpdateStatus(selectedTask.id, selectedTask.status, selectedTask.completionType || null, evidenceDraft.trim() || null);
-                  setSelectedTask(null);
-                }} className="mt-2 px-3 py-2 rounded-lg bg-sky-700 text-white font-semibold cursor-pointer">
-                  Guardar nota
+                <p className="mt-1 text-sky-700">Nota de «{selectedTask.title}» para {business.name}. Guardarla conserva el estado actual de la tarea; no certifica una corrección.</p>
+                <button type="button" disabled={saving} onClick={() => saveSelected()} className="mt-2 px-3 py-2 rounded-lg bg-sky-700 text-white font-semibold cursor-pointer disabled:opacity-50">
+                  {saving ? 'Guardando…' : 'Guardar nota'}
                 </button>
+                {saveMessage && <p role="status" className="mt-2 text-emerald-800">{saveMessage}</p>}
+                {saveError && <p role="alert" className="mt-2 text-rose-800">{saveError}</p>}
               </div>
 
               <div className="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-100 text-xs text-emerald-950">
@@ -503,10 +524,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
             <div className="mt-6 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-1.5">
                 <button
-                  onClick={() => {
-                    onUpdateStatus(selectedTask.id, 'completada_manual', 'manual', evidenceDraft.trim() || null);
-                    setSelectedTask(null);
-                  }}
+                  disabled={saving} onClick={() => saveSelected('completada_manual', 'manual')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-[background-color,color,transform] ${
                     selectedTask.status === 'completada_manual'
                       ? 'bg-sky-600 text-white shadow-xs'
@@ -519,10 +537,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                   Estos controles registran avances manuales; no certifican una verificación automática.
                 </span>
                 <button
-                  onClick={() => {
-                    onUpdateStatus(selectedTask.id, 'en_progreso', null, evidenceDraft.trim() || null);
-                    setSelectedTask(null);
-                  }}
+                  disabled={saving} onClick={() => saveSelected('en_progreso', null)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-[background-color,color,transform] ${
                     selectedTask.status === 'en_progreso'
                       ? 'bg-amber-600 text-white shadow-xs'
@@ -532,10 +547,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                   En curso
                 </button>
                 <button
-                  onClick={() => {
-                    onUpdateStatus(selectedTask.id, 'pendiente', null, evidenceDraft.trim() || null);
-                    setSelectedTask(null);
-                  }}
+                  disabled={saving} onClick={() => saveSelected('pendiente', null)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-[background-color,color,transform] ${
                     selectedTask.status === 'pendiente'
                       ? 'bg-slate-800 text-white shadow-xs'
@@ -547,6 +559,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
               </div>
 
               <button
+                disabled={saving}
                 onClick={() => setSelectedTask(null)}
                 className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-semibold hover:bg-slate-800 cursor-pointer text-center"
               >

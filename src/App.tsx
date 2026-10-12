@@ -243,9 +243,10 @@ export default function App() {
 
   useEffect(() => {
     if (!authService.isConfigured() || !activeWorkspace?.id || activeBusiness.id === 'no-business') return;
-
+    let cancelled = false;
     workspaceService.loadBusinessState(activeWorkspace.id, activeBusiness.id)
       .then((state) => {
+        if (cancelled) return;
         if (state.audit?.payload) {
           const payload = state.audit.payload;
           if (Array.isArray(payload.items)) {
@@ -311,6 +312,7 @@ export default function App() {
       .catch(() => {
         // Local workspace cache remains available as fallback.
       });
+    return () => { cancelled = true; };
   }, [activeWorkspace?.id, activeBusiness.id]);
 
   // Keep action tasks synced when activeBusiness changes
@@ -563,13 +565,13 @@ export default function App() {
     setActiveTab('analyzing');
   };
 
-  const handleUpdateTaskStatus = (
+  const handleUpdateTaskStatus = async (
     taskId: string,
     newStatus: TaskStatus,
     completionType?: TaskCompletionType | null,
     userEvidence?: string | null
   ) => {
-    if (!canEditWorkspace) return;
+    if (!canEditWorkspace) throw new Error('Tu acceso a este espacio es de lectura; no se guardaron cambios.');
     const updated = storageService.updateTaskStatus(
       activeBusiness.id,
       taskId,
@@ -580,12 +582,14 @@ export default function App() {
     setActionTasks(updated);
 
     if (authService.isConfigured() && activeWorkspace?.id && activeBusiness.id !== 'no-business') {
-      workspaceService
-        .upsertActionTasks(activeWorkspace.id, activeBusiness.id, updated)
-        .catch(() => {
-          // Local cache remains authoritative until remote sync succeeds.
-        });
+      try {
+        await workspaceService.upsertActionTasks(activeWorkspace.id, activeBusiness.id, updated);
+        return { storage: 'cloud' as const };
+      } catch {
+        throw new Error('Guardado en este navegador, pero no se pudo confirmar la sincronización con el espacio de trabajo. Reintentá guardar antes de usar otro dispositivo.');
+      }
     }
+    return { storage: 'local' as const };
   };
 
   const handleSelectOpportunityForAI = (opp: Opportunity) => {

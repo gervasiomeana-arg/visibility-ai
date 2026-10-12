@@ -185,6 +185,7 @@ export interface Opportunity {
 }
 
 export interface ActionTask {
+  manualUpdatedAt?: string;
   lcpDiagnostics?: import('../../shared/lcpDiagnostics').LcpDiagnostics;
   metricValue?: string;
   id: string;
@@ -209,6 +210,10 @@ export interface ActionTask {
   proposedChange?: string;
   howToVerify?: string;
   platformNote?: string;
+}
+
+export interface TaskSaveResult {
+  storage: 'cloud' | 'local';
 }
 
 export interface SearchHistoryPeriod {
