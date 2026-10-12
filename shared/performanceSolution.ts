@@ -1,3 +1,5 @@
+import { lcpDiagnosticSolution, type LcpDiagnostics } from './lcpDiagnostics';
+
 const definitions: Record<string, { label: string; why: string; change: string }> = {
   fcp: {
     label: 'FCP',
@@ -26,15 +28,17 @@ const definitions: Record<string, { label: string; why: string; change: string }
   },
 };
 
-export function performanceSolution(key: string, metricValue?: string) {
+export function performanceSolution(key: string, metricValue?: string, diagnostics?: LcpDiagnostics) {
   const definition = definitions[key];
   if (!definition) return undefined;
+  const specific = key === 'lcp' ? lcpDiagnosticSolution(diagnostics) : undefined;
+  const baseData = metricValue
+    ? `${definition.label}: ${metricValue}. Medición de laboratorio de Google PageSpeed/Lighthouse en móvil, correspondiente a esa prueba; no representa datos de todos los visitantes.`
+    : `${definition.label}: el valor numérico no está disponible en esta tarea. Consultar el informe original o ejecutar una nueva auditoría móvil; no inferir una medición.`;
   return {
     whyItMatters: definition.why,
-    detectedData: metricValue
-      ? `${definition.label}: ${metricValue}. Medición de laboratorio de Google PageSpeed/Lighthouse en móvil, correspondiente a esa prueba; no representa datos de todos los visitantes.`
-      : `${definition.label}: el valor numérico no está disponible en esta tarea. Consultar el informe original o ejecutar una nueva auditoría móvil; no inferir una medición.`,
-    proposedChange: definition.change,
+    detectedData: specific ? `${baseData} ${specific.detectedData}` : baseData,
+    proposedChange: specific?.proposedChange || definition.change,
     howToVerify: 'Abrir PageSpeed Insights (https://pagespeed.web.dev/), analizar la misma URL y seleccionar Móvil. Revisar la métrica en la sección de diagnóstico de rendimiento (Lighthouse), conservar la fecha y comparar varias ejecuciones antes y después en condiciones similares: los resultados pueden variar. Distinguir esta prueba de los datos de usuarios reales, si están disponibles.',
   };
 }

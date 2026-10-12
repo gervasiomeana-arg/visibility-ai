@@ -1,6 +1,7 @@
 import { h1Guidance } from '../shared/h1Guidance';
 import { normalizeAuditUrl } from '../shared/auditUrl';
 import { performanceSolution } from '../shared/performanceSolution';
+import { extractLcpDiagnostics } from '../shared/lcpDiagnostics';
 import dns from 'dns/promises';
 import https from 'https';
 import net from 'net';
@@ -455,7 +456,7 @@ function auditItem(
 }
 
 
-async function fetchPageSpeedMetrics(pageUrl: string) {
+export async function fetchPageSpeedMetrics(pageUrl: string): Promise<NonNullable<import('../src/types').SeoAuditResult['pageSpeed']>> {
   const endpoint = new URL('https://www.googleapis.com/pagespeedonline/v5/runPagespeed');
   endpoint.searchParams.set('url', pageUrl);
   endpoint.searchParams.set('strategy', 'mobile');
@@ -500,6 +501,7 @@ async function fetchPageSpeedMetrics(pageUrl: string) {
       cumulativeLayoutShift: metric('cumulative-layout-shift'),
       totalBlockingTime: metric('total-blocking-time'),
       speedIndex: metric('speed-index'),
+      lcpDiagnostics: extractLcpDiagnostics(audits),
       fetchedAt: new Date().toISOString(),
     };
   } finally {
@@ -510,7 +512,7 @@ async function fetchPageSpeedMetrics(pageUrl: string) {
 function pageSpeedItems(metrics: any) {
   const items: any[] = [];
 
-  if (metrics.performanceScore !== null) {
+  if (typeof metrics.performanceScore === 'number' && Number.isFinite(metrics.performanceScore) && metrics.performanceScore >= 0 && metrics.performanceScore <= 100) {
     const score = metrics.performanceScore;
     items.push(
       score >= 90
@@ -521,7 +523,7 @@ function pageSpeedItems(metrics: any) {
     );
   }
 
-  if (metrics.firstContentfulPaint?.displayValue) {
+  if (metrics.firstContentfulPaint?.displayValue && typeof metrics.firstContentfulPaint.numericValue === 'number' && Number.isFinite(metrics.firstContentfulPaint.numericValue) && metrics.firstContentfulPaint.numericValue >= 0) {
     const ms = metrics.firstContentfulPaint.numericValue;
     items.push(
       ms !== null && ms <= 1800
@@ -532,7 +534,7 @@ function pageSpeedItems(metrics: any) {
     );
   }
 
-  if (metrics.largestContentfulPaint?.displayValue) {
+  if (metrics.largestContentfulPaint?.displayValue && typeof metrics.largestContentfulPaint.numericValue === 'number' && Number.isFinite(metrics.largestContentfulPaint.numericValue) && metrics.largestContentfulPaint.numericValue >= 0) {
     const ms = metrics.largestContentfulPaint.numericValue;
     items.push(
       ms !== null && ms <= 2500
@@ -543,7 +545,7 @@ function pageSpeedItems(metrics: any) {
     );
   }
 
-  if (metrics.cumulativeLayoutShift?.displayValue) {
+  if (metrics.cumulativeLayoutShift?.displayValue && typeof metrics.cumulativeLayoutShift.numericValue === 'number' && Number.isFinite(metrics.cumulativeLayoutShift.numericValue) && metrics.cumulativeLayoutShift.numericValue >= 0) {
     const value = metrics.cumulativeLayoutShift.numericValue;
     items.push(
       value !== null && value <= 0.1
@@ -554,7 +556,7 @@ function pageSpeedItems(metrics: any) {
     );
   }
 
-  if (metrics.totalBlockingTime?.displayValue) {
+  if (metrics.totalBlockingTime?.displayValue && typeof metrics.totalBlockingTime.numericValue === 'number' && Number.isFinite(metrics.totalBlockingTime.numericValue) && metrics.totalBlockingTime.numericValue >= 0) {
     const ms = metrics.totalBlockingTime.numericValue;
     items.push(
       ms !== null && ms <= 200
@@ -565,7 +567,19 @@ function pageSpeedItems(metrics: any) {
     );
   }
 
-  return items.map((item) => ({ ...item, ...performanceSolution(item.key, item.metricValue) }));
+  return items.map((item) => {
+    const diagnostics = item.key === 'lcp' ? metrics.lcpDiagnostics : undefined;
+    const details = performanceSolution(item.key, item.metricValue, diagnostics);
+    const delay = diagnostics?.timings?.resourceLoadDelay;
+    const duration = diagnostics?.timings?.resourceLoadDuration;
+    const lateRequest = typeof delay === 'number' && typeof duration === 'number' && delay > duration && delay > 0;
+    return {
+      ...item,
+      ...(item.key === 'lcp' && lateRequest ? { simpleExplanation: 'En el desglose observado, la espera antes de solicitar el recurso LCP supera su tiempo de descarga. Revisar el descubrimiento y la prioridad del recurso.' } : {}),
+      ...details,
+      ...(diagnostics ? { lcpDiagnostics: diagnostics, solution: details?.proposedChange || item.solution } : {}),
+    };
+  });
 }
 
 export async function buildRealSeoAudit(
@@ -1140,28 +1154,31 @@ export async function buildRealSeoAudit(
   const baseUrl = `${final.origin}`;
   let robotsStatus = 0;
   let robotsText = '';
+  let robotsIsHtml = false;
   try {
     const robotsResult = await fetchPage(`${baseUrl}/robots.txt`, 2);
     robotsStatus = robotsResult.response.status;
     robotsText = await readTextLimited(robotsResult.response);
+    robotsIsHtml = /(?:text\/html|application\/xhtml\+xml)/i.test(robotsResult.response.headers.get('content-type') || '')
+      || /<!doctype\s+html\b|<html\b|<head\b|<body\b/i.test(robotsText.replace(/<!--[^]*?-->/g, ''));
   } catch {
     robotsStatus = 0;
   }
   items.push(
-    robotsStatus >= 200 && robotsStatus < 300
+    robotsStatus >= 200 && robotsStatus < 300 && !robotsIsHtml
       ? auditItem(
           'robots-txt',
           'robots.txt',
           'Técnico e Indexación',
           'ok',
           'Disponible',
-          'El archivo robots.txt responde correctamente.',
+          'La ruta robots.txt responde y no se detectó una página HTML. La sintaxis y los permisos de rastreo requieren revisión.',
           'Revisar que no bloquee por error secciones importantes.',
           'Medio',
           `HTTP ${robotsStatus}`,
           {
             whyItMatters: 'Indica a los rastreadores qué rutas tienen permitido consultar.',
-            detectedData: `Respuesta HTTP ${robotsStatus} en /robots.txt.`,
+            detectedData: `Respuesta HTTP ${robotsStatus} en /robots.txt, sin HTML detectado. No se validaron todas las directivas ni el permiso de rastreo de cada URL.`,
             proposedChange: 'Revisar periódicamente las directivas de User-agent y Disallow.',
             howToVerify: 'Abrir /robots.txt en el navegador y validar la sintaxis.',
           }
@@ -1171,22 +1188,22 @@ export async function buildRealSeoAudit(
           'robots.txt',
           'Técnico e Indexación',
           'warning',
-          'No disponible',
-          'No pudimos confirmar un robots.txt accesible.',
+          'No confirmado',
+          robotsIsHtml ? 'La ruta robots.txt devolvió una página HTML; no se confirmó un archivo de directivas de rastreo.' : 'No pudimos confirmar un robots.txt accesible.',
           'Publicar un robots.txt válido si el sitio necesita directivas de rastreo.',
           'Medio',
           robotsStatus ? `HTTP ${robotsStatus}` : 'Sin respuesta',
           {
             whyItMatters: 'Permite regular el rastreo de secciones internas y referenciar el sitemap.',
-            detectedData: robotsStatus ? `HTTP ${robotsStatus} recibido en /robots.txt.` : 'Sin respuesta del servidor en /robots.txt.',
-            proposedChange: 'Publicar un archivo robots.txt en la raíz del dominio.',
-            howToVerify: 'Acceder a /robots.txt y comprobar respuesta HTTP 200.',
+            detectedData: robotsIsHtml ? `HTTP ${robotsStatus} recibido en /robots.txt, pero la respuesta es HTML.` : robotsStatus ? `HTTP ${robotsStatus} recibido en /robots.txt.` : 'Sin respuesta del servidor en /robots.txt.',
+            proposedChange: 'Revisar la ruta /robots.txt y publicar directivas de texto si el sitio las necesita. La ausencia de este archivo no demuestra por sí sola que la web esté bloqueada.',
+            howToVerify: 'Acceder a /robots.txt y comprobar el estado HTTP y que la respuesta contenga texto de directivas, no la página de inicio HTML.',
           }
         )
   );
 
   let sitemapUrl = `${baseUrl}/sitemap.xml`;
-  const declaredSitemap = robotsText.match(/^\s*Sitemap:\s*(https:\/\/\S+)/im)?.[1];
+  const declaredSitemap = !robotsIsHtml && robotsStatus >= 200 && robotsStatus < 300 ? robotsText.match(/^\s*Sitemap:\s*(https:\/\/\S+)/im)?.[1] : undefined;
   if (declaredSitemap) {
     try {
       const declared = new URL(declaredSitemap);
