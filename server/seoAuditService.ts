@@ -441,6 +441,36 @@ export function indexingDirectives(html: string, header: string | null) {
 }
 
 type AuditStatus = 'ok' | 'warning' | 'error';
+
+export function viewportEvidence(value: string) {
+  const directives = new Map<string, string>();
+  for (const part of value.toLowerCase().split(/[,;]/)) {
+    const pair = part.trim().match(/^([\w-]+)\s*=\s*(\S+)$/);
+    if (pair) directives.set(pair[1], pair[2]);
+  }
+  const issues: string[] = [];
+  const width = directives.get('width');
+  if (width !== 'device-width') issues.push(width ? `El ancho declarado es ${width}, no device-width` : 'No se declaró width=device-width');
+  const scale = directives.get('initial-scale');
+  if (scale !== undefined && (!Number.isFinite(Number(scale)) || Number(scale) < 1)) issues.push('La escala inicial es inválida o menor que 1');
+  return { issues };
+}
+
+export function canonicalEvidence(values: string[], baseUrl: string) {
+  const urls: string[] = [];
+  const issues: string[] = [];
+  for (const value of values) {
+    try {
+      if (!value.trim()) throw new Error('empty');
+      const url = new URL(value, baseUrl);
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('invalid');
+      urls.push(url.toString());
+      if (url.hash) issues.push('La canonical contiene un fragmento #');
+    } catch { issues.push('Una referencia canonical no es una URL HTTP(S) válida sin credenciales'); }
+  }
+  if (new Set(urls).size > 1) issues.push('Se declararon destinos canonical diferentes en el mismo documento');
+  return { urls, issues: [...new Set(issues)] };
+}
 type AuditImpact = 'Alto' | 'Medio' | 'Bajo';
 type AuditCategory = 'Contenido y On-Page' | 'Técnico e Indexación' | 'Velocidad y Móvil' | 'Seguridad y Datos';
 
@@ -847,32 +877,37 @@ export async function buildRealSeoAudit(
         )
   );
 
-  const canonicalHref = findLinkHref(html, 'canonical');
-  let canonicalResolved = '';
-  if (canonicalHref) {
+  const structureMarkup = html.replace(/<!--[^]*?-->/g, '').replace(/<script\b[^>]*>[^]*?<\/script\s*>/gi, '');
+  const baseHref = getAttribute(getTagMatches(structureMarkup, 'base')[0] || '', 'href');
+  let canonicalBase = finalUrl;
+  if (baseHref) {
     try {
-      canonicalResolved = new URL(canonicalHref, finalUrl).toString();
-    } catch {
-      canonicalResolved = canonicalHref;
-    }
+      const base = new URL(baseHref, finalUrl);
+      if (['http:', 'https:'].includes(base.protocol)) canonicalBase = base.toString();
+    } catch { /* Invalid base declarations do not replace the response URL. */ }
   }
+  const canonicalValues = getTagMatches(structureMarkup, 'link')
+    .filter(tag => (getAttribute(tag, 'rel') || '').toLowerCase().split(/\s+/).includes('canonical'))
+    .map(tag => getAttribute(tag, 'href') || '');
+  const canonical = canonicalEvidence(canonicalValues, canonicalBase);
+  const canonicalResolved = canonical.urls.slice(0, 3).join(' · ');
   items.push(
-    canonicalHref
+    canonicalValues.length > 0
       ? auditItem(
           'canonical',
           'URL canónica',
           'Técnico e Indexación',
-          'ok',
-          'Detectada',
-          'Encontramos una referencia canonical en el HTML analizado.',
-          'Verificar que apunte a la versión canónica preferida en HTTPS.',
+          canonical.issues.length ? 'warning' : 'ok',
+          canonical.issues.length ? 'Revisar referencia' : 'Declarada',
+          canonical.issues.length ? canonical.issues.join('. ') : 'La referencia canonical tiene una URL HTTP(S) válida. No se consultó su destino ni la canonical elegida por Google.',
+          'Verificar que apunte a la versión canónica preferida y accesible.',
           'Medio',
-          canonicalResolved,
+          canonicalResolved || 'Referencia inválida',
           {
-            whyItMatters: 'Define la URL canónica preferida cuando existen variantes o parámetros.',
-            detectedData: `Canonical declarada: ${canonicalResolved}`,
-            proposedChange: 'Asegurar que la URL canónica responda con código 200 y sea accesible.',
-            howToVerify: 'Revisar <link rel="canonical" href="..."> en el <head>.',
+            whyItMatters: 'La canonical comunica una versión preferida para contenido equivalente; no garantiza que Google elija ese destino.',
+            detectedData: `${canonicalValues.length} referencias en HTML inicial. ${canonicalResolved ? `URLs resueltas: ${canonicalResolved}.` : ''} ${canonical.issues.join('. ')} No se verificaron disponibilidad, indexación ni equivalencia del destino.`,
+            proposedChange: canonical.issues.length ? 'Corregir las referencias inválidas, retirar fragmentos y evitar destinos contradictorios. Elegir una URL preferida que represente el mismo contenido.' : 'Comprobar que el destino sea accesible y represente el mismo contenido antes de mantener la referencia.',
+            howToVerify: 'Revisar las etiquetas canonical en el HTML, comprobar el destino en el navegador y comparar canonical declarada y elegida por Google en Inspección de URLs de Search Console.',
           }
         )
       : auditItem(
@@ -882,13 +917,13 @@ export async function buildRealSeoAudit(
           'warning',
           'No detectada',
           'No se detectó una etiqueta canonical en el HTML analizado.',
-          'Agregar canonical para reducir ambigüedad entre URLs equivalentes.',
+          'Evaluar si existen variantes equivalentes que requieran comunicar una URL preferida.',
           'Medio',
           'Ausente',
           {
             whyItMatters: 'Previene ambigüedades entre versiones con o sin trailing slash, www o parámetros.',
             detectedData: 'Ausencia de <link rel="canonical"> en el HTML inicial.',
-            proposedChange: 'Agregar en el <head> la etiqueta <link rel="canonical" href="[URL_OFICIAL]">.',
+            proposedChange: 'Si existen URLs equivalentes, definir la preferida y evaluar una etiqueta canonical. Su ausencia por sí sola no demuestra un problema de indexación.',
             howToVerify: 'Verificar la etiqueta en el <head> del código fuente.',
           }
         )
@@ -993,24 +1028,25 @@ export async function buildRealSeoAudit(
     },
   ));
 
-  const viewport = findMetaContent(html, 'name', 'viewport');
+  const viewport = findMetaContent(structureMarkup, 'name', 'viewport');
+  const mobile = viewportEvidence(viewport || '');
   items.push(
-    viewport
+    viewport !== null
       ? auditItem(
           'viewport',
           'Configuración móvil',
           'Velocidad y Móvil',
-          'ok',
-          'Detectada',
-          'La página declara viewport para dispositivos móviles.',
-          'Validar luego la experiencia real con PageSpeed y Core Web Vitals.',
+          mobile.issues.length ? 'warning' : 'ok',
+          mobile.issues.length ? 'Revisar configuración' : 'Ancho adaptable declarado',
+          mobile.issues.length ? `${mobile.issues.join('. ')}. La presencia de viewport no confirma una configuración adaptable.` : 'La etiqueta declara width=device-width. La adaptación visual real requiere comprobar el diseño en un navegador móvil.',
+          mobile.issues.length ? 'Revisar el ancho y escala declarados y comprobar el diseño móvil antes de publicar cambios.' : 'Comprobar la experiencia real en pantallas móviles.',
           'Alto',
           viewport,
           {
             whyItMatters: 'Permite el reescalado adecuado en pantallas de teléfonos móviles y tablets.',
-            detectedData: `Meta viewport detectado: "${viewport}".`,
-            proposedChange: 'Mantener configuración viewport responsive estándar.',
-            howToVerify: 'Comprobar etiqueta <meta name="viewport"> en el <head>.',
+            detectedData: `Meta viewport en HTML inicial: "${viewport}". ${mobile.issues.join('. ')} No se midió desbordamiento ni legibilidad del diseño renderizado.`,
+            proposedChange: mobile.issues.length ? 'Evaluar width=device-width, initial-scale=1 en la etiqueta viewport y ajustar el diseño si depende de un ancho fijo. Probar antes de publicar; modificar la etiqueta sola no garantiza que el contenido se adapte.' : 'Mantener la declaración y comprobar el diseño renderizado en distintos anchos.',
+            howToVerify: 'Revisar meta viewport y abrir el modo de dispositivo del navegador a 320 y 390 px. Comprobar lectura, controles y desplazamiento horizontal; no deducir adaptación visual solo de la etiqueta.',
           }
         )
       : auditItem(
