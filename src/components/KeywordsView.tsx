@@ -50,6 +50,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [intentFilter, setIntentFilter] = useState<string>('all');
   const [newKeywordInput, setNewKeywordInput] = useState('');
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualMessage, setManualMessage] = useState('');
+  const [manualRetry, setManualRetry] = useState<KeywordItem | null>(null);
+  const manualRequest = useRef(0);
   const [showAddModal, setShowAddModal] = useState(false);
   const [gscStatus, setGscStatus] = useState<SearchConsoleStatus | null>(null);
   const [gscConfigured, setGscConfigured] = useState(false);
@@ -79,6 +83,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
 
   useEffect(() => {
     queryVersion.current += 1;
+    manualRequest.current += 1;
+    setManualSaving(false);
+    setManualMessage('');
+    setManualRetry(null);
     setGscLoading(false);
     setGscResult(null);
     setGscSaveState(null);
@@ -86,7 +94,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setGscNotice('');
     setGscSites([]);
     setSelectedSite('');
-    return () => { queryVersion.current += 1; };
+    return () => { queryVersion.current += 1; manualRequest.current += 1; };
   }, [scope]);
 
   const refreshSearchConsole = useCallback(async () => {
@@ -269,9 +277,39 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     return true;
   });
 
+  const saveManualInCloud = async (item: KeywordItem, localSaved: boolean) => {
+    setManualRetry(null);
+    if (!authService.isConfigured() || !business.workspaceId) {
+      setManualMessage(localSaved ? 'Palabra clave guardada solo en este navegador.' : 'No se pudo guardar la palabra clave. Podría perderse al recargar.');
+      return;
+    }
+    const version = ++manualRequest.current;
+    const requestScope = scope;
+    const stillCurrent = () => version === manualRequest.current && requestScope === liveScope.current;
+    setManualSaving(true);
+    setManualMessage('Guardando la palabra clave en tu espacio de trabajo…');
+    try {
+      await workspaceService.saveManualKeyword(business.workspaceId, business.id, item);
+      if (stillCurrent()) setManualMessage(localSaved ? 'Palabra clave guardada en este navegador y en tu espacio de trabajo.' : 'Palabra clave guardada en tu espacio de trabajo. El navegador no pudo guardarla localmente.');
+    } catch {
+      if (stillCurrent()) {
+        setManualMessage(localSaved ? 'La palabra clave está guardada solo en este navegador. No se pudo guardar en tu espacio de trabajo.' : 'No se pudo guardar la palabra clave localmente ni en tu espacio de trabajo. Podría perderse al recargar.');
+        setManualRetry(item);
+      }
+    } finally {
+      if (stillCurrent()) setManualSaving(false);
+    }
+  };
+
   const handleAddKeyword = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newKeywordInput.trim()) return;
+    if (!newKeywordInput.trim() || manualSaving) return;
+    const current = storageService.getKeywords(business.id);
+    if (current.some(item => item.source === 'manual' && item.keyword.trim().toLocaleLowerCase() === newKeywordInput.trim().toLocaleLowerCase())) {
+      setManualMessage('Esa palabra clave manual ya está en la lista.');
+      setShowAddModal(false);
+      return;
+    }
 
     const newItem: KeywordItem = {
       id: `kw-${Date.now()}`,
@@ -286,10 +324,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
       source: 'manual',
     };
 
-    const updated = [newItem, ...keywords];
+    const updated = [newItem, ...current];
     setKeywords(updated);
     const saved = storageService.saveKeywords(business.id, updated);
-    setGscError(saved ? '' : 'La palabra clave se añadió a la lista, pero el navegador no pudo guardarla. Podría perderse al recargar.');
+    void saveManualInCloud(newItem, saved);
     setNewKeywordInput('');
     setShowAddModal(false);
   };
@@ -428,6 +466,9 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               )}
             </div>
           )}
+          {manualMessage && <p role={manualRetry ? 'alert' : 'status'} className="text-xs text-slate-700">{manualMessage}</p>}
+          {manualRetry && <button type="button" disabled={manualSaving} className="text-xs font-semibold text-blue-700 underline disabled:opacity-50"
+            onClick={() => void saveManualInCloud(manualRetry, storageService.saveKeywords(business.id, keywords))}>Reintentar guardar palabra clave</button>}
           {gscSaveState && (
             <p role={searchSaveFeedback(gscSaveState).warning ? 'alert' : 'status'}
               className={searchSaveFeedback(gscSaveState).warning ? 'text-xs text-amber-800' : 'text-xs text-slate-600'}>
@@ -605,6 +646,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={manualSaving}
                   className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer"
                 >
                   Agregar a seguimiento

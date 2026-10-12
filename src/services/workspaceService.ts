@@ -1,4 +1,5 @@
 import { measuredScore } from '../../shared/scoreEvidence';
+import { persistManualKeyword } from '../../shared/manualKeywordPersistence';
 import { supabase } from './authService';
 import {
   type LegacyBusinessBundle,
@@ -7,6 +8,7 @@ import {
 } from './storageService';
 import {
   Business,
+  KeywordItem,
   SubscriptionPlanId,
   SupportedCountryCode,
   SupportedCurrency,
@@ -539,6 +541,13 @@ export const workspaceService = {
 
     if (error) throw error;
     return data || null;
+  },
+
+  async saveManualKeyword(workspaceId: string, businessId: string, item: KeywordItem): Promise<void> {
+    if (!supabase) throw new Error('Supabase no está configurado para guardar esta palabra clave.');
+    const client = supabase;
+    await persistManualKeyword(workspaceId, businessId, item, (row, options) =>
+      client.from('tracked_keywords').upsert(row, options));
   },
 
   async syncManualKeywords(
