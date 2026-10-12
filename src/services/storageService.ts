@@ -1,3 +1,4 @@
+import type { CompetitorResearchResult } from '../../shared/competitorResearch';
 import { measuredScore } from '../../shared/scoreEvidence';
 import { h1Guidance, normalizeH1Item } from '../../shared/h1Guidance';
 import { performanceSolution, legacyPerformanceMetric } from '../../shared/performanceSolution';
@@ -1016,6 +1017,18 @@ export const storageService = {
     } catch {
       return null;
     }
+  },
+
+  getCompetitorResearch(businessId: string): CompetitorResearchResult[] {
+    try { const values = JSON.parse(localStorage.getItem(scopedKey(`visibility_competitor_research:${businessId}`)) || '[]');
+      return Array.isArray(values) ? values.filter(value => value.businessId === businessId && Array.isArray(value.claims) && value.claims.length && value.input && typeof value.researchedAt === 'string') : [];
+    } catch { return []; }
+  },
+  saveCompetitorResearch(businessId: string, result: CompetitorResearchResult): boolean {
+    if (result.businessId !== businessId || !result.claims.length) return false;
+    try { const previous = this.getCompetitorResearch(businessId).filter(value => JSON.stringify(value.input) !== JSON.stringify(result.input));
+      localStorage.setItem(scopedKey(`visibility_competitor_research:${businessId}`), JSON.stringify([result, ...previous].slice(0,10)));return true;
+    } catch { return false; }
   },
 
   getCompetitors(businessId: string): Competitor[] {

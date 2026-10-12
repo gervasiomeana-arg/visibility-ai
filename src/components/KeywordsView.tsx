@@ -55,6 +55,8 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const [gscConnected, setGscConnected] = useState(false);
   const [gscLoading, setGscLoading] = useState(false);
   const [gscError, setGscError] = useState('');
+  const [gscNotice, setGscNotice] = useState('');
+  const connecting = useRef(false);
   const [gscSites, setGscSites] = useState<SearchConsoleSite[]>([]);
   const [selectedSite, setSelectedSite] = useState('');
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -78,6 +80,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setGscLoading(false);
     setGscResult(null);
     setGscError('');
+    setGscNotice('');
     setGscSites([]);
     setSelectedSite('');
     return () => { queryVersion.current += 1; };
@@ -90,6 +93,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setGscResult(null);
     setGscChecking(true);
     setGscError('');
+    setGscNotice('');
     setGscStatus(null);
     setGscConfigured(false);
     setGscConnected(false);
@@ -122,6 +126,28 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     void refreshSearchConsole();
     return () => { statusVersion.current += 1; };
   }, [refreshSearchConsole]);
+
+  const handleConnectSearchConsole = async () => {
+    if (connecting.current || gscLoading || gscChecking) return;
+    setGscError('');
+    setGscNotice('');
+    if (!gscConfigured) { setShowConfigModal(true); return; }
+    setShowConfigModal(false);
+    connecting.current = true;
+    setGscLoading(true);
+    const requestScope = scope;
+    try {
+      const navigation = await searchConsoleService.connect('/keywords');
+      if (requestScope === liveScope.current && navigation === 'new-tab') {
+        setGscNotice('Se abrió Google en otra pestaña. Autorizá la conexión, volvé aquí y pulsá «Volver a comprobar conexión y configuración».');
+      }
+    } catch (error: any) {
+      if (requestScope === liveScope.current) setGscError(error?.message || 'No se pudo iniciar la conexión con Search Console.');
+    } finally {
+      connecting.current = false;
+      if (requestScope === liveScope.current) setGscLoading(false);
+    }
+  };
 
   const handleLoadSearchConsole = async () => {
     if (!selectedSite || gscLoading || gscChecking || !propertyMatchesBusiness(selectedSite, business.url)) return;
@@ -305,20 +331,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               <div className="flex items-center gap-2 min-w-0">
                 <button
                   type="button"
-                  onClick={async () => {
-                    setGscError('');
-                    if (!gscConfigured) {
-                      setShowConfigModal(true);
-                      return;
-                    }
-                    try {
-                      setGscLoading(true);
-                      await searchConsoleService.connect('/keywords');
-                    } catch (error: any) {
-                      setGscError(error?.message || 'No se pudo iniciar la conexión con Search Console.');
-                      setGscLoading(false);
-                    }
-                  }}
+                  onClick={() => void handleConnectSearchConsole()}
                   disabled={gscLoading || gscChecking || !gscStatus}
                   className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.985] text-white font-bold text-xs flex items-center gap-2 transition-[background-color,color,transform] duration-300 shadow-sm cursor-pointer max-w-full justify-center"
                 >
@@ -402,6 +415,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
               )}
             </div>
           )}
+          {gscNotice && <p role="status" className="text-xs text-blue-700">{gscNotice}</p>}
           {gscError && <p role="alert" className="text-[11px] font-semibold text-rose-600">{gscError}</p>}
         </div>
 
@@ -713,16 +727,8 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                 {gscConfigured && (
                   <button
                     type="button"
-                    onClick={async () => {
-                      setShowConfigModal(false);
-                      setGscLoading(true);
-                      try {
-                        await searchConsoleService.connect('/keywords');
-                      } catch (err: any) {
-                        setGscError(err?.message || 'Error al conectar');
-                        setGscLoading(false);
-                      }
-                    }}
+                    onClick={() => void handleConnectSearchConsole()}
+                    disabled={gscLoading || gscChecking}
                     className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 cursor-pointer flex items-center gap-1.5"
                   >
                     <Globe className="w-3.5 h-3.5" />

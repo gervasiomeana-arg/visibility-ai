@@ -1,3 +1,5 @@
+import { validateResearchInput } from '../shared/competitorResearch';
+import { researchCompetitor } from './competitorResearchService';
 import express from 'express';
 import { validateContentInput, buildContentPrompt, validateContentOutput } from '../shared/contentContext';
 import { GoogleGenAI } from '@google/genai';
@@ -26,6 +28,26 @@ const aiRateLimit = createRateLimiter({
   name: 'ai',
   maxRequests: envRateLimit('AI_RATE_LIMIT_PER_WINDOW', 120),
   windowMs: rateLimitWindowMs(),
+});
+
+const competitorResearchLimit = createRateLimiter({ name: 'competitor-research', maxRequests: 12, windowMs: rateLimitWindowMs() });
+router.post('/competitors/research', requireSupabaseAuth, competitorResearchLimit, async (req, res) => {
+  let input;
+  try { input = validateResearchInput(req.body); if (typeof req.body.businessId !== 'string' || !req.body.businessId.trim() || req.body.businessId.length > 120) throw new Error('Seleccioná un negocio para guardar la investigación.'); }
+  catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'Datos de investigación no válidos.' }); }
+  if (!aiClient) return res.status(503).json({ error: 'La investigación web necesita GEMINI_API_KEY configurada en el servidor.' });
+  try {
+    const { result } = await researchCompetitor(input, req.body.businessId, async params => {
+      const response = await aiClient!.models.generateContent(params);
+      recordUsageEventSafe(req, { workspaceId: typeof req.body.workspaceId === 'string' ? req.body.workspaceId : undefined, businessId: req.body.businessId, userId: res.locals.authUser?.id, eventType: 'ai_content', units: Number(response.usageMetadata?.totalTokenCount || 0), metadata: { operation: 'competitor_research' } });
+      return response;
+    });
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Competitor research failed:', error?.name || 'Error');
+    const sourceError = typeof error?.message === 'string' && error.message.startsWith('La búsqueda no devolvió');
+    return res.status(sourceError ? 422 : 502).json({ error: sourceError ? error.message : 'No se pudo completar la investigación web. Revisá la disponibilidad de Gemini y Google Search en tu proyecto y reintentá.' });
+  }
 });
 
 router.post(
