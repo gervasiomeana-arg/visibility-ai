@@ -1,6 +1,7 @@
 import { webMeasurement } from '../../shared/scoreEvidence';
 import { measurementDateLabel } from '../../shared/reportEvidence';
-import React, { useState } from 'react';
+import { getMarket, MARKET_CONFIGS } from '../config/markets';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   BarChart3,
   Search,
@@ -38,7 +39,7 @@ interface DashboardOverviewProps {
   setActiveTab: (tab: ActiveTab) => void;
   onOpenAssistant: () => void;
   onGenerateOpportunity: (oppId: string) => void;
-  onUpdateBusinessProfile?: (updates: Partial<Business>) => void;
+  onUpdateBusinessProfile?: (updates: Partial<Business>) => Promise<{ storage: 'cloud' | 'local' }>;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
@@ -51,25 +52,41 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   onOpenAssistant,
   onUpdateBusinessProfile,
 }) => {
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileFeedback, setProfileFeedback] = useState('');
+  const [profileError, setProfileError] = useState('');
+  const profileVersion = useRef(0);
+  useEffect(() => { profileVersion.current++; setIsEditingProfile(false); setProfileSaving(false); setProfileError(''); setProfileFeedback(''); }, [business.id]);
+  useEffect(() => () => { profileVersion.current++; }, []);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: business.name,
     category: business.category,
     city: business.city,
     description: business.description || '',
+    countryCode: business.countryCode || getMarket().countryCode,
   });
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (onUpdateBusinessProfile) {
-      onUpdateBusinessProfile({
+    if (!onUpdateBusinessProfile || profileSaving) return;
+    const version = profileVersion.current;
+    const market = getMarket(profileForm.countryCode);
+    setProfileSaving(true); setProfileError(''); setProfileFeedback('');
+    try {
+      const result = await onUpdateBusinessProfile({
         name: profileForm.name.trim() || business.name,
         category: profileForm.category.trim() || business.category,
-        city: profileForm.city.trim() || business.city,
+        city: profileForm.city.trim(),
         description: profileForm.description.trim() || undefined,
+        country: market.country, countryCode: market.countryCode,
+        locale: market.locale, timezone: market.timezone,
       });
-    }
-    setIsEditingProfile(false);
+      if (version === profileVersion.current) setProfileFeedback(result.storage === 'cloud'
+        ? 'Perfil guardado en tu espacio de trabajo.' : 'Perfil guardado solo en este navegador.');
+    } catch (error) {
+      if (version === profileVersion.current) setProfileError(error instanceof Error ? error.message : 'No se pudo guardar el perfil.');
+    } finally { if (version === profileVersion.current) setProfileSaving(false); }
   };
   const { scores } = business;
   const scoreSources = business.scoreSources || {
@@ -140,7 +157,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                         category: business.category,
                         city: business.city,
                         description: business.description || '',
+                        countryCode: business.countryCode || getMarket().countryCode,
                       });
+                      setProfileError(''); setProfileFeedback('');
                       setIsEditingProfile(true);
                     }}
                     className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
@@ -586,20 +605,31 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 </div>
               </div>
 
+              <div>
+                <label htmlFor="profile-country" className="block text-xs font-bold text-slate-600 mb-1">País del negocio</label>
+                <select id="profile-country" value={profileForm.countryCode} disabled={profileSaving}
+                  onChange={e => setProfileForm({ ...profileForm, countryCode: getMarket(e.target.value as Business['countryCode']).countryCode })}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200">
+                  {MARKET_CONFIGS.map(market => <option key={market.countryCode} value={market.countryCode}>{market.country}</option>)}
+                </select>
+              </div>
+              {profileFeedback && <p role="status" className="text-xs text-emerald-700">{profileFeedback}</p>}
+              {profileError && <p role="alert" className="text-xs text-rose-700">{profileError}</p>}
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsEditingProfile(false)}
                   className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
-                  Cancelar
+                  Cerrar
                 </button>
                 <button
                   type="submit"
+                  disabled={profileSaving}
                   className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span>Guardar perfil</span>
+                  <span>{profileSaving ? 'Guardando…' : 'Guardar perfil'}</span>
                 </button>
               </div>
             </form>

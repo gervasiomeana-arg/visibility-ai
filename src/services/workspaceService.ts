@@ -1,5 +1,6 @@
 import { measuredScore } from '../../shared/scoreEvidence';
 import { auditHistoryDate } from '../../shared/auditHistoryDate';
+import { persistBusinessProfile } from '../../shared/businessProfilePersistence';
 import { persistManualKeyword } from '../../shared/manualKeywordPersistence';
 import { supabase } from './authService';
 import {
@@ -238,6 +239,7 @@ export const workspaceService = {
       name: row.name,
       url: row.url,
       category: row.category,
+      description: row.description || undefined,
       city: row.city,
       country: row.country,
       countryCode: row.country_code,
@@ -542,6 +544,13 @@ export const workspaceService = {
 
     if (error) throw error;
     return data || null;
+  },
+
+  async saveBusinessProfile(workspaceId: string, business: Business): Promise<void> {
+    if (!supabase) throw new Error('Supabase no está configurado.');
+    const client = supabase;
+    await persistBusinessProfile(workspaceId, business, (fields, scope, id) => client.from('businesses')
+      .update(fields).eq('workspace_id', scope).eq('id', id).select('id').maybeSingle());
   },
 
   async saveManualKeyword(workspaceId: string, businessId: string, item: KeywordItem): Promise<void> {
@@ -851,6 +860,7 @@ export const workspaceService = {
       .insert({
         workspace_id: workspaceId,
         name: business.name,
+        description: business.description?.trim() || null,
         url: business.url,
         category: business.category,
         city: business.city,

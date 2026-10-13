@@ -15,6 +15,7 @@ export interface MarketConfig {
 
 export const MARKET_CONFIGS: MarketConfig[] = [
   { countryCode: 'AR', country: 'Argentina', currency: 'USD', locale: 'es-AR', timezone: 'America/Argentina/Buenos_Aires' },
+  { countryCode: 'UY', country: 'Uruguay', currency: 'USD', locale: 'es-UY', timezone: 'America/Montevideo' },
   { countryCode: 'CL', country: 'Chile', currency: 'USD', locale: 'es-CL', timezone: 'America/Santiago' },
   { countryCode: 'MX', country: 'México', currency: 'USD', locale: 'es-MX', timezone: 'America/Mexico_City' },
   { countryCode: 'ES', country: 'España', currency: 'EUR', locale: 'es-ES', timezone: 'Europe/Madrid' },
