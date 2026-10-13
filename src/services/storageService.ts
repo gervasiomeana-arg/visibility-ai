@@ -1165,6 +1165,21 @@ export const storageService = {
     return opportunities;
   },
 
+  restoreOpportunitiesFromMeasurements(business: Business, evidence: {
+    audit?: SeoAuditItem[];
+    search?: { keywords: KeywordItem[]; siteUrl: string; startDate: string; endDate: string; loadedAt: string };
+  }): Opportunity[] {
+    if (evidence.audit !== undefined) {
+      this.replaceOpportunitiesBySource(business.id, 'seo-audit',
+        this.buildOpportunitiesFromSeoAudit(business, evidence.audit));
+    }
+    if (evidence.search !== undefined) {
+      this.replaceOpportunitiesBySource(business.id, 'search-console',
+        this.buildOpportunitiesFromSearchConsole(business, evidence.search.keywords, evidence.search));
+    }
+    return this.getOpportunities(business.id);
+  },
+
   saveOpportunities(businessId: string, opportunities: Opportunity[]): void {
     try {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
