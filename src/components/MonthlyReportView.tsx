@@ -27,7 +27,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
   const latestSearch = evolution.source === 'real' ? evolution.searchPeriods?.at(-1) : undefined;
   const auditDates = evolution.source === 'real' ? evolution.auditDates || [] : [];
   const lastIssueDate = evidence.realIssues.map(issue => issue.checkedAt).filter((date): date is string => !!date && Number.isFinite(Date.parse(date))).sort().at(-1);
-  const auditDate = auditDates.at(-1) || lastIssueDate;
+  const auditDate = auditMeta?.fetchedAt || lastIssueDate || auditDates.at(-1);
   const searchCount = evolution.source === 'real' ? measuredSeries(evolution.searchMonths || [], evolution.searchImpressions || []).length : 0;
   const signed = (value: number) => `${value > 0 ? '+' : ''}${Number(value.toFixed(1))}`;
   const searchValue = (values?: number[]) => {

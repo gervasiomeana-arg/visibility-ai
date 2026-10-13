@@ -1,4 +1,5 @@
 import { measuredScore } from '../../shared/scoreEvidence';
+import { auditHistoryDate } from '../../shared/auditHistoryDate';
 import { persistManualKeyword } from '../../shared/manualKeywordPersistence';
 import { supabase } from './authService';
 import {
@@ -763,7 +764,7 @@ export const workspaceService = {
       this.loadLatestSeoAudit(workspaceId, businessId),
       supabase
         .from('seo_audits')
-        .select('created_at,overall_score,seo_score,web_score,unresolved_issues')
+        .select('created_at,overall_score,seo_score,web_score,unresolved_issues,payload')
         .eq('workspace_id', workspaceId)
         .eq('business_id', businessId)
         .order('created_at', { ascending: false })
@@ -809,7 +810,7 @@ export const workspaceService = {
     return {
       audit,
       auditHistory: [...(auditHistoryResult.data || [])].reverse().map((row: any) => ({
-        auditedAt: row.created_at,
+        auditedAt: auditHistoryDate(row),
         overallScore: Number(row.overall_score || 0),
         seoScore: measuredScore(row.seo_score),
         webScore: measuredScore(row.web_score),

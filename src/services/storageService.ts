@@ -977,6 +977,10 @@ export const storageService = {
       const parsed = stored ? JSON.parse(stored) : {};
       const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
       const pointDay = new Date(point.loadedAt).toISOString().slice(0, 10);
+      const sameMeasurement = (entry: any) => point.siteUrl && point.startDate && point.endDate
+        ? entry.siteUrl === point.siteUrl && entry.startDate === point.startDate && entry.endDate === point.endDate
+        : Number.isFinite(Date.parse(entry.loadedAt)) && new Date(entry.loadedAt).toISOString().slice(0, 10) === pointDay;
+      if (current.some((entry: any) => sameMeasurement(entry) && Date.parse(entry.loadedAt) >= Date.parse(point.loadedAt))) return true;
       const withoutSameDay = current.filter((entry: any) => {
         if (point.siteUrl && point.startDate && point.endDate) {
           return entry.siteUrl !== point.siteUrl || entry.startDate !== point.startDate || entry.endDate !== point.endDate;
@@ -1320,6 +1324,9 @@ export const storageService = {
       const current = Array.isArray(parsed[businessId]) ? parsed[businessId] : [];
 
       const pointDay = new Date(point.auditedAt).toISOString().slice(0, 10);
+      if (current.some((entry: any) => Number.isFinite(Date.parse(entry.auditedAt))
+        && new Date(entry.auditedAt).toISOString().slice(0, 10) === pointDay
+        && Date.parse(entry.auditedAt) >= Date.parse(point.auditedAt))) return;
       const withoutSameDay = current.filter(
         (entry: any) => new Date(entry.auditedAt).toISOString().slice(0, 10) !== pointDay
       );
