@@ -284,10 +284,6 @@ export default function App() {
           setActionTasks(storageService.getActionTasks(activeBusiness.id));
         }
 
-        if (Array.isArray(state.opportunities)) {
-          storageService.saveOpportunities(activeBusiness.id, state.opportunities);
-        }
-
         const reconciledSearch = reconcileCloudKeywords({
           businessId: activeBusiness.id, businessUrl: activeBusiness.url,
           current: storageService.getKeywords(activeBusiness.id), cloud: state.keywords || [],
@@ -313,6 +309,19 @@ export default function App() {
         }
 
         storageService.saveKeywords(activeBusiness.id, reconciledSearch.keywords);
+
+        // Restore proposals from the accepted measurements, never from a separate,
+        // potentially stale opportunities table that can contradict those measurements.
+        storageService.restoreOpportunitiesFromMeasurements(activeBusiness, {
+          audit: payload ? payload.items as any[] : undefined,
+          search: reconciledSearch.applySnapshot ? {
+            keywords: reconciledSearch.keywords,
+            siteUrl: state.searchConsole.site_url,
+            startDate: state.searchConsole.period_start,
+            endDate: state.searchConsole.period_end,
+            loadedAt: state.searchConsole.created_at,
+          } : undefined,
+        });
 
         if (Array.isArray(state.auditHistory)) {
           state.auditHistory.forEach((point) => {

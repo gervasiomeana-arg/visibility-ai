@@ -88,3 +88,49 @@ test('saved opportunities and competitors remain isolated even with malformed fo
     if (original) Object.defineProperty(globalThis, 'localStorage', original); else delete (globalThis as any).localStorage;
   }
 });
+
+
+test('restoring accepted measurements removes resolved proposals while preserving the other source', () => {
+  const values = new Map<string, string>();
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value),
+  } });
+  storageService.setScope('agency:workspace');
+  try {
+    const search = { keywords: [keyword()], siteUrl: 'sc-domain:openvoley.com', startDate: '2026-09-01', endDate: '2026-09-28', loadedAt: '2026-10-01' };
+    storageService.restoreOpportunitiesFromMeasurements(business, { audit: [audit('title')], search });
+    const before = storageService.getOpportunities(business.id);
+    assert.equal(before.length, 2);
+    const afterAudit = storageService.restoreOpportunitiesFromMeasurements(business, { audit: [{ ...audit('title'), status: 'ok' }] });
+    assert.equal(afterAudit.length, 1);
+    assert.equal(afterAudit[0].source, 'search-console');
+    assert.equal(afterAudit[0].periodStart, search.startDate);
+    const unchanged = storageService.restoreOpportunitiesFromMeasurements(business, {});
+    assert.deepEqual(unchanged, afterAudit);
+    assert.deepEqual(storageService.restoreOpportunitiesFromMeasurements(business, { search: { ...search, keywords: [] } }), []);
+  } finally {
+    storageService.setScope();
+    if (original) Object.defineProperty(globalThis, 'localStorage', original); else delete (globalThis as any).localStorage;
+  }
+});
+
+test('rebuilding opportunity evidence does not transfer proposals across businesses or workspaces', () => {
+  const values = new Map<string, string>();
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: {
+    getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => values.set(key, value),
+  } });
+  try {
+    storageService.setScope('agency:first');
+    storageService.restoreOpportunitiesFromMeasurements(business, { audit: [audit('title')] });
+    const other = { ...business, id: 'other' };
+    assert.deepEqual(storageService.restoreOpportunitiesFromMeasurements(other, { search: { keywords: [keyword()], siteUrl: 'sc-domain:other.example', startDate: '2026-09-01', endDate: '2026-09-28', loadedAt: '2026-10-01' } }), []);
+    assert.equal(storageService.getOpportunities(business.id).length, 1);
+    storageService.setScope('agency:second');
+    assert.deepEqual(storageService.restoreOpportunitiesFromMeasurements(business, {}), []);
+  } finally {
+    storageService.setScope();
+    if (original) Object.defineProperty(globalThis, 'localStorage', original); else delete (globalThis as any).localStorage;
+  }
+});
