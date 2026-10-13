@@ -283,6 +283,11 @@ export default function App() {
           storageService.saveActionTasks(activeBusiness.id, state.tasks);
           setActionTasks(storageService.getActionTasks(activeBusiness.id));
         }
+        if (payload) {
+          storageService.saveActionTasks(activeBusiness.id,
+            storageService.buildActionTasksFromSeoAudit(activeBusiness.id, payload.items as any[]));
+          setActionTasks(storageService.getActionTasks(activeBusiness.id));
+        }
 
         const reconciledSearch = reconcileCloudKeywords({
           businessId: activeBusiness.id, businessUrl: activeBusiness.url,

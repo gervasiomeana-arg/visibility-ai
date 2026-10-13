@@ -240,7 +240,10 @@ export function deduplicateAndReconcileTasks(
       });
     } else {
       // Merge duplicates for the same findingType and same URL
+      const datedAudits = items.filter(item => item.source === 'seo-audit' && Number.isFinite(Date.parse(item.measuredAt || '')))
+        .sort((a, b) => Date.parse(b.measuredAt!) - Date.parse(a.measuredAt!));
       const primary =
+        datedAudits[0] ||
         [...items].reverse().find((i) => i.source === 'seo-audit') ||
         items.find((i) => i.id.startsWith(`task-${businessId}-`)) ||
         items[0];
@@ -764,6 +767,7 @@ export const storageService = {
           url: business?.url,
           source: 'seo-audit' as const,
           findingType: item.key,
+          measuredAt: item.checkedAt,
           metricValue: item.metricValue,
           lcpDiagnostics: item.lcpDiagnostics,
           title: item.title,
