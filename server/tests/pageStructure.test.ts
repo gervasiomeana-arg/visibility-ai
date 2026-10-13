@@ -50,3 +50,20 @@ test('commented and scripted declarations are excluded; an empty viewport is det
   const empty = await audit('<meta name="viewport" content="">');
   assert.equal(empty.items.find(item => item.key === 'viewport')!.status, 'warning');
 });
+
+test('SEO title length counts decoded numeric entities rather than their HTML spelling', async () => {
+  for (const markup of ['Neomed &#8211; Tecnología Médica', 'Neomed &#x2013; Tecnología Médica', 'Neomed &ndash; Tecnología Médica']) {
+    const result = await audit(`<title>${markup}</title>`);
+    const title = result.items.find(item => item.key === 'title')!;
+    assert.equal(title.metricValue, '26 caracteres');
+    assert.match(title.detectedData!, /Neomed – Tecnología Médica/);
+    assert.doesNotMatch(title.detectedData!, /8211|x2013|ndash/);
+  }
+});
+
+test('entity decoding is single-pass and invalid Unicode entities cannot crash the audit', async () => {
+  const literal = await audit('<title>Neomed &amp;#8211; Tecnología Médica</title>');
+  assert.equal(literal.items.find(item => item.key === 'title')!.metricValue, '32 caracteres');
+  const invalid = await audit('<title>Neomed &#x110000; &#55296; &#0;</title>');
+  assert.ok(invalid.items.find(item => item.key === 'title'));
+});

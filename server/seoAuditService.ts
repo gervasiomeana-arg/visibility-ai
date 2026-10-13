@@ -364,14 +364,15 @@ async function readTextLimited(response: Response): Promise<string> {
 }
 
 function decodeBasicEntities(value: string): string {
-  return value
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&nbsp;/gi, ' ')
-    .trim();
+  const named: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ', ndash: '–', mdash: '—', hellip: '…', copy: '©', reg: '®', trade: '™' };
+  // Decode once: &amp;#8211; is literal text, not a second encoded dash.
+  return value.replace(/&(#x[0-9a-f]+|#\d+|amp|quot|apos|lt|gt|nbsp|ndash|mdash|hellip|copy|reg|trade);/gi, (_match, entity: string) => {
+    if (!entity.startsWith('#')) return named[entity.toLowerCase()];
+    const hex = entity[1]?.toLowerCase() === 'x';
+    const point = parseInt(entity.slice(hex ? 2 : 1), hex ? 16 : 10);
+    return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff)
+      ? String.fromCodePoint(point) : '\ufffd';
+  }).trim();
 }
 
 function stripTags(value: string): string {

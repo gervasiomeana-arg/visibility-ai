@@ -63,7 +63,7 @@ export const ExecutiveSummaryView: React.FC<ExecutiveSummaryViewProps> = ({
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1 max-w-2xl">
               {summarySource === 'real' ? (
-                <>Encontramos <strong>{issues.length} hallazgos técnicos verificados</strong> para <strong>{business.name}</strong>, priorizados por severidad e impacto.</>
+                <>Encontramos <strong>{issues.length} factores técnicos con datos de auditoría</strong> para <strong>{business.name}</strong>, priorizados por severidad e impacto.</>
               ) : summarySource === 'demo' ? (
                 <>Esta es una vista demostrativa del diagnóstico de <strong>{business.name}</strong>. Los ítems DEMO no representan mediciones verificadas.</>
               ) : (
