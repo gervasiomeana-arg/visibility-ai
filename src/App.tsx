@@ -4,6 +4,7 @@
  */
 import { keywordContentParams, keywordRequestScope } from '../shared/keywordWorkflow';
 import { reconcileCloudKeywords, searchCacheSignature } from '../shared/keywordCloudState';
+import { auditCacheSignature, cloudAuditToApply } from '../shared/auditCloudState';
 
 
 import { opportunityKind } from '../shared/opportunityEvidence';
@@ -251,22 +252,29 @@ export default function App() {
     const initialSearchSignature = searchCacheSignature(
       storageService.getKeywords(activeBusiness.id), storageService.getSearchConsoleMeta(activeBusiness.id)
     );
+    const initialAuditSignature = auditCacheSignature(
+      storageService.getSeoAudit(activeBusiness.id), storageService.getSeoAuditMeta(activeBusiness.id)
+    );
     workspaceService.loadBusinessState(activeWorkspace.id, activeBusiness.id)
       .then((state) => {
         if (cancelled) return;
-        if (state.audit?.payload) {
-          const payload = state.audit.payload;
+        const payload = cloudAuditToApply({
+          businessUrl: activeBusiness.url, initialSignature: initialAuditSignature,
+          currentItems: storageService.getSeoAudit(activeBusiness.id),
+          currentMeta: storageService.getSeoAuditMeta(activeBusiness.id), snapshot: state.audit,
+        });
+        if (payload) {
           if (Array.isArray(payload.items)) {
-            storageService.saveSeoAudit(activeBusiness.id, payload.items, payload.meta || undefined);
+            storageService.saveSeoAudit(activeBusiness.id, payload.items as any[], payload.meta);
           }
           if (Array.isArray(payload.issues)) {
-            storageService.saveIssues(activeBusiness.id, payload.issues);
+            storageService.saveIssues(activeBusiness.id, payload.issues as any[]);
           }
           if (payload.scores) {
             storageService.updateBusinessScores(
               activeBusiness.id,
-              payload.scores,
-              payload.scoreSources || {}
+              payload.scores as any,
+              (payload.scoreSources || {}) as any
             );
           }
         }
