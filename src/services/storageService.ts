@@ -595,7 +595,7 @@ export const storageService = {
 
   updateBusinessProfile(
     businessId: string,
-    updates: Partial<Pick<Business, 'name' | 'category' | 'city' | 'country' | 'description' | 'url'>>
+    updates: Partial<Pick<Business, 'name' | 'category' | 'city' | 'country' | 'countryCode' | 'currency' | 'locale' | 'timezone' | 'description' | 'url'>>
   ): Business | null {
     const businesses = this.getBusinesses();
     const index = businesses.findIndex((b) => b.id === businessId);
@@ -610,7 +610,7 @@ export const storageService = {
     try {
       localStorage.setItem(scopedKey(STORAGE_KEYS.BUSINESSES), JSON.stringify(businesses));
     } catch {
-      // Ignore
+      return null;
     }
     return updatedBiz;
   },

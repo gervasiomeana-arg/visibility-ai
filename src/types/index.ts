@@ -7,9 +7,9 @@ export type TaskStatus =
   | 'completada_manual'
   | 'verificada_auditoria';
 export type TaskCompletionType = 'manual' | 'auditoria';
-export type SupportedCountryCode = 'AR' | 'CL' | 'MX' | 'ES' | 'CO' | 'US';
+export type SupportedCountryCode = 'AR' | 'CL' | 'MX' | 'ES' | 'CO' | 'US' | 'UY';
 export type SupportedCurrency = 'USD' | 'ARS' | 'CLP' | 'MXN' | 'EUR' | 'COP';
-export type SupportedLocale = 'es-AR' | 'es-CL' | 'es-MX' | 'es-ES' | 'es-CO' | 'es-US';
+export type SupportedLocale = 'es-AR' | 'es-CL' | 'es-MX' | 'es-ES' | 'es-CO' | 'es-US' | 'es-UY';
 export type SubscriptionPlanId = 'diagnostic' | 'monitor' | 'growth' | 'pro' | 'agency';
 export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'viewer';
 

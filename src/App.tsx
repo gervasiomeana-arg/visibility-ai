@@ -1,3 +1,4 @@
+import { getMarket } from './config/markets';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -360,11 +361,18 @@ export default function App() {
     storageService.setActiveBusinessId(bizId);
   };
 
-  const handleUpdateBusinessProfile = (updates: Partial<Business>) => {
+  const handleUpdateBusinessProfile = async (updates: Partial<Business>): Promise<{ storage: 'cloud' | 'local' }> => {
+    if (authService.isConfigured() && activeWorkspace?.role === 'viewer') throw new Error('Tu rol es de solo lectura.');
     const updated = storageService.updateBusinessProfile(activeBusiness.id, updates);
-    if (updated) {
-      setBusinesses(storageService.getBusinesses());
+    if (!updated) throw new Error('El navegador no pudo guardar el perfil. No se confirmó el cambio.');
+    setBusinesses(storageService.getBusinesses());
+    if (authService.isConfigured()) {
+      if (!activeWorkspace?.id) throw new Error('El perfil quedó guardado solo en este navegador; no hay un espacio de trabajo activo.');
+      try { await workspaceService.saveBusinessProfile(activeWorkspace.id, updated); }
+      catch { throw new Error('El perfil quedó guardado solo en este navegador. No se pudo guardar en Supabase; reintentá antes de usar otro equipo.'); }
+      return { storage: 'cloud' };
     }
+    return { storage: 'local' };
   };
 
   const canEditWorkspace = !authService.isConfigured() || activeWorkspace?.role !== 'viewer';
@@ -409,17 +417,7 @@ export default function App() {
         deducedName = isOpenVoley ? 'Open Voley' : 'Mi Negocio';
       }
 
-      const marketCountry = activeWorkspace?.countryCode === 'CL'
-        ? 'Chile'
-        : activeWorkspace?.countryCode === 'MX'
-        ? 'México'
-        : activeWorkspace?.countryCode === 'ES'
-        ? 'España'
-        : activeWorkspace?.countryCode === 'CO'
-        ? 'Colombia'
-        : activeWorkspace?.countryCode === 'US'
-        ? 'Estados Unidos'
-        : 'Argentina';
+      const marketCountry = getMarket(activeWorkspace?.countryCode).country;
 
       const businessDraft = {
         url: auditResult.requestedUrl,

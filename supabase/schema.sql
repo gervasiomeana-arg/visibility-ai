@@ -53,6 +53,7 @@ create table if not exists public.businesses (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   name text not null,
+  description text,
   url text not null,
   category text not null default 'Pendiente de definir',
   city text not null default '',
@@ -66,6 +67,9 @@ create table if not exists public.businesses (
   updated_at timestamptz not null default now(),
   unique (workspace_id, url)
 );
+
+-- Existing installations keep all rows and policies.
+alter table public.businesses add column if not exists description text;
 
 create table if not exists public.seo_audits (
   id uuid primary key default gen_random_uuid(),
