@@ -237,3 +237,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .vai-report-document h3 { break-after: avoid; }
   .vai-report-document li, .vai-report-document section > div > div { break-inside: avoid; }
 }
+
+/* Ordered workflow: the numbers identify navigation steps, not completed checks. */
+.vai-nav-link { display: inline-flex; align-items: center; gap: 5px; }
+.vai-workflow-guide { max-width: 1440px; margin: 0 auto; padding: 8px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 11px; color: var(--vai-muted); border-top: 1px solid #ddded675; }
+.vai-workflow-guide strong { color: var(--vai-accent); font-weight: 650; }
+.vai-workflow-guide button { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--vai-accent); font-weight: 650; cursor: pointer; }
+@media print { .vai-workflow-guide { display: none !important; } }
