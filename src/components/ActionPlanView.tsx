@@ -60,6 +60,9 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
     setSaveError('');
   }, [selectedTask?.id, business.id]);
   useEffect(() => { setSelectedTask(null); }, [business.id]);
+  useEffect(() => {
+    setSelectedTask(current => current ? tasks.find(task => task.id === current.id) || null : null);
+  }, [tasks]);
 
   const saveSelected = async (status?: TaskStatus, completionType?: TaskCompletionType | null) => {
     if (!selectedTask || saving) return;
@@ -456,6 +459,13 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 <p className="font-semibold leading-relaxed break-words">
                   {selectedTask.detectedData || selectedTask.simpleExplanation}
                 </p>
+                {selectedTask.source === 'seo-audit' && (
+                  <p className="mt-2 text-indigo-700">
+                    {Number.isFinite(Date.parse(selectedTask.measuredAt || ''))
+                      ? `Medición de la auditoría: ${new Date(selectedTask.measuredAt!).toLocaleString('es-AR')}`
+                      : 'Fecha de medición no registrada en esta tarea.'}
+                  </p>
+                )}
               </div>
 
               <div className="p-3.5 rounded-xl bg-sky-50/80 border border-sky-200 text-xs text-sky-950">

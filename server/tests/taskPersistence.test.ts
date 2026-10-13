@@ -63,3 +63,32 @@ function withStorage(run: (state: { values: Map<string, string>; blocked: boolea
     else Reflect.deleteProperty(globalThis, 'localStorage');
   }
 }
+
+test('measurement freshness is independent of remote arrival order and manual edit dates', () => {
+  const recent = { ...base, measuredAt: '2026-10-12T10:00:00Z', metricValue: '3.2 s' };
+  const oldEdited = { ...base, measuredAt: '2026-10-10T10:00:00Z', metricValue: '8.5 s', status: 'en_progreso', userEvidence: 'Revisar imagen principal', manualUpdatedAt: '2026-10-12T11:00:00Z' } as ActionTask;
+  for (const tasks of [[recent, oldEdited], [oldEdited, recent]]) {
+    const [saved] = deduplicateAndReconcileTasks(business.id, tasks, business);
+    assert.equal(saved.metricValue, '3.2 s');assert.equal(saved.measuredAt, recent.measuredAt);
+    assert.equal(saved.userEvidence, oldEdited.userEvidence);assert.equal(saved.status, 'en_progreso');
+    assert.match(saved.detectedData!, /3.2/);assert.doesNotMatch(saved.detectedData!, /8.5/);
+  }
+});
+
+test('undated legacy cloud tasks cannot replace dated measurements but retain their notes', () => {
+  const recent = { ...base, measuredAt: '2026-10-12T10:00:00Z', metricValue: '3.2 s' };
+  const legacy = { ...base, metricValue: '9.0 s', userEvidence: 'Nota anterior guardada' };
+  const [saved] = deduplicateAndReconcileTasks(business.id, [recent, legacy], business);
+  assert.equal(saved.metricValue, recent.metricValue);assert.equal(saved.userEvidence, legacy.userEvidence);
+});
+
+test('fresh audit tasks carry the measured date and refresh a stored legacy task without losing progress', () => {
+  withStorage(() => {
+    storageService.saveActionTasks(business.id, [{ ...base, userEvidence: 'Nota del entrenador', status: 'en_progreso', manualUpdatedAt: '2026-10-12T11:00:00Z' }]);
+    const tasks = storageService.buildActionTasksFromSeoAudit(business.id, [{ id: 'lcp', key: 'lcp', source: 'real', title: 'LCP', category: 'Velocidad y Móvil', status: 'warning', statusLabel: 'Mejorable', impact: 'Alto', simpleExplanation: 'Medición actual', solution: 'Revisar imagen', metricValue: '3.2 s', checkedAt: '2026-10-12T10:00:00Z' }]);
+    storageService.saveActionTasks(business.id, tasks);
+    const [saved] = storageService.getActionTasks(business.id);
+    assert.equal(saved.measuredAt, '2026-10-12T10:00:00Z');assert.equal(saved.metricValue, '3.2 s');
+    assert.equal(saved.status, 'en_progreso');assert.equal(saved.userEvidence, 'Nota del entrenador');
+  });
+});

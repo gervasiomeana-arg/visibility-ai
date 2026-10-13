@@ -185,6 +185,7 @@ export interface Opportunity {
 }
 
 export interface ActionTask {
+  measuredAt?: string;
   manualUpdatedAt?: string;
   lcpDiagnostics?: import('../../shared/lcpDiagnostics').LcpDiagnostics;
   metricValue?: string;
