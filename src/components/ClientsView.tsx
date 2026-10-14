@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Download, Users } from 'lucide-react';
 import type { Business, Workspace } from '../types';
 import { clientService } from '../services/clientService';
-import { addClientPayment, amountToCents, invoiceBalance, invoiceForMonth, markClientReportSent, validateClient, type ClientAccount, type ClientReport } from '../../shared/clientLedger';
+import { addClientPayment, amountToCents, clientDateTime, invoiceBalance, invoiceForMonth, markClientReportSent, paypalLink, paypalPaymentRequest, validateClient, type ClientAccount, type ClientReport } from '../../shared/clientLedger';
 
 const currencies = ['ARS','USD','EUR','UYU','BRL','CLP','COP','MXN','GBP','CAD','AUD','PEN'];
 const localTime = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
@@ -37,7 +37,7 @@ export function ClientsView({ workspace, businesses }: { workspace: Workspace | 
   const timeZone = workspace?.timezone || 'America/Argentina/Buenos_Aires';
   const today = new Intl.DateTimeFormat('en-CA',{timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
   const money = (cents: number, currency: string) => new Intl.NumberFormat('es-AR',{ style:'currency',currency }).format(cents/100);
-  const dateTime = (value: string) => new Date(value).toLocaleString('es-AR',{timeZone});
+  const dateTime = (value: string) => clientDateTime(value,timeZone);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; },[]);
   async function reload() {
     if (!workspace?.id || !owner) { setLoading(false); return; }
@@ -77,7 +77,7 @@ export function ClientsView({ workspace, businesses }: { workspace: Workspace | 
         {loading ? <p role="status">Cargando clientes…</p> : !clients.length ? <p className="text-sm text-slate-500">Todavía no hay clientes cargados.</p> : clients.filter(item=>`${item.name} ${item.country}`.toLowerCase().includes(filter.toLowerCase())).map(item=><button key={item.id} disabled={busy} onClick={()=>choose(item)} className={`w-full text-left rounded-xl p-3 border ${item.id===selected?'border-emerald-700 bg-emerald-50':'border-slate-200'}`}><strong className="block">{item.name}</strong><small>{item.kind} · {item.country}</small><small className="block">{money(item.monthlyFeeCents,item.currency)} / mes</small></button>)}
       </aside>
       <fieldset disabled={busy} className="space-y-5 min-w-0">
-        {draft ? <form className="vai-panel rounded-2xl p-6 space-y-4" onSubmit={event=>{event.preventDefault(); void operation(async()=>{const next={...draft,monthlyFeeCents:amountToCents(fee)};validateClient(next,workspace.id,ownBusinesses.map(item=>item.id));return clientService.save(next);},'Ficha guardada en Supabase.');}}>
+        {draft ? <form className="vai-panel rounded-2xl p-6 space-y-4" onSubmit={event=>{event.preventDefault(); void operation(async()=>{const next={...draft,monthlyFeeCents:amountToCents(fee),paypalPaymentUrl:paypalLink(draft.paypalPaymentUrl)};validateClient(next,workspace.id,ownBusinesses.map(item=>item.id));return clientService.save(next);},'Ficha guardada en Supabase.');}}>
           <h2 className="text-xl font-bold">{draft.updatedAt?'Editar ficha':'Nuevo cliente'}</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             <label>Nombre<input required maxLength={160} className="vai-input w-full" value={draft.name} onChange={event=>setDraft({...draft,name:event.target.value})}/></label>
@@ -85,6 +85,7 @@ export function ClientsView({ workspace, businesses }: { workspace: Workspace | 
             <label>País<input required maxLength={100} className="vai-input w-full" value={draft.country} onChange={event=>setDraft({...draft,country:event.target.value})}/></label>
             <label>Correo<input type="email" maxLength={200} className="vai-input w-full" value={draft.email} onChange={event=>setDraft({...draft,email:event.target.value})}/></label>
             <label>WhatsApp con código de país<input maxLength={40} className="vai-input w-full" placeholder="+54…" value={draft.whatsapp} onChange={event=>setDraft({...draft,whatsapp:event.target.value})}/></label>
+            <label>Enlace de pago PayPal · opcional<input type="url" maxLength={1000} className="vai-input w-full" placeholder="Pegá el enlace creado en PayPal" value={draft.paypalPaymentUrl || ''} onChange={event=>setDraft({...draft,paypalPaymentUrl:event.target.value})}/></label>
             <label>Abono mensual · sin separador de miles<input required inputMode="decimal" className="vai-input w-full" value={fee} onChange={event=>setFee(event.target.value)}/></label>
             <label>Moneda<select className="vai-input w-full" value={draft.currency} onChange={event=>setDraft({...draft,currency:event.target.value})}>{currencies.map(value=><option key={value}>{value}</option>)}</select></label>
             <label>Día de vencimiento<input type="number" min={1} max={31} required className="vai-input w-full" value={draft.dueDay} onChange={event=>setDraft({...draft,dueDay:Number(event.target.value)})}/></label>
@@ -97,6 +98,10 @@ export function ClientsView({ workspace, businesses }: { workspace: Workspace | 
           <div className="vai-panel rounded-2xl p-6 space-y-4"><h3 className="text-xl font-bold">Abonos mensuales</h3>
             <form className="flex flex-wrap gap-3 items-end" onSubmit={event=>{event.preventDefault();void operation(async()=>{const invoice=invoiceForMonth(client,period,crypto.randomUUID(),new Date().toISOString());return clientService.save({...client,invoices:[...client.invoices,invoice]});},'Abono mensual registrado. No se realizó ningún cobro.');}}><label>Mes<input required type="month" className="vai-input block" value={period} onChange={event=>setPeriod(event.target.value)}/></label><button disabled={busy} className="vai-button vai-button-primary">Registrar abono del mes</button></form>
             <p className="text-xs text-slate-500">Registro interno de cobro pendiente; no es una factura fiscal. Un registro por mes.</p>
+            <div className="rounded-xl bg-slate-50 p-4 space-y-2"><h4 className="font-semibold">Solicitudes de pago por PayPal</h4><p className="text-xs text-slate-600">{client.paypalPaymentUrl?'Copiá la solicitud y pegala en WhatsApp. El enlace no ajusta automáticamente el importe ni la moneda; comprobá su configuración en PayPal.':'Agregá tu enlace de pago en Editar ficha. Podés usar el mismo enlace en varias fichas si corresponde a tu servicio.'}</p>
+              {client.paypalPaymentUrl && client.invoices.filter(invoice=>invoiceBalance(client,invoice,today).remainingCents>0).map(invoice=><button type="button" key={invoice.id} className="vai-button vai-button-secondary mr-2" onClick={async()=>{setError('');setNotice('');try{await navigator.clipboard.writeText(paypalPaymentRequest(client,invoice.id,today));if(alive.current)setNotice('Solicitud copiada. Pegala en WhatsApp para enviarla; todavía no se registró ningún pago.');}catch(failure){if(alive.current)setError(`No se pudo copiar la solicitud: ${message(failure)}`);}}}>Copiar solicitud · {invoice.period}</button>)}
+              <p className="text-xs text-slate-500">No es una suscripción automática. Confirmá el ingreso en PayPal y registralo como pago manual.</p>
+            </div>
             <div className="overflow-x-auto"><table className="w-full text-sm text-left"><thead><tr><th className="p-2">Mes / vencimiento</th><th className="p-2">Importe</th><th className="p-2">Saldo</th><th className="p-2">Estado</th></tr></thead><tbody>{[...client.invoices].sort((a,b)=>b.period.localeCompare(a.period)).map(invoice=>{const balance=invoiceBalance(client,invoice,today);return <tr key={invoice.id} className="border-t border-slate-200"><td className="p-2">{invoice.period}<small className="block">{invoice.dueOn}</small></td><td className="p-2">{money(invoice.amountCents,invoice.currency)}</td><td className="p-2">{money(balance.remainingCents,invoice.currency)}</td><td className="p-2">{balance.status}</td></tr>;})}</tbody></table></div>
             {!client.invoices.length && <p className="text-sm text-slate-500">Registrá el primer mes para controlar su pago.</p>}
           </div>

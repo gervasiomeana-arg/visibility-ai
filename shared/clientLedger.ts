@@ -5,6 +5,28 @@ export interface ClientAccount {
   id: string; workspaceId: string; name: string; kind: 'Empresa' | 'Agencia' | 'Persona'; country: string;
   email: string; whatsapp: string; businessIds: string[]; monthlyFeeCents: number; currency: string; dueDay: number;
   invoices: ClientInvoice[]; payments: ClientPayment[]; reports: ClientReport[]; updatedAt?: string;
+  paypalPaymentUrl?: string;
+}
+export function paypalLink(value?: string): string {
+  if (!value?.trim()) return '';
+  let url: URL;
+  try { url = new URL(value.trim()); } catch { throw new Error('Pegá un enlace de PayPal válido, comenzando con https://.'); }
+  if (url.protocol !== 'https:' || url.username || url.password || url.port || !['paypal.com','www.paypal.com','paypal.me','www.paypal.me'].includes(url.hostname) || url.pathname === '/') throw new Error('Usá un enlace HTTPS de paypal.com o paypal.me, generado en tu cuenta.');
+  return url.toString();
+}
+export function clientDateTime(value: string, timeZone: string): string {
+  if (!Number.isFinite(Date.parse(value))) return 'Sin fecha válida';
+  return new Intl.DateTimeFormat('es-AR',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date(value));
+}
+export function paypalPaymentRequest(client: ClientAccount, invoiceId: string, today: string): string {
+  const invoice = client.invoices.find(item => item.id === invoiceId);
+  if (!invoice) throw new Error('El abono no pertenece a este cliente.');
+  const url = paypalLink(client.paypalPaymentUrl);
+  if (!url) throw new Error('Agregá tu enlace PayPal en Editar ficha.');
+  const balance = invoiceBalance(client,invoice,today);
+  if (!balance.remainingCents) throw new Error('Este abono ya está pagado.');
+  const amount = new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(balance.remainingCents/100);
+  return `Hola, ${client.name}. Te comparto la solicitud de pago del servicio Visibility correspondiente a ${invoice.period}.\nSaldo pendiente: ${amount} ${invoice.currency}.\nVencimiento: ${invoice.dueOn}.\nEnlace PayPal: ${url}\nAntes de confirmar, revisá que el destinatario, importe y moneda en PayPal coincidan con lo acordado. Gracias.`;
 }
 export function amountToCents(value: string): number {
   if (!/^\d+(?:[.,]\d{1,2})?$/.test(value.trim())) throw new Error('Ingresá un importe sin separador de miles y con hasta dos decimales.');
@@ -50,6 +72,7 @@ export function markClientReportSent(client: ClientAccount, reportId: string, se
   return { ...client, reports: client.reports.map(item => item.id === reportId ? { ...item, sentAt, channel, sentRecordedAt: recordedAt } : item) };
 }
 export function validateClient(client: ClientAccount, workspaceId: string, businessIds: string[]) {
+  paypalLink(client.paypalPaymentUrl);
   if (!workspaceId || client.workspaceId !== workspaceId) throw new Error('El cliente no pertenece a este espacio de trabajo.');
   if (!client.name.trim() || client.name.length > 160 || !client.country.trim()) throw new Error('Completá el nombre y país del cliente.');
   if (!['Empresa','Agencia','Persona'].includes(client.kind) || !validCurrency(client.currency)) throw new Error('Tipo de cliente o moneda inválidos.');
