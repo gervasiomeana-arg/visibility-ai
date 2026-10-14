@@ -124,7 +124,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
       </section>
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Tres prioridades para la próxima revisión</h3>
-        {priorities.length ? <ol className="space-y-3">{priorities.map((issue, index) => <li key={issue.id} className="rounded-xl border border-slate-200 p-4 text-sm">
+        {priorities.length ? <ol className="space-y-3">{priorities.map((issue, index) => <li key={issue.id} data-pdf-keep={`priority-${issue.id}`} className="rounded-xl border border-slate-200 p-4 text-sm">
           <strong>{index + 1}. {issue.name}</strong><p className="text-xs text-slate-600 mt-1">{issue.simpleExplanation}</p>
           <p className="text-xs text-slate-600 mt-1">Propuesta: {issue.possibleSolution}</p>
           <p className="text-[10px] text-slate-500 mt-2">{useDemoMetrics ? 'Prioridad de ejemplo' : `Hallazgo de auditoría · ${dateLabel(issue.checkedAt)}`}. Validar el cambio antes de ejecutarlo.</p>
