@@ -86,10 +86,7 @@ router.post(
     }
 
     if (!aiClient) {
-      return res.json({
-        reply: null,
-        note: 'No GEMINI_API_KEY configured, client fallback will be used.',
-      });
+      return res.status(503).json({ error: 'El asistente no está configurado. Revisá GEMINI_API_KEY en el servidor.' });
     }
 
     const systemInstruction = `Eres "Visibility AI Assistant", el asesor técnico y estratégico de visibilidad digital de Visibility AI.
@@ -144,6 +141,7 @@ Responde en español (tono profesional, cercano, empático y sin tecnicismos inn
       config: {
         systemInstruction,
         temperature: 0.7,
+        httpOptions: { timeout: 45000 },
       },
     });
 
@@ -164,12 +162,11 @@ Responde en español (tono profesional, cercano, empático y sin tecnicismos inn
       },
     });
 
-    return res.json({ reply: response.text });
+    if (!response.text?.trim()) return res.status(502).json({ error: 'El asistente no devolvió una respuesta. Intentá nuevamente.' });
+    return res.json({ reply: response.text.trim() });
   } catch (error: any) {
-    console.error('Error in /api/assistant/chat:', error);
-    return res.status(500).json({
-      error: error.message || 'Internal server error',
-    });
+    console.error('Error in /api/assistant/chat:', error?.name || 'Error');
+    return res.status(502).json({ error: 'No se pudo consultar el asistente. Intentá nuevamente más tarde.' });
   }
 });
 

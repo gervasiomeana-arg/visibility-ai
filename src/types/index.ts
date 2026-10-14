@@ -268,6 +268,8 @@ export interface ContentDraft {
 }
 
 export interface ChatMessage {
+  isError?: boolean;
+  retryPrompt?: string;
   id: string;
   role: 'user' | 'assistant';
   content: string;
