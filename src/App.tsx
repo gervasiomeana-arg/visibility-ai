@@ -23,6 +23,7 @@ import { ContentGeneratorView } from './components/ContentGeneratorView';
 import { ActionPlanView } from './components/ActionPlanView';
 import { EvolutionView } from './components/EvolutionView';
 import { MonthlyReportView } from './components/MonthlyReportView';
+import { ClientsView } from './components/ClientsView';
 import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
@@ -921,6 +922,7 @@ export default function App() {
                 onWorkspaceUpdated={setActiveWorkspace}
               />
             )}
+            {activeTab === 'clients' && <ClientsView key={activeWorkspace?.id || 'no-workspace'} workspace={activeWorkspace} businesses={businesses} />}
           </div>
         )}
       </main>

@@ -89,7 +89,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .vai-quiet-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px;
   font-weight: 550; padding: 9px 10px; color: var(--vai-muted); border-radius: 5px; }
 .vai-icon-button { align-items: center; justify-content: center; min-width: 42px; min-height: 42px; border-radius: 7px; color: var(--vai-muted); }
-.vai-header { position: sticky; top: 0; z-index: 40; background: #f7f6f2f7; border-bottom: 1px solid var(--vai-line); }
+.vai-header { position: sticky; top: 0; z-index: 40; background: #f7f6f2; border-bottom: 1px solid var(--vai-line); }
 .vai-header-inner { max-width: 1440px; padding: 0 32px; margin: 0 auto; }
 .vai-header-top { display: flex; align-items: center; gap: 30px; min-height: 78px; }
 .vai-workspace { border-left: 1px solid var(--vai-line); padding-left: 26px; display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px; font-weight: 550; }
@@ -230,12 +230,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   *,*::before,*::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 @media print {
+  @page { size: A4; margin: 15mm; }
   body { background: white !important; color: black !important; }
   .no-print { display: none !important; }
   .vai-panel { box-shadow: none; }
   .vai-report-document { max-width: none; border-radius: 0; }
   .vai-report-document h3 { break-after: avoid; }
   .vai-report-document li, .vai-report-document section > div > div { break-inside: avoid; }
+  .vai-report-document .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vai-report-document footer { break-inside: avoid; }
 }
 
 /* Ordered workflow: the numbers identify navigation steps, not completed checks. */

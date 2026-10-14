@@ -84,6 +84,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
           <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Google Search Console</strong>
             <p>{searchCount ? `Período: ${latestSearch?.startDate && latestSearch.endDate ? `${latestSearch.startDate} a ${latestSearch.endDate}` : 'No registrado en el historial anterior'}.` : 'Sin mediciones guardadas disponibles.'}</p>
             {latestSearch && <><p className="break-all">Propiedad: {latestSearch.siteUrl || 'No registrada'}.</p><p>Cargado: {dateLabel(latestSearch.loadedAt)}.</p></>}
+            {searchCount > 0 && clicks === 0 && impressions === 0 && <p className="font-semibold">Sin consultas de búsqueda recuperadas para este período. Este resultado no demuestra que el sitio no haya recibido visitas.</p>}
             <p>Las cifras agregan las consultas recuperadas; no representan necesariamente todos los clics del sitio. Una medición guardada no confirma que la conexión siga activa.</p>
           </div>
         </div>

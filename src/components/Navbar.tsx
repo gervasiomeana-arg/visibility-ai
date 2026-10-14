@@ -60,6 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeB
             : <span>{workspaceName || 'Mi espacio'}</span>}
         </div>
         <div className="vai-header-actions">
+          <button type="button" onClick={() => navigate('clients')} aria-current={activeTab === 'clients' ? 'page' : undefined} className="vai-quiet-button vai-desktop-only">Clientes</button>
           <button type="button" onClick={onOpenAssistant} className="vai-button vai-button-secondary vai-assistant-top">
             <MessageSquare size={16} /><span>Consultar asistente</span>
           </button>
@@ -117,6 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, activeB
         <span className="vai-nav-index">{String(index + 1).padStart(2, '0')}</span>{item.label}<ArrowUpRight size={15} />
       </button>)}
       <div className="vai-mobile-account">
+        <button type="button" onClick={() => navigate('clients')}>Clientes</button>
         <button type="button" onClick={() => navigate('admin')}>Ajustes</button>
         <button type="button" onClick={() => navigate('landing')}>Inicio</button>
         {onSignOut && <button type="button" onClick={onSignOut}>Cerrar sesión</button>}
