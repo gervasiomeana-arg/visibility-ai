@@ -1,12 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { comparableSearchPeriods, measurementDateLabel, measuredSeries, reportEvidence, searchPositionChange } from '../../shared/reportEvidence';
+import { comparableSearchPeriods, measurementDateLabel, measuredSeries, reportEvidence, reportSearchEvidence, searchPositionChange } from '../../shared/reportEvidence';
 import { storageService } from '../../src/services/storageService';
 import type { ExecutiveIssue, MonthlyEvolution } from '../../src/types';
 const empty: MonthlyEvolution = { source: 'real', months: [], visibility: [], googlePositions: [], estimatedVisits: [], consultations: [], fixedProblems: [], monthComparison: { visibilityChangePercent: 0, improvedPositionsCount: 0, solvedProblemsCount: 0, newOpportunitiesCount: 0, consultationsTotal: 0 } };
 const issue = (businessId: string, source: 'real' | 'demo', severity: 'high' | 'medium' | 'ok', name: string): ExecutiveIssue => ({ id: name, businessId, source, severity, name, simpleExplanation: '', possibleSolution: '', category: 'SEO', impactText: '' });
 const previous = { loadedAt: '2026-10-01', siteUrl: 'sc-domain:openvoley.com', startDate: '2026-09-01', endDate: '2026-09-28' };
 const latest = { loadedAt: '2026-11-01', siteUrl: previous.siteUrl, startDate: '2026-10-01', endDate: '2026-10-28' };
+
+test('report search metrics share their property and period and derive CTR from supplied counts',()=>{
+  const evolution={...empty,searchMonths:['Septiembre','Octubre'],searchPeriods:[previous,latest],searchClicks:[3,7],searchImpressions:[100,200],searchCtr:[999,999],searchPositions:[18,12]};
+  const result=reportSearchEvidence(evolution,'https://openvoley.com/');
+  assert.equal(result.latest?.period,latest);
+  assert.equal(result.latest?.ctr,3.5);
+  assert.equal(result.positionChange,6);
+  const zero=reportSearchEvidence({...evolution,searchClicks:[3,0],searchImpressions:[100,0]},'https://openvoley.com/');
+  assert.equal(zero.latest?.clicks,0);assert.equal(zero.latest?.ctr,null);assert.equal(zero.positionChange,null);
+});
+
+test('incomplete, foreign or invalid search data cannot be exported as current report measurements',()=>{
+  const valid={...empty,searchMonths:['Octubre'],searchPeriods:[latest],searchClicks:[7],searchImpressions:[100]};
+  for(const change of [
+    {searchMonths:[]},{searchPeriods:[previous,latest]},{searchClicks:[]},
+    {searchPeriods:[{...latest,siteUrl:'sc-domain:other.com'}]},
+    {searchPeriods:[{...latest,startDate:'2026-02-30'}]},
+    {searchPeriods:[{...latest,loadedAt:'invalid'}]},
+    {searchClicks:[-1]},{searchClicks:[101]},{searchImpressions:[Number.NaN]},
+  ]){
+    const evolution={...valid,...change};
+    const result=reportSearchEvidence(evolution,'https://openvoley.com/');
+    assert.equal(result.latest,null);assert.equal(result.positionChange,null);assert.ok(result.warning);
+    assert.equal(reportEvidence('voley',evolution,[],'https://openvoley.com/').mode,'SIN DATOS');
+  }
+});
 
 test('real reports exclude demo priorities and other businesses, with errors first', () => {
   const evidence = reportEvidence('voley', empty, [issue('voley', 'demo', 'high', 'Fake'), issue('other', 'real', 'high', 'Foreign'), issue('voley', 'real', 'medium', 'Warning'), issue('voley', 'real', 'ok', 'Correct'), issue('voley', 'real', 'high', 'Error')]);

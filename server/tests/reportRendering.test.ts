@@ -36,3 +36,16 @@ test('rendered positive search fixture shows supplied metrics without treating c
   assert.ok(html.includes('No se deducen de los clics ni del índice técnico'));
   assert.ok(!html.includes('NaN'));
 });
+
+test('client report suppresses a foreign search property, its period and its metrics',()=>{
+  const html=render({evolution:{...evolution,searchPeriods:[{siteUrl:'sc-domain:foreign.example',startDate:'2025-01-01',endDate:'2025-01-28',loadedAt:'2025-02-01'}],searchClicks:[123456],searchImpressions:[200000],searchCtr:[61.73]}});
+  assert.ok(html.includes('no corresponden al sitio de este negocio'));
+  for(const value of ['foreign.example','2025-01-01','123.456','200.000','61,73%'])assert.ok(!html.includes(value));
+});
+
+test('client report labels incomplete stored measurements instead of combining different rows',()=>{
+  const html=render({evolution:{...evolution,searchPeriods:[evolution.searchPeriods![0],{siteUrl:'sc-domain:own.example',startDate:'2026-10-12',endDate:'2026-11-08',loadedAt:'2026-11-10'}],searchClicks:[7],searchImpressions:[100]}});
+  assert.ok(html.includes('guardadas están incompletas'));
+  assert.ok(!html.includes('2026-10-12'));
+  assert.ok(!html.includes('7%'));
+});

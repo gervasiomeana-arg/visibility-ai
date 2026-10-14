@@ -26,3 +26,21 @@ de tres páginas se abrió con pypdf, se comprobó la conservación de todos los
 se renderizó con Poppler para revisar visualmente acentos, márgenes, títulos y numeración.
 Es una fixture local, no un informe real del cliente. Falta probar la nueva descarga
 desde la app publicada, cargarla en Clientes y comprobar persistencia y descarga.
+
+## Coherencia de Search Console en el informe
+
+Antes de presentar cifras, se valida que los períodos, etiquetas, clics e impresiones
+tengan la misma cantidad de registros; que el último período y la fecha de carga sean
+válidos; que la propiedad corresponda a la URL actual del negocio; y que los conteos
+sean enteros no negativos y coherentes. Si falla una comprobación, se omiten las cifras
+y el período afectados, y se explica que hace falta volver a importar los datos. No se
+reemplazan por ceros ni se busca silenciosamente una medición anterior.
+
+El CTR se calcula con clics e impresiones del mismo registro. Si las impresiones son
+cero, no se calcula una tasa. Los resultados vacíos válidos permanecen visibles como
+mediciones de cero. El cambio de posición requiere además períodos comparables de la
+misma propiedad y posiciones válidas; no se compara cuando faltan impresiones.
+
+170 pruebas locales aprobadas. Casos nuevos: propiedad ajena, arrays desalineados,
+fechas inválidas, conteos inconsistentes y CTR almacenado desactualizado. La revisión
+del PDF exportado con datos reales y la importación real no vacía siguen pendientes.
