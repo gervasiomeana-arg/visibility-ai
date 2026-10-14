@@ -1,5 +1,25 @@
 # Clientes: gestión interna
 
+## Corregir un envío registrado por error
+
+En cada informe marcado como enviado aparece **Corregir un envío marcado por error**.
+El propietario escribe un motivo de 12 a 500 caracteres y pulsa **Volver a pendiente
+y guardar corrección**. El cambio utiliza el guardado existente con versión de la ficha:
+si hay conflicto o falla de Supabase no se confirma el resultado.
+
+Se conservan el PDF, su huella, nombre, tamaño y fecha de carga. El canal, fecha de
+envío y fecha del registro anterior pasan al historial de correcciones junto con motivo
+y fecha de corrección; no se eliminan sin dejar rastro. El informe vuelve a la lista de
+pendientes y puede recibir un nuevo registro manual, manteniendo ese historial. No se
+modifican otros informes, pagos ni abonos. El historial vive en el JSON existente del
+cliente; no requiere SQL ni cambio de políticas.
+
+Antes del formulario de envío se aclara la secuencia: descargar, enviar desde WhatsApp
+o correo y registrar después. La función no envía mensajes ni confirma recepción.
+La prueba de envío real del usuario sigue aplazada; los registros erróneos no se han
+corregido automáticamente en producción. Pruebas locales comprueban conservación,
+motivo obligatorio, pertenencia al cliente, historial al reenviar y presentación segura.
+
 ## Corrección de la política de archivos — 14 de octubre
 
 La captura posterior muestra el error de Storage «new row violates row-level security
