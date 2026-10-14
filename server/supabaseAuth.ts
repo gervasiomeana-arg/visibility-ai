@@ -23,12 +23,15 @@ export async function getSupabaseUserFromToken(
       apikey: config.publishableKey,
       authorization: `Bearer ${accessToken}`,
     },
+    signal: AbortSignal.timeout(8000),
   });
 
-  if (!response.ok) return null;
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) throw new Error('Session validation service unavailable');
 
   const data: any = await response.json();
-  return data?.id ? { id: data.id, email: data.email } : null;
+  if (typeof data?.id !== 'string' || !data.id.trim()) throw new Error('Invalid session validation response');
+  return { id:data.id,email:typeof data.email === 'string'?data.email:undefined };
 }
 
 export async function requireSupabaseAuth(
@@ -39,7 +42,7 @@ export async function requireSupabaseAuth(
   const config = getSupabaseConfig();
 
   if (!config.configured) {
-    next();
+    res.status(503).json({ error: 'La autenticación no está configurada. Revisá Supabase antes de usar esta función.' });
     return;
   }
 
@@ -59,6 +62,6 @@ export async function requireSupabaseAuth(
     res.locals.authUser = user;
     next();
   } catch {
-    res.status(401).json({ error: 'Could not validate session' });
+    res.status(503).json({ error: 'No se pudo comprobar la sesión en este momento. Volvé a intentar; este error no confirma que tu sesión haya vencido.' });
   }
 }
