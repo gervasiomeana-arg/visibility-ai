@@ -1,6 +1,8 @@
 import { technicalScoreChange, webMeasurement } from '../../shared/scoreEvidence';
-import React from 'react';
-import { FileText, Printer } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Download, FileText, Printer } from 'lucide-react';
+import { prepareReportPdf, reportPdfBlocks } from '../services/reportPdfService';
+import { reportPdfName } from '../../shared/reportPdfName';
 import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, SeoAuditResult } from '../types';
 import { measuredSeries, reportEvidence, searchPositionChange, measurementDateLabel, technicalFindingReduction, taskPlanEvidence } from '../../shared/reportEvidence';
 
@@ -11,8 +13,34 @@ interface MonthlyReportViewProps {
   tasks?: ActionTask[];
   auditMeta?: Partial<SeoAuditResult> | null;
 }
+const emptyTasks: ActionTask[] = [];
 
-export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = [], auditMeta }) => {
+export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = emptyTasks, auditMeta }) => {
+  const articleRef = useRef<HTMLElement>(null);
+  const exporting = useRef(false);
+  const [pdfBusy,setPdfBusy] = useState(false);
+  const [pdfError,setPdfError] = useState('');
+  const [download,setDownload] = useState<{url:string;name:string} | null>(null);
+  const alive = useRef(true);
+  const reportVersion = useRef(0);
+  useEffect(() => { alive.current=true; return () => {alive.current=false;}; },[]);
+  useEffect(() => () => { if(download)URL.revokeObjectURL(download.url); },[download]);
+  useEffect(() => {reportVersion.current++;setDownload(null);setPdfError('');},[business,evolution,issues,tasks,auditMeta]);
+  async function exportPdf() {
+    if(exporting.current || !articleRef.current)return;
+    const article = articleRef.current;
+    const blocks=reportPdfBlocks(article);
+    const version=reportVersion.current;
+    const name=reportPdfName(business.name,new Intl.DateTimeFormat('en-CA',{timeZone:business.timezone || 'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+    exporting.current=true;setPdfBusy(true);setPdfError('');setDownload(null);
+    try {
+      const blob=await prepareReportPdf(blocks);
+      if(!alive.current || articleRef.current !== article || reportVersion.current !== version)return;
+      const url=URL.createObjectURL(blob);setDownload({url,name});
+      const link=document.createElement('a');link.href=url;link.download=name;link.click();
+    } catch(error) {if(alive.current)setPdfError(error instanceof Error?error.message:'No se pudo generar el PDF.');}
+    finally {exporting.current=false;if(alive.current)setPdfBusy(false);}
+  }
   const dateLabel = (value?: string) => measurementDateLabel(value, business.locale || 'es-AR', business.timezone || 'America/Argentina/Buenos_Aires');
   const evidence = reportEvidence(business.id, evolution, issues);
   const { mode, priorities, useDemoMetrics } = evidence;
@@ -56,9 +84,11 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-950 font-heading">Informe de visibilidad</h1>
         <p className="text-sm text-slate-600 mt-2">Revisá las fuentes y prioridades antes de entregar este informe. Las fechas indican el alcance disponible, que puede no coincidir con un mes calendario.</p>
       </div>
-      <button onClick={() => window.print()} className="vai-button vai-button-primary shrink-0"><Printer className="w-4 h-4" />Imprimir / Guardar PDF</button>
+      <div className="flex flex-wrap gap-2"><button disabled={pdfBusy} onClick={() => void exportPdf()} className="vai-button vai-button-primary shrink-0"><Download className="w-4 h-4" />{pdfBusy?'Preparando PDF…':'Descargar PDF'}</button><button onClick={() => window.print()} className="vai-button vai-button-secondary shrink-0"><Printer className="w-4 h-4" />Imprimir</button></div>
     </div>
-    <article className="vai-report-document bg-white rounded-2xl p-5 sm:p-10 border border-slate-200 shadow-sm max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
+    {pdfError && <p role="alert" className="no-print rounded-xl bg-red-50 text-red-800 p-4">{pdfError}</p>}
+    {download && <p role="status" className="no-print rounded-xl bg-emerald-50 p-4 text-sm">PDF preparado. Si la descarga no comenzó, <a href={download.url} download={download.name} className="underline font-semibold">descargá el PDF preparado</a>. Si AI Studio bloquea la descarga, abrí Visibility publicada y repetí este paso.</p>}
+    <article ref={articleRef} className="vai-report-document bg-white rounded-2xl p-5 sm:p-10 border border-slate-200 shadow-sm max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
       <header className="pb-6 border-b border-slate-200 space-y-2">
         <p className="text-xs font-bold tracking-widest text-indigo-600">VISIBILITY · {mode}</p>
         <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 font-heading">{business.name}</h2>
