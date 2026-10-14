@@ -1,6 +1,7 @@
 export interface ClientInvoice { id: string; period: string; dueOn: string; amountCents: number; currency: string; createdAt: string }
 export interface ClientPayment { id: string; invoiceId: string; amountCents: number; paidAt: string; method: string; recordedAt: string }
-export interface ClientReport { id: string; businessId: string; businessName: string; title: string; period: string; fileName: string; filePath: string; createdAt: string; fileSizeBytes?: number; fileSha256?: string; sentAt?: string; sentRecordedAt?: string; channel?: 'WhatsApp' | 'Correo' | 'Otro' }
+export interface ClientDeliveryCorrection { previousSentAt: string; previousRecordedAt?: string; previousChannel?: 'WhatsApp' | 'Correo' | 'Otro'; correctedAt: string; reason: string }
+export interface ClientReport { id: string; businessId: string; businessName: string; title: string; period: string; fileName: string; filePath: string; createdAt: string; fileSizeBytes?: number; fileSha256?: string; sentAt?: string; sentRecordedAt?: string; channel?: 'WhatsApp' | 'Correo' | 'Otro'; deliveryCorrections?: ClientDeliveryCorrection[] }
 export interface ClientAccount {
   id: string; workspaceId: string; name: string; kind: 'Empresa' | 'Agencia' | 'Persona'; country: string;
   email: string; whatsapp: string; businessIds: string[]; monthlyFeeCents: number; currency: string; dueDay: number;
@@ -70,6 +71,19 @@ export function markClientReportSent(client: ClientAccount, reportId: string, se
   if (!report || report.sentAt) throw new Error('Elegí un informe pendiente de este cliente.');
   if (!Number.isFinite(Date.parse(sentAt)) || !Number.isFinite(Date.parse(recordedAt)) || Date.parse(sentAt) > Date.parse(recordedAt) || !['WhatsApp','Correo','Otro'].includes(channel)) throw new Error('Ingresá una fecha de envío válida, no futura, y un canal.');
   return { ...client, reports: client.reports.map(item => item.id === reportId ? { ...item, sentAt, channel, sentRecordedAt: recordedAt } : item) };
+}
+export function correctClientReportDelivery(client: ClientAccount, reportId: string, reason: string, correctedAt: string): ClientAccount {
+  const report = client.reports.find(item => item.id === reportId);
+  if (!report?.sentAt) throw new Error('Elegí un informe con envío registrado de este cliente.');
+  if (typeof reason !== 'string' || reason.trim().length < 12 || reason.trim().length > 500 || !Number.isFinite(Date.parse(correctedAt))) {
+    throw new Error('Explicá el motivo de la corrección con 12 a 500 caracteres y una fecha válida.');
+  }
+  const { sentAt, sentRecordedAt, channel, ...pending } = report;
+  const corrected: ClientReport = { ...pending, deliveryCorrections: [
+    ...(report.deliveryCorrections || []),
+    { previousSentAt: sentAt, previousRecordedAt: sentRecordedAt, previousChannel: channel, correctedAt, reason: reason.trim() },
+  ] };
+  return { ...client, reports: client.reports.map(item => item.id === reportId ? corrected : item) };
 }
 export function validateClient(client: ClientAccount, workspaceId: string, businessIds: string[]) {
   paypalLink(client.paypalPaymentUrl);
