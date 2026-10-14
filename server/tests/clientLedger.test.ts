@@ -29,7 +29,7 @@ test('partial payment, overdue and full payment states derive from recorded amou
 test('payments cannot overpay, duplicate, belong to another client or use future dates',()=>{
   const own={...client,invoices:[invoiceForMonth(client,'2026-10','invoice',now)]};
   const payment={id:'p',invoiceId:'invoice',amountCents:100,paidAt:now,recordedAt:now,method:'Efectivo'};
-  for(const change of [{amountCents:0},{amountCents:10001},{invoiceId:'foreign'},{paidAt:'2026-12-01'}])assert.throws(()=>addClientPayment(own,{...payment,...change},'2026-10-13'));
+  for(const change of [{amountCents:0},{amountCents:10001},{invoiceId:'foreign'},{paidAt:'2026-12-01'},{recordedAt:'invalid-date'}])assert.throws(()=>addClientPayment(own,{...payment,...change},'2026-10-13'));
   assert.throws(()=>addClientPayment({...own,payments:[payment]},payment,'2026-10-13'));
 });
 test('client validation rejects foreign workspaces or businesses',()=>{
@@ -50,5 +50,6 @@ test('manual sending records actual declared time separately from entry time and
   assert.throws(()=>markClientReportSent(result,'r',now,'WhatsApp',now));
   assert.throws(()=>markClientReportSent(own,'foreign',now,'WhatsApp',now));
   assert.throws(()=>markClientReportSent(own,'r','2026-11-01','WhatsApp',now));
+  assert.throws(()=>markClientReportSent(own,'r',now,'WhatsApp','invalid-date'));
   assert.equal(own.reports[0].sentAt,undefined);
 });

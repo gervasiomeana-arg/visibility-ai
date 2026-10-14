@@ -1,0 +1,47 @@
+import { reportPath, type ClientAccount, type ClientReport } from './clientLedger';
+
+const limit = 20 * 1024 * 1024;
+export interface ReportFile extends Blob { readonly name: string }
+interface ReportStore {
+  upload(path: string, file: ReportFile): Promise<void>;
+  save(client: ClientAccount): Promise<ClientAccount>;
+  read(workspaceId: string, clientId: string): Promise<ClientAccount | null>;
+}
+
+export async function pdfFingerprint(file: Blob): Promise<string> {
+  if (!file.size || file.size > limit || await file.slice(0, 5).text() !== '%PDF-') throw new Error('Elegí un archivo PDF válido de hasta 20 MB.');
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export async function saveClientReport(client: ClientAccount, report: ClientReport, file: ReportFile, store: ReportStore): Promise<ClientAccount> {
+  if (!client.updatedAt) throw new Error('Guardá la ficha del cliente antes de cargar informes.');
+  const path = reportPath(client.workspaceId, client.id, report.id);
+  if (client.reports.some(item => item.id === report.id)) throw new Error('El informe ya está registrado.');
+  if (!client.businessIds.includes(report.businessId)) throw new Error('El negocio no está asociado a este cliente.');
+  if (!report.title.trim() || report.title.length > 160 || !report.period.trim() || report.period.length > 100 || !report.businessName.trim() || !Number.isFinite(Date.parse(report.createdAt)) || report.sentAt || report.sentRecordedAt || report.channel) throw new Error('Revisá los datos del informe. El envío se registra después, por separado.');
+  const savedReport: ClientReport = { ...report, fileName: file.name, filePath: path, fileSizeBytes: file.size, fileSha256: await pdfFingerprint(file) };
+  await store.upload(path, file);
+  try {
+    return await store.save({ ...client, reports: [...client.reports, savedReport] });
+  } catch (failure) {
+    // A failed response does not prove the database rolled back. Deleting here
+    // could remove a PDF whose metadata was successfully committed.
+    try {
+      const current = await store.read(client.workspaceId, client.id);
+      const registered = current?.reports.find(item => item.id === report.id);
+      if (current?.workspaceId === client.workspaceId && current.id === client.id && registered &&
+        (['filePath','fileSha256','fileSizeBytes','fileName','businessId','businessName','title','period','createdAt'] as const).every(key => registered[key] === savedReport[key])) return current;
+    } catch { /* An unavailable read cannot confirm the outcome. Preserve the PDF. */ }
+    const detail = failure instanceof Error ? failure.message : 'Respuesta no disponible.';
+    throw new Error(`El PDF se cargó, pero no se pudo confirmar el registro del informe. El archivo se conserva para evitar perderlo. Recargá Clientes antes de volver a cargarlo. ${detail}`);
+  }
+}
+
+export async function verifyClientReportDownload(client: ClientAccount, report: ClientReport, file: Blob): Promise<void> {
+  const registered = client.reports.find(item => item.id === report.id);
+  if (!registered || report.filePath !== registered.filePath || report.filePath !== reportPath(client.workspaceId, client.id, report.id)) throw new Error('El archivo no pertenece a este cliente.');
+  const digest = await pdfFingerprint(file);
+  if ((registered.fileSizeBytes !== undefined && registered.fileSizeBytes !== file.size) ||
+    (registered.fileSha256 !== undefined && registered.fileSha256 !== digest)) throw new Error('El PDF descargado no coincide con el archivo registrado. No lo envíes; revisá el informe.');
+}
