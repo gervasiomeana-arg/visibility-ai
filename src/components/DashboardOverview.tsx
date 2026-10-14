@@ -21,6 +21,7 @@ import {
   Save,
 } from 'lucide-react';
 import { Business, ActiveTab, ExecutiveIssue } from '../types';
+import { BusinessProfileSuggestionPanel } from './BusinessProfileSuggestionPanel';
 
 interface DashboardOverviewProps {
   auditMeta?: any;
@@ -527,7 +528,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* Edit Business Profile Modal */}
       {isEditingProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
@@ -551,6 +552,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
 
             <form onSubmit={handleSaveProfile} className="mt-5 space-y-4">
+              <BusinessProfileSuggestionPanel key={`${business.id}:${business.url}`} businessId={business.id} url={business.url} disabled={profileSaving}
+                onApply={description => { setProfileForm(current => ({ ...current, description })); setProfileFeedback('Propuesta copiada al formulario. Revisala y guardá el perfil para confirmarla.'); setProfileError(''); }} />
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
                   Nombre
