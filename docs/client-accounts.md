@@ -1,5 +1,31 @@
 # Clientes: gestión interna
 
+## Confirmación del PDF después de guardar
+
+La captura del 14 de octubre muestra la ficha y sus pagos conservados después de
+recargar, pero ninguna entrada en Informes PDF. No permite determinar si faltó un
+campo obligatorio, falló la carga del archivo o falló la escritura del registro.
+No se afirma que el archivo esté recuperado ni que el problema real esté resuelto.
+
+Para evitar confirmaciones ambiguas, guardar un informe ahora siempre vuelve a leer
+la fila del cliente desde Supabase. Solo confirma si están registrados el mismo
+informe, negocio, archivo, tamaño y huella, título, período y fecha en el cliente y
+espacio correctos. La respuesta de escritura sola no basta. Si la lectura falla o
+no coincide, mantiene un error y conserva el archivo subido; no borra PDFs ante un
+resultado incierto. La recuperación tras perder la respuesta de escritura se mantiene.
+
+La confirmación o error aparece junto al formulario de Informes PDF, con instrucciones
+de completar negocio, título, período y archivo y esperar antes de recargar. Se indica
+expresamente cuando no hay informes. La validación nativa de campos obligatorios también
+deja un aviso local. Si el cliente tiene un único negocio asociado disponible, queda
+preseleccionado al abrir su ficha; no se deduce el período del nombre del archivo.
+
+Pruebas locales: una escritura aparentemente exitosa sin registro confirmado no puede
+devolver éxito; se rechazan lecturas ajenas, ausentes, fallidas o con otra huella. Se
+devuelve la versión recién leída, preservando la comprobación de igualdad del PDF.
+Pendiente publicar y repetir la carga, recarga y descarga reales en la ficha de Neomed.
+Este ajuste no requiere SQL ni cambios de políticas o claves.
+
 Solo el propietario del espacio de trabajo puede cargar o consultar fichas y PDF.
 Los clientes no reciben cuentas de acceso. La sección está en el encabezado de escritorio
 y en el menú de cuenta móvil, fuera de los diez pasos de auditoría.
