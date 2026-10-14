@@ -41,8 +41,17 @@ con la zona del espacio. Los timestamps guardados no se modifican.
 
 Exportar el PDF desde Informe, cargarlo en la ficha, descargarlo y enviarlo manualmente.
 Se admiten PDF de hasta 20 MB, con cabecera PDF; el bucket no es público.
-El archivo se vincula a espacio, cliente e informe. Si no se guarda el registro tras
-subir el archivo, se intenta eliminar únicamente esa nueva carga incompleta.
+El archivo se vincula a espacio, cliente e informe. Las nuevas cargas conservan tamaño
+y huella SHA-256; al descargar, se comprueban contra esos datos. Esto detecta diferencias
+de bytes, pero no acredita que el contenido de la auditoría sea correcto. Los informes
+anteriores siguen disponibles y se identifican como documentos sin huella guardada.
+
+Si falla la respuesta del guardado tras subir el PDF, se consulta de nuevo la ficha.
+Solo se confirma el guardado si se recupera el mismo informe con todos sus datos y
+huella. Si no se puede confirmar, el PDF se conserva y se pide recargar: no se elimina
+porque la base podría haber guardado el registro aunque se perdiera la respuesta.
+Esta medida puede dejar una carga sin registro si el guardado realmente falló; no hay
+limpieza automática de esos archivos en esta versión.
 
 Después del envío, registrar fecha/hora y canal. Se conserva también cuándo se anotó.
 No envía WhatsApp ni correo y no confirma recepción o lectura. La primera versión

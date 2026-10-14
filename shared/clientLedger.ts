@@ -1,6 +1,6 @@
 export interface ClientInvoice { id: string; period: string; dueOn: string; amountCents: number; currency: string; createdAt: string }
 export interface ClientPayment { id: string; invoiceId: string; amountCents: number; paidAt: string; method: string; recordedAt: string }
-export interface ClientReport { id: string; businessId: string; businessName: string; title: string; period: string; fileName: string; filePath: string; createdAt: string; sentAt?: string; sentRecordedAt?: string; channel?: 'WhatsApp' | 'Correo' | 'Otro' }
+export interface ClientReport { id: string; businessId: string; businessName: string; title: string; period: string; fileName: string; filePath: string; createdAt: string; fileSizeBytes?: number; fileSha256?: string; sentAt?: string; sentRecordedAt?: string; channel?: 'WhatsApp' | 'Correo' | 'Otro' }
 export interface ClientAccount {
   id: string; workspaceId: string; name: string; kind: 'Empresa' | 'Agencia' | 'Persona'; country: string;
   email: string; whatsapp: string; businessIds: string[]; monthlyFeeCents: number; currency: string; dueDay: number;
@@ -57,7 +57,7 @@ export function addClientPayment(client: ClientAccount, payment: ClientPayment, 
   if (!invoice) throw new Error('Elegí un abono de este cliente.');
   if (client.payments.some(item => item.id === payment.id)) throw new Error('El pago ya está registrado.');
   if (!Number.isSafeInteger(payment.amountCents) || payment.amountCents <= 0 || payment.amountCents > invoiceBalance(client, invoice, today).remainingCents) throw new Error('El pago debe ser mayor a cero y no superar el saldo.');
-  if (!payment.method.trim() || !Number.isFinite(Date.parse(payment.paidAt)) || Date.parse(payment.paidAt) > Date.parse(payment.recordedAt)) throw new Error('Ingresá el medio de pago y una fecha válida, no futura.');
+  if (!payment.method.trim() || !Number.isFinite(Date.parse(payment.paidAt)) || !Number.isFinite(Date.parse(payment.recordedAt)) || Date.parse(payment.paidAt) > Date.parse(payment.recordedAt)) throw new Error('Ingresá el medio de pago y una fecha válida, no futura.');
   return { ...client, payments: [...client.payments, payment] };
 }
 export function reportPath(workspaceId: string, clientId: string, reportId: string): string {
@@ -68,7 +68,7 @@ export function reportPath(workspaceId: string, clientId: string, reportId: stri
 export function markClientReportSent(client: ClientAccount, reportId: string, sentAt: string, channel: 'WhatsApp' | 'Correo' | 'Otro', recordedAt: string): ClientAccount {
   const report = client.reports.find(item => item.id === reportId);
   if (!report || report.sentAt) throw new Error('Elegí un informe pendiente de este cliente.');
-  if (!Number.isFinite(Date.parse(sentAt)) || Date.parse(sentAt) > Date.parse(recordedAt) || !['WhatsApp','Correo','Otro'].includes(channel)) throw new Error('Ingresá una fecha de envío válida, no futura, y un canal.');
+  if (!Number.isFinite(Date.parse(sentAt)) || !Number.isFinite(Date.parse(recordedAt)) || Date.parse(sentAt) > Date.parse(recordedAt) || !['WhatsApp','Correo','Otro'].includes(channel)) throw new Error('Ingresá una fecha de envío válida, no futura, y un canal.');
   return { ...client, reports: client.reports.map(item => item.id === reportId ? { ...item, sentAt, channel, sentRecordedAt: recordedAt } : item) };
 }
 export function validateClient(client: ClientAccount, workspaceId: string, businessIds: string[]) {

@@ -1,5 +1,6 @@
 import { supabase } from './authService';
 import { reportPath, type ClientAccount, type ClientReport } from '../../shared/clientLedger';
+import { saveClientReport, verifyClientReportDownload } from '../../shared/clientReports';
 
 function db() { if (!supabase) throw new Error('Clientes requiere Supabase configurado.'); return supabase; }
 const bucket = 'visibility-client-reports';
@@ -28,19 +29,21 @@ export const clientService = {
     return path;
   },
   async saveReport(client: ClientAccount, report: ClientReport, file: File): Promise<ClientAccount> {
-    if (!client.updatedAt) throw new Error('Guardá la ficha del cliente antes de cargar informes.');
-    const path = await this.upload(client.workspaceId,client.id,report.id,file);
-    try { return await this.save({ ...client, reports: [...client.reports, { ...report, filePath: path }] }); }
-    catch (error) {
-      // This removes only the new, unregistered upload; existing client PDFs are never touched.
-      await db().storage.from(bucket).remove([path]);
-      throw error;
-    }
+    return saveClientReport(client, report, file, {
+      upload: async () => { await this.upload(client.workspaceId,client.id,report.id,file); },
+      save: next => this.save(next),
+      read: async (workspaceId, clientId) => {
+        const { data, error } = await db().from('client_accounts').select('id,workspace_id,payload,updated_at').eq('workspace_id',workspaceId).eq('id',clientId).maybeSingle();
+        if (error) throw error;
+        return data ? decode(data) : null;
+      },
+    });
   },
   async download(client: ClientAccount, report: ClientReport): Promise<Blob> {
-    if (report.filePath !== reportPath(client.workspaceId,client.id,report.id)) throw new Error('El archivo no pertenece a este cliente.');
+    if (!client.reports.some(item => item.id === report.id && item.filePath === report.filePath) || report.filePath !== reportPath(client.workspaceId,client.id,report.id)) throw new Error('El archivo no pertenece a este cliente.');
     const { data, error } = await db().storage.from(bucket).download(report.filePath);
     if (error || !data) throw new Error(`No se pudo descargar el informe: ${error?.message || 'archivo no disponible'}`);
+    await verifyClientReportDownload(client, report, data);
     return data;
   },
 };
