@@ -40,14 +40,23 @@ test('search suggestions are framed with a restrictive document policy rather th
   assert.match(researchWidgetDocument('<a>Search</a>'),/form-action 'none'/);
 });
 
-test('research endpoint validates input before contacting a provider and reports missing Gemini configuration', async () => {
+test('authenticated research endpoint validates input before contacting a provider and reports missing Gemini configuration', async () => {
   const { default: express } = await import('express');const { default: router } = await import('../aiRouter');
+  const originalFetch=globalThis.fetch;
+  const names=['VITE_SUPABASE_URL','VITE_SUPABASE_PUBLISHABLE_KEY','VITE_SUPABASE_ANON_KEY'];
+  const previous=names.map(name=>process.env[name]);
+  process.env.VITE_SUPABASE_URL='https://auth.example';process.env.VITE_SUPABASE_PUBLISHABLE_KEY='test-key';delete process.env.VITE_SUPABASE_ANON_KEY;
+  globalThis.fetch=((...args:Parameters<typeof fetch>)=>args[0]==='https://auth.example/auth/v1/user'?Promise.resolve(new Response(JSON.stringify({id:'test-user'}))):originalFetch(...args)) as typeof fetch;
   const app=express();app.use(express.json());app.use('/api',router);const server=app.listen(0,'127.0.0.1');
   await new Promise<void>(resolve=>server.on('listening',resolve));const port=(server.address() as any).port;
   try {
-    const invalid=await fetch(`http://127.0.0.1:${port}/api/competitors/research`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})});assert.equal(invalid.status,400);
+    const invalid=await fetch(`http://127.0.0.1:${port}/api/competitors/research`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer test-token'},body:JSON.stringify({})});assert.equal(invalid.status,400);
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY==='MY_GEMINI_API_KEY') {
-      const unavailable=await fetch(`http://127.0.0.1:${port}/api/competitors/research`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...input,businessId:'hotel'})});assert.equal(unavailable.status,503);assert.match((await unavailable.json() as any).error,/GEMINI_API_KEY/);
+      const unavailable=await fetch(`http://127.0.0.1:${port}/api/competitors/research`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer test-token'},body:JSON.stringify({...input,businessId:'hotel'})});assert.equal(unavailable.status,503);assert.match((await unavailable.json() as any).error,/GEMINI_API_KEY/);
     }
-  } finally {await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()));}
+  } finally {
+    globalThis.fetch=originalFetch;
+    names.forEach((name,index)=>{if(previous[index]===undefined)delete process.env[name];else process.env[name]=previous[index];});
+    await new Promise<void>((resolve,reject)=>server.close(err=>err?reject(err):resolve()));
+  }
 });
