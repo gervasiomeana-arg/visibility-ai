@@ -14,6 +14,7 @@ import { aiService } from '../services/aiService';
 import { storageService } from '../services/storageService';
 import { AssistantMessage } from './AssistantMessage';
 import { measurementTime } from '../../shared/measurementTime';
+import { assistantFailureMessage } from '../services/assistantClient';
 
 interface AiAssistantModalProps {
   business: Business;
@@ -125,7 +126,7 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
               })),
             }
           : undefined,
-      }, messages.filter((message) => message.id !== 'msg-welcome').map((message) => ({
+      }, messages.filter((message) => message.id !== 'msg-welcome' && !message.isError).map((message) => ({
         role: message.role,
         content: message.content,
       })));
@@ -141,7 +142,8 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
     } catch (err) {
       if (mountedRef.current) setMessages((prev) => [...prev, {
         id: `error-${Date.now()}`, role: 'assistant',
-        content: 'No se pudo obtener una respuesta. Podés volver a enviar tu consulta; este error no confirma ningún hallazgo de la auditoría.',
+        content: `${assistantFailureMessage(err)} Este error no confirma ningún hallazgo de la auditoría.`,
+        isError: true, retryPrompt: textToSend.trim(),
         timestamp: measurementTime(new Date().toISOString(), business.timezone),
       }]);
     } finally {
@@ -218,6 +220,11 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
                   }`}
                 >
                   {isUser ? <p className="whitespace-pre-wrap break-words">{m.content}</p> : <AssistantMessage content={m.content} />}
+                  {m.isError && <div role="alert" className="mt-2 text-xs text-rose-700">
+                    <span className="font-semibold">Consulta sin respuesta.</span>
+                    <button type="button" disabled={isLoading} onClick={() => handleSendMessage(m.retryPrompt || '')}
+                      className="block mt-2 font-semibold underline disabled:opacity-50">Reintentar consulta</button>
+                  </div>}
                   <span
                     className={`text-[10px] mt-1.5 block text-right ${
                       isUser ? 'text-indigo-200' : 'text-slate-400'
