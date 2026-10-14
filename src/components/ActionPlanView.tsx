@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { measurementTime } from '../../shared/measurementTime';
 import {
   CheckSquare,
   AlertCircle,
@@ -462,7 +463,7 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                 {selectedTask.source === 'seo-audit' && (
                   <p className="mt-2 text-indigo-700">
                     {Number.isFinite(Date.parse(selectedTask.measuredAt || ''))
-                      ? `Medición de la auditoría: ${new Date(selectedTask.measuredAt!).toLocaleString('es-AR')}`
+                      ? `Medición de la auditoría: ${measurementTime(selectedTask.measuredAt!, business.timezone)}`
                       : 'Fecha de medición no registrada en esta tarea.'}
                   </p>
                 )}

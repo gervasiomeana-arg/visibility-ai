@@ -12,6 +12,8 @@ import {
 import { Business, ChatMessage } from '../types';
 import { aiService } from '../services/aiService';
 import { storageService } from '../services/storageService';
+import { AssistantMessage } from './AssistantMessage';
+import { measurementTime } from '../../shared/measurementTime';
 
 interface AiAssistantModalProps {
   business: Business;
@@ -44,6 +46,12 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
   const [inputVal, setInputVal] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sendingRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const quickQuestions = [
     '¿Qué debería mejorar primero?',
@@ -68,13 +76,14 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
   }, [initialPrompt, isOpen]);
 
   const handleSendMessage = async (textToSend: string) => {
-    if (!textToSend.trim() || isLoading) return;
+    if (!textToSend.trim() || sendingRef.current) return;
+    sendingRef.current = true;
 
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
       content: textToSend.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: measurementTime(new Date().toISOString(), business.timezone),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -125,14 +134,19 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
         id: `ai-${Date.now()}`,
         role: 'assistant',
         content: reply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: measurementTime(new Date().toISOString(), business.timezone),
       };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      if (mountedRef.current) setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
-      console.error(err);
+      if (mountedRef.current) setMessages((prev) => [...prev, {
+        id: `error-${Date.now()}`, role: 'assistant',
+        content: 'No se pudo obtener una respuesta. Podés volver a enviar tu consulta; este error no confirma ningún hallazgo de la auditoría.',
+        timestamp: measurementTime(new Date().toISOString(), business.timezone),
+      }]);
     } finally {
-      setIsLoading(false);
+      sendingRef.current = false;
+      if (mountedRef.current) setIsLoading(false);
     }
   };
 
@@ -173,6 +187,7 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
             <button
               key={idx}
               onClick={() => handleSendMessage(q)}
+              disabled={isLoading}
               className="px-2.5 py-1 rounded-full bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 text-[11px] font-medium whitespace-nowrap hover:bg-indigo-50/50 transition-colors cursor-pointer shrink-0"
             >
               {q}
@@ -202,7 +217,7 @@ Puedo ayudarte a revisar los hallazgos de tu última auditoría técnica, distin
                       : 'bg-slate-100 text-slate-800 rounded-bl-xs whitespace-pre-line'
                   }`}
                 >
-                  <p>{m.content}</p>
+                  {isUser ? <p className="whitespace-pre-wrap break-words">{m.content}</p> : <AssistantMessage content={m.content} />}
                   <span
                     className={`text-[10px] mt-1.5 block text-right ${
                       isUser ? 'text-indigo-200' : 'text-slate-400'
