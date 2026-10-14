@@ -11,10 +11,12 @@ const file = () => new File(['%PDF-1.7\ncontenido de prueba\n%%EOF'], 'informe.p
 test('PDF round trip preserves the original bytes, name, size and fingerprint', async () => {
   let uploaded: Blob | undefined;
   let uploadedPath = '';
+  let persisted: ClientAccount | null = null;
+  let reads = 0;
   const saved = await saveClientReport(client, report, file(), {
     upload: async (path, bytes) => { uploadedPath=path; uploaded=bytes; },
-    save: async next => ({...next, updatedAt:'2026-10-14T18:02:00Z'}),
-    read: async () => { throw Error('Unexpected recovery read'); },
+    save: async next => { persisted = {...next, updatedAt:'2026-10-14T18:02:00Z'}; return persisted; },
+    read: async () => { reads++; return persisted; },
   });
   const registered = saved.reports[0];
   assert.equal(registered.filePath,uploadedPath);
@@ -26,6 +28,36 @@ test('PDF round trip preserves the original bytes, name, size and fingerprint', 
   assert.equal(altered.size,uploaded!.size);
   await assert.rejects(verifyClientReportDownload(saved,registered,altered),/no coincide/);
   assert.equal(client.reports.length,0);
+  assert.equal(reads,1);
+});
+
+test('a successful write acknowledgement without a confirmed persisted report never announces a saved PDF', async () => {
+  for (const mode of ['absent','read-failed','foreign','mismatched'] as const) {
+    let acknowledged: ClientAccount | null = null;
+    let uploads = 0;
+    await assert.rejects(saveClientReport(client, report, file(), {
+      upload: async () => { uploads++; },
+      save: async next => { acknowledged = next; return next; },
+      read: async () => {
+        if (mode === 'read-failed') throw Error('Read unavailable');
+        if (mode === 'absent') return client;
+        if (mode === 'foreign') return { ...acknowledged!, id: 'other-client' };
+        return { ...acknowledged!, reports: [{ ...acknowledged!.reports[0], fileSha256: 'wrong-hash' }] };
+      },
+    }), /no se pudo confirmar.*archivo se conserva.*Recargá/s);
+    assert.equal(uploads,1);
+  }
+});
+
+test('successful report saving returns the fresh database row instead of the write acknowledgement', async () => {
+  let persisted: ClientAccount | null = null;
+  const result = await saveClientReport(client, report, file(), {
+    upload: async () => {},
+    save: async next => { persisted = { ...next, updatedAt: 'read-version' }; return { ...next, updatedAt: 'write-version' }; },
+    read: async (workspaceId, clientId) => { assert.equal(workspaceId,client.workspaceId); assert.equal(clientId,client.id); return persisted; },
+  });
+  assert.equal(result.updatedAt,'read-version');
+  assert.equal(result.reports.length,1);
 });
 
 test('lost save response recovers a committed report without deleting its PDF', async () => {

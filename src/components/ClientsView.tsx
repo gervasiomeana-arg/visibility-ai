@@ -17,6 +17,7 @@ export function ClientsView({ workspace, businesses }: { workspace: Workspace | 
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState('');
   const [notice,setNotice] = useState('');
+  const [reportFeedback,setReportFeedback] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [period,setPeriod] = useState(localTime().slice(0,7));
   const [invoiceId,setInvoiceId] = useState('');
   const [paymentAmount,setPaymentAmount] = useState('');
@@ -42,23 +43,25 @@ export function ClientsView({ workspace, businesses }: { workspace: Workspace | 
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; },[]);
   async function reload() {
     if (!workspace?.id || !owner) { setLoading(false); return; }
-    setLoading(true); setError('');
+    setLoading(true); setError(''); setReportFeedback(null);
     try { const rows = await clientService.list(workspace.id); if (alive.current) setClients(rows); }
     catch (failure) { if (alive.current) setError(message(failure)); }
     finally { if (alive.current) setLoading(false); }
   }
   useEffect(() => { void reload(); },[workspace?.id,owner]);
-  const choose = (item: ClientAccount) => { setSelected(item.id); setDraft(null); setInvoiceId(''); setPaymentAmount(''); setMethod(''); setReportBusiness(''); setReportTitle(''); setReportPeriod(''); setFile(null); setFileKey(key=>key+1); setSentReportId(''); setNotice(''); setError(''); };
-  async function operation(action: () => Promise<ClientAccount>, success: string) {
+  const choose = (item: ClientAccount) => { const associated = ownBusinesses.filter(business=>item.businessIds.includes(business.id)); setSelected(item.id); setDraft(null); setInvoiceId(''); setPaymentAmount(''); setMethod(''); setReportBusiness(associated.length === 1 ? associated[0].id : ''); setReportTitle(''); setReportPeriod(''); setFile(null); setFileKey(key=>key+1); setSentReportId(''); setNotice(''); setError(''); setReportFeedback(null); };
+  async function operation(action: () => Promise<ClientAccount>, success: string, target?: 'reports') {
     if (operationPending.current || loading || !owner) return;
     operationPending.current = true;
     setBusy(true); setError(''); setNotice('');
+    if (target === 'reports') setReportFeedback(null);
     try {
       const saved = await action();
       if (!alive.current) return;
       setClients(rows => [saved,...rows.filter(row => row.id !== saved.id)]);
-      setSelected(saved.id); setDraft(null); setPaymentAmount(''); setMethod(''); setInvoiceId(''); setSentReportId(''); setNotice(success);
-    } catch (failure) { if (alive.current) setError(message(failure)); }
+      setSelected(saved.id); setDraft(null); setPaymentAmount(''); setMethod(''); setInvoiceId(''); setSentReportId('');
+      if (target === 'reports') setReportFeedback({ kind: 'success', text: success }); else setNotice(success);
+    } catch (failure) { if (alive.current) { if (target === 'reports') setReportFeedback({ kind: 'error', text: message(failure) }); else setError(message(failure)); } }
     finally { operationPending.current = false; if (alive.current) setBusy(false); }
   }
   function newClient() {
@@ -120,13 +123,16 @@ export function ClientsView({ workspace, businesses }: { workspace: Workspace | 
           </div>
           <div className="vai-panel rounded-2xl p-6 space-y-4"><h3 className="text-xl font-bold">Informes PDF</h3>
             <p className="text-sm text-slate-600">Exportá el informe desde Visibility y cargalo aquí. Se guarda privado; luego descargalo y envialo por WhatsApp.</p>
-            <form className="grid sm:grid-cols-2 gap-4" onSubmit={event=>{event.preventDefault();void operation(async()=>{const business=ownBusinesses.find(item=>item.id===reportBusiness && client.businessIds.includes(item.id));if(!business || !file || !reportTitle.trim() || !reportPeriod.trim())throw new Error('Elegí un negocio asociado, título, período y PDF.');const report:ClientReport={id:crypto.randomUUID(),businessId:business.id,businessName:business.name,title:reportTitle.trim(),period:reportPeriod.trim(),fileName:file.name,filePath:'',createdAt:new Date().toISOString()};const saved=await clientService.saveReport(client,report,file);if(alive.current){setFile(null);setFileKey(key=>key+1);setReportTitle('');}return saved;},'PDF y registro del informe guardados. Todavía no está marcado como enviado.');}}>
+            <p className="text-xs text-slate-500">Completá negocio, título y período, seleccioná el PDF y pulsá Guardar PDF. Esperá la confirmación debajo del formulario antes de recargar.</p>
+            <form className="grid sm:grid-cols-2 gap-4" onInvalidCapture={()=>setReportFeedback({kind:'error',text:'Falta completar un campo obligatorio. Revisá negocio, título, período y archivo PDF; todavía no se guardó el informe.'})} onSubmit={event=>{event.preventDefault();void operation(async()=>{const business=ownBusinesses.find(item=>item.id===reportBusiness && client.businessIds.includes(item.id));if(!business || !file || !reportTitle.trim() || !reportPeriod.trim())throw new Error('Elegí un negocio asociado, título, período y PDF.');const report:ClientReport={id:crypto.randomUUID(),businessId:business.id,businessName:business.name,title:reportTitle.trim(),period:reportPeriod.trim(),fileName:file.name,filePath:'',createdAt:new Date().toISOString()};const saved=await clientService.saveReport(client,report,file);if(alive.current){setFile(null);setFileKey(key=>key+1);setReportTitle('');}return saved;},'Informe guardado y comprobado mediante una nueva lectura de Supabase. Ya aparece en esta ficha; el envío sigue pendiente.','reports');}}>
               <label>Negocio<select required className="vai-input w-full" value={reportBusiness} onChange={event=>setReportBusiness(event.target.value)}><option value="">Elegí el negocio</option>{ownBusinesses.filter(item=>client.businessIds.includes(item.id)).map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
               <label>Título<input required maxLength={160} className="vai-input w-full" value={reportTitle} onChange={event=>setReportTitle(event.target.value)}/></label>
               <label>Período del informe<input required maxLength={100} placeholder="Septiembre 2026 / diagnóstico inicial" className="vai-input w-full" value={reportPeriod} onChange={event=>setReportPeriod(event.target.value)}/></label>
               <label>Archivo PDF · hasta 20 MB<input key={fileKey} required type="file" accept=".pdf,application/pdf" className="block w-full text-sm mt-2" onChange={event=>setFile(event.target.files?.[0] || null)}/></label>
-              <button disabled={busy} className="vai-button vai-button-primary justify-self-start">Guardar PDF</button>
+              <button disabled={busy} className="vai-button vai-button-primary justify-self-start">{busy ? 'Procesando…' : 'Guardar PDF'}</button>
             </form>
+            {reportFeedback && <p role={reportFeedback.kind === 'error' ? 'alert' : 'status'} className={`rounded-xl p-3 text-sm ${reportFeedback.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-emerald-50 text-emerald-800'}`}>{reportFeedback.text}</p>}
+            {!client.reports.length && <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">No hay informes guardados en esta ficha. Seleccionar un archivo no lo guarda: debe aparecer la confirmación y el informe en esta lista.</p>}
             {[...client.reports].reverse().map(report=><article key={report.id} className="border-t pt-4 space-y-1"><strong>{report.title}</strong><p className="text-sm">{report.businessName} · {report.period}</p><p className="text-xs break-all">{report.fileName} · Cargado: {dateTime(report.createdAt)}</p><p className="text-sm">{report.sentAt?`Envío registrado manualmente · ${report.channel} · ${dateTime(report.sentAt)}`:'Preparado · envío pendiente'}</p><p className="text-xs text-slate-500">{report.fileSha256?'Huella del archivo original guardada; se comprueba al descargar.':'Informe anterior sin huella guardada; no se puede comprobar igualdad con el original.'}</p>{report.sentRecordedAt && <p className="text-xs">Registro realizado: {dateTime(report.sentRecordedAt)}</p>}<button disabled={busy} className="vai-button vai-button-secondary mt-2" onClick={async()=>{if(operationPending.current || loading)return;operationPending.current=true;setError('');setBusy(true);try{const blob=await clientService.download(client,report);if(!alive.current)return;const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download=report.fileName;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(failure){if(alive.current)setError(message(failure));}finally{operationPending.current=false;if(alive.current)setBusy(false);}}}><Download size={15}/>Descargar PDF</button></article>)}
             <h4 className="font-semibold pt-4">Registrar envío realizado</h4>
             <form className="grid sm:grid-cols-2 gap-4" onSubmit={event=>{event.preventDefault();void operation(async()=>{const next=markClientReportSent(client,sentReportId,new Date(sentAt).toISOString(),channel,new Date().toISOString());return clientService.save(next);},'Envío registrado manualmente. Visibility no confirma entrega ni lectura.');}}>

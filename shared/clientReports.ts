@@ -22,20 +22,21 @@ export async function saveClientReport(client: ClientAccount, report: ClientRepo
   if (!report.title.trim() || report.title.length > 160 || !report.period.trim() || report.period.length > 100 || !report.businessName.trim() || !Number.isFinite(Date.parse(report.createdAt)) || report.sentAt || report.sentRecordedAt || report.channel) throw new Error('Revisá los datos del informe. El envío se registra después, por separado.');
   const savedReport: ClientReport = { ...report, fileName: file.name, filePath: path, fileSizeBytes: file.size, fileSha256: await pdfFingerprint(file) };
   await store.upload(path, file);
+  let failure: unknown;
   try {
-    return await store.save({ ...client, reports: [...client.reports, savedReport] });
-  } catch (failure) {
-    // A failed response does not prove the database rolled back. Deleting here
-    // could remove a PDF whose metadata was successfully committed.
-    try {
-      const current = await store.read(client.workspaceId, client.id);
-      const registered = current?.reports.find(item => item.id === report.id);
-      if (current?.workspaceId === client.workspaceId && current.id === client.id && registered &&
-        (['filePath','fileSha256','fileSizeBytes','fileName','businessId','businessName','title','period','createdAt'] as const).every(key => registered[key] === savedReport[key])) return current;
-    } catch { /* An unavailable read cannot confirm the outcome. Preserve the PDF. */ }
-    const detail = failure instanceof Error ? failure.message : 'Respuesta no disponible.';
-    throw new Error(`El PDF se cargó, pero no se pudo confirmar el registro del informe. El archivo se conserva para evitar perderlo. Recargá Clientes antes de volver a cargarlo. ${detail}`);
-  }
+    await store.save({ ...client, reports: [...client.reports, savedReport] });
+  } catch (error) { failure = error; }
+  // Always read the persisted row, even after a successful write response. A
+  // success-looking acknowledgement alone does not prove the report will reload.
+  // Never remove the uploaded PDF after an ambiguous database/network outcome.
+  try {
+    const current = await store.read(client.workspaceId, client.id);
+    const registered = current?.reports.find(item => item.id === report.id);
+    if (current?.workspaceId === client.workspaceId && current.id === client.id && registered &&
+      (['filePath','fileSha256','fileSizeBytes','fileName','businessId','businessName','title','period','createdAt'] as const).every(key => registered[key] === savedReport[key])) return current;
+  } catch (error) { if (!failure) failure = error; }
+  const detail = failure instanceof Error ? failure.message : 'La lectura de Supabase no devolvió el informe esperado.';
+  throw new Error(`El PDF se cargó, pero no se pudo confirmar el registro del informe. El archivo se conserva para evitar perderlo. Recargá Clientes antes de volver a cargarlo. ${detail}`);
 }
 
 export async function verifyClientReportDownload(client: ClientAccount, report: ClientReport, file: Blob): Promise<void> {
