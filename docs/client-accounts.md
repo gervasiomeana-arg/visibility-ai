@@ -1,5 +1,26 @@
 # Clientes: gestión interna
 
+## Corrección de la política de archivos — 14 de octubre
+
+La captura posterior muestra el error de Storage «new row violates row-level security
+policy» con todos los campos completos. Se encontró un defecto en la política original:
+`split_part(name, ...)` dentro de la subconsulta se vincula a `workspaces.name`, porque
+esa tabla también tiene una columna `name`. Debe referirse a `storage.objects.name`.
+
+Aplicar **202610140003_client_report_storage_policy.sql** en el SQL Editor del proyecto
+Supabase usado por Visibility. Sustituye solamente la política de archivos de Clientes
+dentro de una transacción. Es repetible, no borra registros o archivos ni desactiva RLS.
+Mantiene bucket privado y acceso exclusivo del propietario al espacio y cliente de la
+ruta. Después de ejecutarlo, repetir Guardar PDF, recargar y descargar desde la ficha.
+El cambio se aplica en Supabase; incorporar el código por sí solo no ejecuta el script.
+
+Prueba con PostgreSQL local: la política original rechaza la carga del propietario con
+un nombre de espacio ordinario; la política corregida permite su inserción y lectura.
+Rechaza otro propietario, usuario anónimo, cliente ajeno, combinación incorrecta de
+espacio/cliente y cambio de ruta a otro espacio. La aplicación repetida conserva filas
+existentes y el bucket privado. La ejecución en Supabase y la prueba real siguen
+pendientes: no se cambiaron datos de producción desde esta revisión.
+
 ## Confirmación del PDF después de guardar
 
 La captura del 14 de octubre muestra la ficha y sus pagos conservados después de
