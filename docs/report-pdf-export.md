@@ -98,3 +98,31 @@ ni se fuerzan páginas vacías. El título de sección también acompaña al pri
 si ambos caben. Pruebas con extracción de texto del PDF comprueban el salto y la
 conservación del final en un grupo extenso. La revisión visual del PDF corregido usa
 una fixture, no un nuevo PDF descargado desde la app publicada.
+
+## Valores de rendimiento y trazabilidad
+
+El bloque Google PageSpeed móvil del informe incluye FCP y LCP en segundos, calculados
+desde los valores numéricos en milisegundos de la misma respuesta guardada. No utiliza
+etiquetas de texto posiblemente desactualizadas ni transforma un valor ausente en cero.
+Un cero numérico medido se conserva; valores negativos, no finitos o de tipo incorrecto
+quedan sin medición. La fecha y hora son las de PageSpeed, con la zona del negocio, no
+la hora de exportación del PDF ni la hora de finalización de la auditoría HTML.
+
+Antes de mostrar puntuación y tiempos se valida la coincidencia de la página solicitada
+con la URL actual del negocio, una URL final HTTPS sin credenciales y la fecha propia
+de PageSpeed. Se conserva una redirección documentada por el auditor; la URL mostrada
+es la que el auditor envió a PageSpeed. Una fecha inválida o una página ajena oculta
+estos valores y pide repetir la auditoría. Una falla de PageSpeed no reutiliza una
+medición anterior del negocio como si fuera actual.
+
+Validación local: conversión de unidades, ceros medidos, ausencia de valores, fecha
+propia de la prueba, exclusión de otras páginas y presentación con zona horaria. Se
+renderizó una fixture de tres páginas y se revisó legibilidad y conservación de las
+prioridades completas. No certifica los resultados históricos de Neomed ni constituye
+una consulta independiente a PageSpeed. Falta revisar el PDF regenerado en producción.
+
+El PDF real «(4)» aportado por el usuario ya muestra tecnología médica y mantiene LCP
+completo en la página 3; la descripción todavía termina en coma. El usuario confirmó
+«ahora sí» después de aplicar la política de Storage corregida, lo que acredita que la
+carga dejó de bloquearse. La conservación después de recargar y la apertura del archivo
+descargado desde Clientes aún requieren confirmación explícita.

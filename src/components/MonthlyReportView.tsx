@@ -1,4 +1,6 @@
-import { technicalScoreChange, webMeasurement } from '../../shared/scoreEvidence';
+import { technicalScoreChange } from '../../shared/scoreEvidence';
+import { reportPerformance } from '../../shared/reportPerformance';
+import { measurementTime } from '../../shared/measurementTime';
 import React, { useEffect, useRef, useState } from 'react';
 import { Download, FileText, Printer } from 'lucide-react';
 import { prepareReportPdf, reportPdfBlocks } from '../services/reportPdfService';
@@ -52,7 +54,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
   const reduction = technicalFindingReduction(evolution);
   const plan = taskPlanEvidence(business.id, tasks);
   const currentTasks = plan.tasks.filter(task => task.source !== 'demo');
-  const performance = webMeasurement(auditMeta, business.scores.web, business.scoreSources?.web || 'unavailable');
+  const performance = reportPerformance(auditMeta, business.url);
   const latestSearch = search.latest?.period;
   const auditDates = evolution.source === 'real' ? evolution.auditDates || [] : [];
   const lastIssueDate = evidence.realIssues.map(issue => issue.checkedAt).filter((date): date is string => !!date && Number.isFinite(Date.parse(date))).sort().at(-1);
@@ -102,8 +104,15 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
             <p>El análisis del HTML inicial no ejecuta JavaScript. Un hallazgo puede requerir comprobar la página renderizada.</p>
           </div>
           {isReal && <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Google PageSpeed · Móvil</strong>
-            <p>{performance.state === 'real' ? `${performance.value}/100 · medido el ${dateLabel(performance.measuredAt)}.` : 'Sin medición actual de rendimiento disponible.'}</p>
-            {performance.state !== 'real' && <p>La revisión del HTML no aprueba LCP, FCP ni CLS. {auditMeta?.pageSpeedError || 'Es necesario obtener una medición móvil.'}</p>}
+            <p>{performance.score !== null ? `${performance.score}/100 · medido el ${dateLabel(performance.measuredAt)}.` : 'Sin medición actual de rendimiento disponible.'}</p>
+            {performance.measuredAt && <>
+              <p>FCP: {performance.fcp ?? 'Sin medición'} · primer contenido visible.</p>
+              <p>LCP: {performance.lcp ?? 'Sin medición'} · contenido principal.</p>
+              <p>Fecha de PageSpeed: {measurementTime(performance.measuredAt, business.timezone)}.</p>
+              <p className="break-all">URL consultada: {performance.sourceUrl}</p>
+            </>}
+            {performance.warning && <p className="font-semibold">{performance.warning}</p>}
+            {!performance.measuredAt && <p>La revisión del HTML no aprueba LCP, FCP ni CLS. Es necesario obtener una medición móvil con URL y fecha registradas.</p>}
             <p>Prueba de laboratorio; no representa la experiencia de todos los visitantes.</p>
           </div>}
           <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Google Search Console</strong>
