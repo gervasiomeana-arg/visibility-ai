@@ -11,6 +11,8 @@ import {
 } from './rateLimit';
 import { recordUsageEventSafe } from './usageTelemetry';
 import { normalizeAssistantHistory } from '../shared/assistantContext';
+import { validateProfileSuggestionInput } from '../shared/businessProfileSuggestion';
+import { suggestBusinessProfile } from './businessProfileService';
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_FIELD_LENGTH = 2000;
@@ -31,6 +33,23 @@ const aiRateLimit = createRateLimiter({
 });
 
 const competitorResearchLimit = createRateLimiter({ name: 'competitor-research', maxRequests: 12, windowMs: rateLimitWindowMs() });
+const profileSuggestionLimit = createRateLimiter({ name: 'profile-suggestion', maxRequests: 12, windowMs: rateLimitWindowMs() });
+router.post('/business/profile/suggest', requireSupabaseAuth, profileSuggestionLimit, async (req, res) => {
+  let input;
+  try { input = validateProfileSuggestionInput(req.body); }
+  catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'Datos no válidos.' }); }
+  if (!aiClient) return res.status(503).json({ error: 'La propuesta necesita GEMINI_API_KEY configurada en el servidor.' });
+  try {
+    const { result, tokens } = await suggestBusinessProfile(input, params => aiClient!.models.generateContent(params));
+    recordUsageEventSafe(req, { workspaceId: typeof req.body.workspaceId === 'string' ? req.body.workspaceId : undefined, businessId: input.businessId, userId: res.locals.authUser?.id, eventType: 'ai_content', units: tokens, metadata: { operation: 'business_profile_suggestion' } });
+    return res.json(result);
+  } catch (error) {
+    // Provider/network errors may contain private request details; do not forward them.
+    const message = error instanceof Error ? error.message : '';
+    const reviewable = /^(El HTML inicial|La IA no devolvió)/.test(message);
+    return res.status(reviewable ? 422 : 502).json({ error: reviewable ? message : 'No se pudo leer la web y preparar la propuesta. Revisá la dirección y reintentá; el perfil guardado sigue disponible.' });
+  }
+});
 router.post('/competitors/research', requireSupabaseAuth, competitorResearchLimit, async (req, res) => {
   let input;
   try { input = validateResearchInput(req.body); if (typeof req.body.businessId !== 'string' || !req.body.businessId.trim() || req.body.businessId.length > 120) throw new Error('Seleccioná un negocio para guardar la investigación.'); }

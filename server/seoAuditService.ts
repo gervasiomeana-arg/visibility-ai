@@ -363,6 +363,17 @@ async function readTextLimited(response: Response): Promise<string> {
   return new TextDecoder('utf-8').decode(buffer);
 }
 
+/** Reuses the audit's DNS-pinned HTTPS fetch, redirect guards and body limit. */
+export async function fetchPublicProfileHtml(rawUrl: string) {
+  const requestedUrl = normalizeAuditUrl(rawUrl);
+  const { response, finalUrl } = await safeFetch(requestedUrl);
+  if (!response.ok) throw new Error('El sitio no respondió correctamente.');
+  if (!/text\/html|application\/xhtml\+xml/i.test(response.headers.get('content-type') || '')) {
+    throw new Error('La dirección no devolvió una página HTML.');
+  }
+  return { requestedUrl, finalUrl, html: await readTextLimited(response), fetchedAt: new Date().toISOString() };
+}
+
 function decodeBasicEntities(value: string): string {
   const named: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ', ndash: '–', mdash: '—', hellip: '…', copy: '©', reg: '®', trade: '™' };
   // Decode once: &amp;#8211; is literal text, not a second encoded dash.
