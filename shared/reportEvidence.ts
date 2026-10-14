@@ -21,8 +21,13 @@ export function taskPlanEvidence(businessId: string, supplied: ActionTask[]) {
 
 export function technicalFindingReduction(evolution: MonthlyEvolution): number | null {
   if (technicalScoreChange(evolution) === null || evolution.fixedProblems.length !== evolution.visibility.length) return null;
+  if (evolution.fixedProblems[0] !== 0 || evolution.fixedProblems.some(value => !Number.isSafeInteger(value))) return null;
   const value = evolution.fixedProblems.at(-1);
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+export function findingChangeLabel(value: number | null): string {
+  return value === null ? '—' : value === 0 ? 'Sin cambio' : `${Math.abs(value)} ${value > 0 ? 'menos' : 'más'}`;
 }
 
 export function measuredSeries(labels: string[], values: number[], positiveOnly = false) {

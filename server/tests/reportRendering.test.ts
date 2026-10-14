@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MonthlyReportView } from '../../src/components/MonthlyReportView';
+import { EvolutionView } from '../../src/components/EvolutionView';
 import type { Business, MonthlyEvolution, ExecutiveIssue, ActionTask } from '../../src/types';
 
 const business = { id: 'own', name: 'Cliente seleccionado', url: 'https://own.example', description: 'Descripción confirmada', scores: { web: 0 }, scoreSources: { web: 'unavailable' } } as Business;
@@ -48,4 +49,14 @@ test('client report labels incomplete stored measurements instead of combining d
   assert.ok(html.includes('guardadas están incompletas'));
   assert.ok(!html.includes('2026-10-12'));
   assert.ok(!html.includes('7%'));
+});
+
+test('report and evolution explicitly show a measured increase in findings',()=>{
+  const worse={...evolution,months:['Inicio','Actual'],visibility:[70,60],auditBases:['SEO','SEO'],fixedProblems:[0,-2]};
+  const report=render({evolution:worse});
+  assert.ok(report.includes('Variación neta de hallazgos'));
+  assert.ok(report.includes('2 más'));
+  const history=renderToStaticMarkup(React.createElement(EvolutionView,{business,evolution:worse,setActiveTab:()=>{}}));
+  assert.ok(history.includes('2 más'));
+  assert.ok(history.includes('hallazgos técnicos más respecto de la primera auditoría'));
 });

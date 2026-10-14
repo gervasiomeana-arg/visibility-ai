@@ -105,3 +105,19 @@ test('calendar-only measurement dates never shift to the previous day', () => {
   assert.match(measurementDateLabel('2026-10-01T01:00:00Z', 'es-AR', 'America/Argentina/Buenos_Aires'), /^30 de sept/);
   assert.equal(measurementDateLabel('not-a-date'), 'Sin fecha registrada');
 });
+
+test('stored audit counts preserve worsening and subsequent recovery across reloads',()=>{
+  const values=new Map<string,string>();
+  const original=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
+  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value)}});
+  storageService.setScope('finding-trend-test');
+  try {
+    for(const [day,count] of [[1,3],[2,5],[3,2]])storageService.saveAuditHistoryPoint('own',{auditedAt:`2026-10-0${day}T12:00:00Z`,overallScore:70,seoScore:70,webScore:null,unresolvedIssues:count});
+    assert.deepEqual(storageService.getEvolution('own').fixedProblems,[0,-2,1]);
+    assert.deepEqual(storageService.getEvolution('own').fixedProblems,[0,-2,1]);
+    assert.deepEqual(storageService.getEvolution('other').fixedProblems,[]);
+  } finally {
+    storageService.setScope();
+    if(original)Object.defineProperty(globalThis,'localStorage',original);else delete(globalThis as any).localStorage;
+  }
+});
