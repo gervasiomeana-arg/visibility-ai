@@ -21,6 +21,19 @@ test('client report preserves empty measured search scope without inventing CTR,
   assert.ok(!html.includes('NaN'));
 });
 
+test('client report includes dated mobile FCP and LCP values and labels their laboratory scope', () => {
+  const html = render({ auditMeta: {
+    requestedUrl: business.url, finalUrl: 'https://published.example/', fetchedAt: '2026-10-14T22:00:00Z',
+    pageSpeed: { performanceScore: 59, fetchedAt: '2026-10-14T21:00:00Z', firstContentfulPaint: { numericValue: 8532 }, largestContentfulPaint: { numericValue: 10300 } } as any,
+  } });
+  assert.match(html,/8,532 s/); assert.match(html,/10,3 s/); assert.match(html,/59\/100/);
+  assert.match(html,/18:00/); assert.match(html,/America\/Argentina\/Buenos_Aires/);
+  assert.match(html,/published.example/); assert.match(html,/Prueba de laboratorio/);
+  const foreign = render({ auditMeta: { requestedUrl: 'https://private-client.example/', finalUrl: 'https://private-client.example/', pageSpeed: { performanceScore: 99, fetchedAt: '2026-10-14T21:00:00Z', firstContentfulPaint: { numericValue: 12345 } } as any } });
+  assert.doesNotMatch(foreign,/99\/100|12,345 s|private-client.example/);
+  assert.match(foreign,/URL verificable para este negocio/);
+});
+
 test('rendered client report excludes foreign priorities and task evidence', () => {
   const issue = { id: 'foreign', businessId: 'other', source: 'real', severity: 'high', name: 'Hallazgo privado de otro cliente', checkedAt: '2026-10-13' } as ExecutiveIssue;
   const task = { id: 'foreign', businessId: 'other', source: 'manual', status: 'pendiente', title: 'Tarea privada de otro cliente', userEvidence: 'Evidencia ajena confidencial' } as ActionTask;
