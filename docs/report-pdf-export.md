@@ -70,3 +70,31 @@ El CTR se calcula con los conteos de cada período; cero clics con impresiones p
 0%, y cero impresiones queda sin tasa ni posición. 177 pruebas locales aprobadas.
 Los casos nuevos cubren registros ajenos, datos desalineados, fecha de carga inválida,
 ceros y avisos de exclusión en el renderizado de Evolución.
+
+## Revisión del primer PDF real de Neomed — 14 de octubre
+
+El usuario adjuntó el PDF descargado de la app: 3 páginas A4, texto seleccionable,
+numeración correcta, sin JavaScript ni recortes o superposiciones visibles en las tres
+páginas renderizadas. La descarga y apertura quedan comprobadas; no se comprobó todavía
+su carga, persistencia, descarga ni registro de envío en Clientes.
+
+El documento todavía describe a Neomed como «medicina prepaga». No se aprueba para
+entrega: la página oficial https://www.neomed.com.uy/empresa/ describe tecnología
+médica, equipos, material médico y servicio técnico. La ayuda de IA no guarda el perfil
+por sí sola: hace falta aplicar la propuesta, revisar, guardar y regenerar el PDF.
+No se modificó el archivo adjuntado ni el perfil de producción.
+
+Los clics, impresiones, CTR y ventas figuran sin medición, sin inventar ceros. El informe
+declara el alcance parcial y distingue la fecha del documento de la fecha de medición.
+El 59/100 y las advertencias de FCP/LCP proceden de los datos exportados: el PDF no
+incluye la respuesta cruda de PageSpeed ni los valores de FCP/LCP y esta revisión no
+los certifica de manera independiente. Una lectura actual de la portada devolvió HTTP
+200 y ninguna meta description, coherente con ese hallazgo específico del documento.
+
+Se detectó una prioridad LCP partida entre las páginas 2 y 3. El exportador ahora agrupa
+título, hallazgo, propuesta y fecha de cada prioridad cuando caben en una página.
+Las prioridades demasiado extensas conservan la división normal; no se omiten textos
+ni se fuerzan páginas vacías. El título de sección también acompaña al primer grupo
+si ambos caben. Pruebas con extracción de texto del PDF comprueban el salto y la
+conservación del final en un grupo extenso. La revisión visual del PDF corregido usa
+una fixture, no un nuevo PDF descargado desde la app publicada.

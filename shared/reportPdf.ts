@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 
-export interface ReportPdfBlock { kind: 'brand' | 'title' | 'heading' | 'strong' | 'body' | 'small'; text: string }
+export interface ReportPdfBlock { kind: 'brand' | 'title' | 'heading' | 'strong' | 'body' | 'small'; text: string; keepTogether?: string }
 export interface ReportPdfFonts { regular: string; bold: string }
 
 // Render the already selected report text; this function never infers measurements.
@@ -23,10 +23,29 @@ export function createReportPdf(blocks: ReportPdfBlock[], fonts: ReportPdfFonts)
     body: { size:9.5, line:5, before:0, after:2, bold:false },
     small: { size:8.5, line:4.5, before:0, after:2, bold:false },
   };
+  const groupHeight = (start: number) => {
+    const group = blocks[start]?.keepTogether;
+    if (!group) return 0;
+    let height = 0;
+    for (let i = start; i < blocks.length && blocks[i].keepTogether === group; i++) {
+      const item = blocks[i];
+      if (!item.text.trim()) continue;
+      const style = styles[item.kind];
+      pdf.setFont('Report', style.bold ? 'bold' : 'normal'); pdf.setFontSize(style.size);
+      height += style.before + pdf.splitTextToSize(item.text.replace(/\r\n?/g, '\n'), width).length * style.line + style.after;
+    }
+    return height;
+  };
   for (let index = 0; index < blocks.length; index++) {
     const block = blocks[index];
     if (!block.text.trim()) continue;
     const style = styles[block.kind];
+    // Keep a priority's title, finding, proposal and date on the same page when
+    // the complete group fits one page. Oversized groups still flow normally.
+    if (block.keepTogether && blocks[index-1]?.keepTogether !== block.keepTogether) {
+      const height = groupHeight(index);
+      if (height <= bottom - 22 && y + height > bottom) page();
+    }
     pdf.setFont('Report', style.bold ? 'bold' : 'normal'); pdf.setFontSize(style.size);
     const glyphs = (pdf.getFont().metadata as any).cmap?.unicode?.codeMap;
     if (!glyphs || Array.from(block.text).some(char => !/\s/.test(char) && !glyphs[char.codePointAt(0)!])) throw new Error('El informe contiene un carácter que la tipografía del PDF no puede representar. Usá Imprimir para conservar ese contenido.');
@@ -38,6 +57,10 @@ export function createReportPdf(blocks: ReportPdfBlock[], fonts: ReportPdfFonts)
       const nextStyle=styles[next.kind];
       pdf.setFont('Report',nextStyle.bold?'bold':'normal');pdf.setFontSize(nextStyle.size);
       keep = nextStyle.before + Math.min(3,pdf.splitTextToSize(next.text,width).length)*nextStyle.line;
+      if (block.kind === 'heading' && next.keepTogether) {
+        const height = groupHeight(index+1);
+        if (height + style.before + lines.length*style.line + style.after <= bottom - 22) keep = height;
+      }
       pdf.setFont('Report',style.bold?'bold':'normal');pdf.setFontSize(style.size);
     }
     const height=lines.length*style.line;

@@ -20,6 +20,7 @@ export function reportPdfBlocks(article: HTMLElement): ReportPdfBlock[] {
   return Array.from(article.querySelectorAll('h2,h3,strong,p')).filter(node => !(node.tagName === 'STRONG' && node.closest('p'))).map(node => ({
     kind: node.tagName === 'H2' ? 'title' : node.tagName === 'H3' ? 'heading' : node === article.querySelector('header p') ? 'brand' : node.tagName === 'STRONG' || node.classList.contains('font-bold') ? 'strong' : node.classList.contains('text-xs') || node.closest('footer') ? 'small' : 'body',
     text: node.textContent?.trim() || '',
+    keepTogether: node.closest('[data-pdf-keep]')?.getAttribute('data-pdf-keep') || undefined,
   }));
 }
 
