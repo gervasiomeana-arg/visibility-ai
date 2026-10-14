@@ -821,11 +821,11 @@ drop policy if exists "owners manage visibility client reports" on storage.objec
 create policy "owners manage visibility client reports" on storage.objects for all to authenticated
 using (bucket_id = 'visibility-client-reports' and exists (
   select 1 from public.client_accounts c join public.workspaces w on w.id = c.workspace_id
-  where c.workspace_id::text = split_part(name,'/',1) and c.id::text = split_part(name,'/',2) and w.owner_user_id = auth.uid()
+  where c.workspace_id::text = split_part(storage.objects.name,'/',1) and c.id::text = split_part(storage.objects.name,'/',2) and w.owner_user_id = auth.uid()
 ))
 with check (bucket_id = 'visibility-client-reports' and exists (
   select 1 from public.client_accounts c join public.workspaces w on w.id = c.workspace_id
-  where c.workspace_id::text = split_part(name,'/',1) and c.id::text = split_part(name,'/',2) and w.owner_user_id = auth.uid()
+  where c.workspace_id::text = split_part(storage.objects.name,'/',1) and c.id::text = split_part(storage.objects.name,'/',2) and w.owner_user_id = auth.uid()
 ));
 
 
