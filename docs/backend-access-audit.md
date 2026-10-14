@@ -27,9 +27,11 @@ ni consultar contenido privado de Supabase.
 
 En las tablas de auditoría, palabras clave, snapshots, oportunidades y tareas, las
 referencias a negocio y espacio son claves foráneas independientes. Estas referencias
-por sí solas no garantizan que ambos identificadores correspondan entre sí. Falta probar
-y reforzar esa relación en la base de datos, preservando filas existentes y las políticas
-actuales. No se ha aplicado una migración ni se afirma que existan registros mezclados.
+por sí solas no garantizan que ambos identificadores correspondan entre sí. El refuerzo
+está preparado en `202610140002_launch_plan_and_business_scope.sql`, con claves compuestas
+que preservan filas existentes y las políticas actuales. Se probó con PostgreSQL local;
+falta aplicarlo y verificarlo en Supabase. No se afirma que existan registros mezclados
+en la base desplegada.
 
 Siguen pendientes la prueba del aislamiento con el Supabase desplegado, la importación
 real no vacía de Search Console y el circuito completo del PDF de un cliente.
