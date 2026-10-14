@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summaryEvidence, taskPlanEvidence, technicalFindingReduction } from '../../shared/reportEvidence';
+import { summaryEvidence, taskPlanEvidence, technicalFindingReduction, findingChangeLabel } from '../../shared/reportEvidence';
 import type { ActionTask, ExecutiveIssue, MonthlyEvolution } from '../../src/types';
 
 test('summary excludes another business and demo examples when real findings exist', () => {
@@ -8,6 +8,15 @@ test('summary excludes another business and demo examples when real findings exi
   assert.deepEqual(summaryEvidence('hotel', [issue, { ...issue, source: 'demo' }, { ...issue, businessId: 'other' }]).issues, [issue]);
   assert.equal(summaryEvidence('hotel', [{ ...issue, businessId: 'other' }]).mode, 'empty');
   assert.equal(summaryEvidence('hotel', [{ ...issue, source: 'demo' }]).mode, 'demo');
+});
+
+test('finding changes distinguish fewer, more and unchanged findings without inventing completed work',()=>{
+  const evolution={source:'real',months:['a','b'],visibility:[70,60],auditBases:['SEO','SEO'],fixedProblems:[0,-3]} as MonthlyEvolution;
+  assert.equal(technicalFindingReduction(evolution),-3);
+  assert.equal(findingChangeLabel(technicalFindingReduction(evolution)),'3 más');
+  assert.equal(findingChangeLabel(2),'2 menos');assert.equal(findingChangeLabel(0),'Sin cambio');assert.equal(findingChangeLabel(null),'—');
+  assert.equal(technicalFindingReduction({...evolution,fixedProblems:[1,-3]}),null);
+  assert.equal(technicalFindingReduction({...evolution,fixedProblems:[0,1.5]}),null);
 });
 
 test('plan distinguishes manual completion, verified legacy completion and scoped notes', () => {

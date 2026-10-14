@@ -1,6 +1,6 @@
 import { technicalScoreChange } from '../../shared/scoreEvidence';
 import React, { useState } from 'react';
-import { measuredSeries, comparableSearchPeriods, searchPositionChange, technicalFindingReduction } from '../../shared/reportEvidence';
+import { measuredSeries, comparableSearchPeriods, searchPositionChange, technicalFindingReduction, findingChangeLabel } from '../../shared/reportEvidence';
 import {
   TrendingUp,
   Calendar,
@@ -92,12 +92,12 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
       source: 'DEMO',
     },
     fixedProblems: {
-      label: 'Reducción neta de hallazgos',
+      label: 'Variación neta de hallazgos',
       values: evolution.fixedProblems,
-      unit: 'hallazgos menos',
+      unit: 'variación neta',
       gradient: 'from-amber-500 to-orange-600',
       description: isRealHistory
-        ? 'Reducción neta de hallazgos pendientes respecto de la primera auditoría. No verifica tareas completadas.'
+        ? 'Variación respecto de la primera auditoría: positivo = menos hallazgos, negativo = más. El tamaño de la barra indica la magnitud; el rojo identifica aumentos. No verifica tareas completadas.'
         : 'Métrica DEMO de problemas solucionados.',
       source: isRealHistory ? 'AUDITORÍAS' : 'DEMO',
     },
@@ -156,7 +156,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const plottedMonths = points.map(point => point.label);
   const plottedValues = points.map(point => point.value);
   const hasHistory = plottedCount > 0;
-  const maxVal = hasHistory ? Math.max(...plottedValues, 1) * 1.15 : 1;
+  const maxVal = hasHistory ? Math.max(...plottedValues.map(value=>Math.abs(value)), 1) * 1.15 : 1;
   const searchPeriodCount = evolution.searchPeriods?.length || 0;
   const hasComparablePeriods = searchPeriodCount >= 2 && comparableSearchPeriods(
     evolution.searchPeriods?.[searchPeriodCount - 2], evolution.searchPeriods?.[searchPeriodCount - 1]
@@ -178,6 +178,8 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     ? effectiveSelectedMetric === 'visibility' ? 'Sin comparación: las fuentes del índice faltan o cambiaron' : isSearchMetric ? 'Sin dos períodos comparables de igual duración y sin solapamiento' : 'Todavía no hay dos mediciones para comparar'
     : unchanged
     ? 'Sin cambio respecto del inicio'
+    : effectiveSelectedMetric === 'fixedProblems'
+    ? delta > 0 ? 'Menos hallazgos respecto del inicio' : 'Más hallazgos respecto del inicio'
     : currentConfig.lowerIsBetter
     ? improved
       ? 'Mejoró: la posición media bajó'
@@ -215,8 +217,8 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
           tone: 'emerald',
         },
         {
-          label: 'Hallazgos menos',
-          value: solvedProblems !== null ? String(solvedProblems) : '—',
+          label: 'Variación de hallazgos',
+          value: findingChangeLabel(solvedProblems),
           source: solvedProblems !== null ? 'AUDITORÍAS' : 'SIN SERIE',
           tone: 'amber',
         },
@@ -385,7 +387,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
             >
               {plottedMonths.map((month, idx) => {
                 const value = plottedValues[idx];
-                const heightPercent = Math.max(0, Math.round((value / maxVal) * 100));
+                const heightPercent = Math.max(0, Math.round((Math.abs(value) / maxVal) * 100));
                 const isLast = idx === plottedMonths.length - 1;
 
                 return (
@@ -402,7 +404,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
                     <div className="w-full max-w-[48px] h-[150px] bg-slate-100 rounded-t-xl overflow-hidden flex flex-col justify-end p-0.5">
                       <div
-                        className={`w-full rounded-t-sm ${isLast ? 'bg-indigo-600' : 'bg-slate-300'}`}
+                        className={`w-full rounded-t-sm ${effectiveSelectedMetric === 'fixedProblems' && value < 0 ? 'bg-rose-500' : isLast ? 'bg-indigo-600' : 'bg-slate-300'}`}
                         style={{ height: `${heightPercent}%` }}
                       />
                     </div>
@@ -441,6 +443,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
           </p>
         </div>
       )}
+      {isRealHistory && solvedProblems !== null && solvedProblems < 0 && <p className="rounded-xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-xs text-rose-900">Se registran <strong>{Math.abs(solvedProblems)}</strong> hallazgos técnicos más respecto de la primera auditoría guardada. Revisá los hallazgos actuales; esta variación no identifica por sí sola su causa.</p>}
     </div>
   );
 };

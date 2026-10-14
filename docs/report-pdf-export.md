@@ -44,3 +44,15 @@ misma propiedad y posiciones válidas; no se compara cuando faltan impresiones.
 170 pruebas locales aprobadas. Casos nuevos: propiedad ajena, arrays desalineados,
 fechas inválidas, conteos inconsistentes y CTR almacenado desactualizado. La revisión
 del PDF exportado con datos reales y la importación real no vacía siguen pendientes.
+
+## Variación de hallazgos
+
+Informe y Evolución distinguen `2 menos`, `2 más` y `Sin cambio` respecto de la primera
+auditoría comparable. El historial calculado conserva aumentos con valores negativos;
+antes se truncaban a cero. En el gráfico, el tamaño de la barra representa la magnitud
+y el rojo distingue los aumentos, con una explicación de la convención de signos.
+Los conteos inválidos y las fuentes cambiadas no habilitan una comparación. Estas
+variaciones no acreditan tareas completadas ni identifican por sí solas la causa.
+
+173 pruebas locales aprobadas, con casos de empeoramiento y recuperación en historial,
+conservación tras lectura y presentación explícita en Informe y Evolución.

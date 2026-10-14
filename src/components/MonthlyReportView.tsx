@@ -4,7 +4,7 @@ import { Download, FileText, Printer } from 'lucide-react';
 import { prepareReportPdf, reportPdfBlocks } from '../services/reportPdfService';
 import { reportPdfName } from '../../shared/reportPdfName';
 import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, SeoAuditResult } from '../types';
-import { measuredSeries, reportEvidence, reportSearchEvidence, measurementDateLabel, technicalFindingReduction, taskPlanEvidence } from '../../shared/reportEvidence';
+import { measuredSeries, reportEvidence, reportSearchEvidence, measurementDateLabel, technicalFindingReduction, findingChangeLabel, taskPlanEvidence } from '../../shared/reportEvidence';
 
 interface MonthlyReportViewProps {
   business: Business;
@@ -68,7 +68,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     { label: 'CTR de consultas recuperadas', value: ctr !== null ? `${ctr.toLocaleString('es-AR')}%` : '—', source: ctr !== null ? 'SEARCH CONSOLE' : 'SIN MEDICIÓN', note: 'Clics sobre impresiones. Sin impresiones no se calcula una tasa.' },
     { label: 'Cambio del índice técnico', value: useDemoMetrics ? `+${evolution.monthComparison.visibilityChangePercent}%` : technicalChange !== null ? `${signed(technicalChange)} puntos` : '—', source: useDemoMetrics ? 'DEMO' : technicalChange !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Primera y última medición con las mismas fuentes; no es una posición en Google.' },
     { label: 'Cambio de posición media', value: useDemoMetrics ? String(evolution.monthComparison.improvedPositionsCount) : positionChange !== null ? signed(positionChange) : '—', source: useDemoMetrics ? 'DEMO' : positionChange !== null ? 'SEARCH CONSOLE' : 'SIN COMPARACIÓN', note: positionChange !== null ? 'Últimos dos períodos comparables; positivo = menor posición.' : 'Requiere períodos conocidos, de igual duración y sin solapamiento.' },
-    { label: 'Reducción neta de hallazgos', value: useDemoMetrics ? String(evolution.monthComparison.solvedProblemsCount) : reduction !== null ? String(reduction) : '—', source: useDemoMetrics ? 'DEMO' : reduction !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Requiere auditorías con las mismas fuentes. No acredita tareas resueltas.' },
+    { label: 'Variación neta de hallazgos', value: useDemoMetrics ? String(evolution.monthComparison.solvedProblemsCount) : findingChangeLabel(reduction), source: useDemoMetrics ? 'DEMO' : reduction !== null ? 'AUDITORÍAS' : 'SIN COMPARACIÓN', note: 'Respecto de la primera auditoría con las mismas fuentes. Indica hallazgos menos o más; no acredita tareas resueltas.' },
     { label: 'Factores evaluados', value: evidence.usableIssues.length ? String(evidence.usableIssues.length) : '—', source: useDemoMetrics ? 'DEMO' : evidence.realIssues.length ? 'AUDITORÍA REAL' : 'SIN DATOS', note: 'Incluye factores correctos, advertencias y errores.' },
     { label: 'Consultas / ventas', value: useDemoMetrics ? String(evolution.monthComparison.consultationsTotal) : '—', source: useDemoMetrics ? 'DEMO' : 'SIN FUENTE', note: 'No se deducen de los clics ni del índice técnico.' },
   ];

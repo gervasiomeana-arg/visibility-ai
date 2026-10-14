@@ -1390,7 +1390,7 @@ export const storageService = {
         estimatedVisits: [],
         consultations: [],
         fixedProblems: history.length > 0
-          ? history.map((entry) => Math.max(0, first.unresolvedIssues - entry.unresolvedIssues))
+          ? history.map((entry) => Number.isSafeInteger(first.unresolvedIssues) && first.unresolvedIssues >= 0 && Number.isSafeInteger(entry.unresolvedIssues) && entry.unresolvedIssues >= 0 ? first.unresolvedIssues - entry.unresolvedIssues : Number.NaN)
           : [],
         searchImpressions: searchHistory.map((entry) => entry.impressions),
         searchClicks: searchHistory.map((entry) => entry.clicks),
