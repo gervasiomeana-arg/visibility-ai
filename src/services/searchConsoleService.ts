@@ -1,6 +1,7 @@
 import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
 import { beginOAuthNavigation } from '../../shared/oauthNavigation';
+import { validateSearchQueryResult } from '../../shared/searchAnalytics';
 
 export interface SearchConsoleSite {
   siteUrl: string;
@@ -94,11 +95,7 @@ export const searchConsoleService = {
 
     const format = (date: Date) => date.toISOString().slice(0, 10);
 
-    return apiFetchJson<{
-      rows: SearchConsoleQueryRow[];
-      startDate: string;
-      endDate: string;
-    }>('/api/search-console/query', {
+    const data = await apiFetchJson<unknown>('/api/search-console/query', {
       method: 'POST',
       headers: await authHeaders({
         'Content-Type': 'application/json',
@@ -111,6 +108,8 @@ export const searchConsoleService = {
         workspaceId: context?.workspaceId,
         businessId: context?.businessId,
       }),
+      signal: AbortSignal.timeout(60000),
     });
+    return validateSearchQueryResult(data, { siteUrl, startDate: format(start), endDate: format(end) });
   },
 };

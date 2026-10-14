@@ -13,6 +13,8 @@ import {
   requireSupabaseAuth,
 } from './supabaseAuth';
 import { recordUsageEventSafe } from './usageTelemetry';
+import { validateSearchQueryInput } from '../shared/searchAnalytics';
+import { querySearchAnalytics } from './searchAnalyticsService';
 
 type SearchConsoleSession = {
   accessToken: string;
@@ -685,6 +687,9 @@ router.get('/sites', requireSupabaseAuth, async (req, res) => {
 });
 
 router.post('/query', requireSupabaseAuth, async (req, res) => {
+  let input;
+  try { input = validateSearchQueryInput(req.body); }
+  catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'Consulta no válida.' }); }
   try {
     const active = await getSearchConsoleSession(req);
     if (!active) {
@@ -693,80 +698,8 @@ router.post('/query', requireSupabaseAuth, async (req, res) => {
         .json({ error: 'Search Console is not connected' });
     }
 
-    const {
-      siteUrl,
-      startDate,
-      endDate,
-      rowLimit,
-      workspaceId,
-      businessId,
-    } = req.body;
-    if (!siteUrl || typeof siteUrl !== 'string') {
-      return res
-        .status(400)
-        .json({ error: 'siteUrl is required' });
-    }
-
-    const safeStart =
-      typeof startDate === 'string' ? startDate : '';
-    const safeEnd =
-      typeof endDate === 'string' ? endDate : '';
-
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(safeStart) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(safeEnd)
-    ) {
-      return res.status(400).json({
-        error: 'Valid startDate and endDate are required',
-      });
-    }
-
-    const limit = Math.min(
-      Math.max(Number(rowLimit) || 100, 1),
-      500
-    );
-
-    const endpoint =
-      `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
-        siteUrl
-      )}/searchAnalytics/query`;
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${active.session.accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        startDate: safeStart,
-        endDate: safeEnd,
-        dimensions: ['query'],
-        rowLimit: limit,
-        dataState: 'final',
-      }),
-    });
-
-    if (!response.ok) {
-      const details = await response.text();
-      throw new Error(
-        `Search Console query returned HTTP ${response.status}: ${details.slice(
-          0,
-          300
-        )}`
-      );
-    }
-
-    const data: any = await response.json();
-    const rows = Array.isArray(data.rows)
-      ? data.rows.map((row: any) => ({
-          query: row.keys?.[0] || '',
-          clicks: Number(row.clicks || 0),
-          impressions: Number(row.impressions || 0),
-          ctr: Number(row.ctr || 0),
-          position: Number(row.position || 0),
-        }))
-      : [];
-
+    const { workspaceId, businessId } = req.body;
+    const result = await querySearchAnalytics(active.session.accessToken, input);
     recordUsageEventSafe(req, {
       workspaceId:
         typeof workspaceId === 'string' ? workspaceId : undefined,
@@ -776,22 +709,14 @@ router.post('/query', requireSupabaseAuth, async (req, res) => {
       eventType: 'search_console_query',
       units: 1,
       metadata: {
-        rowsReturned: rows.length,
+        rowsReturned: result.rows.length,
       },
     });
 
-    return res.json({
-      rows,
-      startDate: safeStart,
-      endDate: safeEnd,
-      source: 'google-search-console',
-    });
+    return res.json(result);
   } catch (error: any) {
-    return res.status(502).json({
-      error:
-        error.message ||
-        'Could not query Search Console',
-    });
+    const safeMessage = typeof error?.message === 'string' && /^(La respuesta de Search Console|No se pudo consultar Google Search Console)/.test(error.message);
+    return res.status(502).json({ error: safeMessage ? error.message : 'No se pudo completar la consulta de Search Console. Reintentá más tarde.' });
   }
 });
 
