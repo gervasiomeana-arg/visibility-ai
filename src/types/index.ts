@@ -288,4 +288,5 @@ export type ActiveTab =
   | 'action-plan'
   | 'evolution'
   | 'monthly-report'
+  | 'clients'
   | 'admin';
