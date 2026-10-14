@@ -60,3 +60,10 @@ test('report and evolution explicitly show a measured increase in findings',()=>
   assert.ok(history.includes('2 más'));
   assert.ok(history.includes('hallazgos técnicos más respecto de la primera auditoría'));
 });
+
+test('rendered evolution excludes another property and explains why its history was omitted',()=>{
+  const foreign={...evolution,searchPeriods:[{siteUrl:'sc-domain:foreign.example',startDate:'2025-01-01',endDate:'2025-01-28',loadedAt:'2025-02-01'}],searchMonths:['Private foreign period'],searchClicks:[1234567],searchImpressions:[2000000],searchPositions:[12]};
+  const html=renderToStaticMarkup(React.createElement(EvolutionView,{business,evolution:foreign,setActiveTab:()=>{}}));
+  assert.ok(html.includes('no corresponden al sitio de este negocio'));
+  for(const value of ['Private foreign period','1.234.567','2.000.000','foreign.example'])assert.ok(!html.includes(value));
+});

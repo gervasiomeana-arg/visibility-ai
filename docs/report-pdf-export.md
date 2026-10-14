@@ -56,3 +56,17 @@ variaciones no acreditan tareas completadas ni identifican por sí solas la caus
 
 173 pruebas locales aprobadas, con casos de empeoramiento y recuperación en historial,
 conservación tras lectura y presentación explícita en Informe y Evolución.
+
+## Coherencia con Evolución
+
+Los gráficos de Evolución aplican la validación de cada período de Search Console:
+propiedad del sitio actual, fechas, conteos y alineación. Conservan los índices originales
+al omitir valores inválidos, para no unir por error métricas y períodos distintos. Las
+etiquetas se generan desde las fechas del registro validado. Se avisa de las exclusiones.
+Una medición anterior mostrada no se rotula como el estado actual si el último registro
+no pudo validarse. Las comparaciones siguen requiriendo el par final completo.
+
+El CTR se calcula con los conteos de cada período; cero clics con impresiones produce
+0%, y cero impresiones queda sin tasa ni posición. 177 pruebas locales aprobadas.
+Los casos nuevos cubren registros ajenos, datos desalineados, fecha de carga inválida,
+ceros y avisos de exclusión en el renderizado de Evolución.
