@@ -1,4 +1,5 @@
 import { normalizeH1Item } from '../../shared/h1Guidance';
+import { measurementTime } from '../../shared/measurementTime';
 import React, { useState } from 'react';
 import {
   Search,
@@ -161,7 +162,7 @@ export const SeoAuditView: React.FC<SeoAuditViewProps> = ({
           <div className="vai-panel rounded-[1.25rem] ring-1 ring-slate-200/60 p-4">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Última auditoría</span>
             <p className="mt-1 text-xs font-semibold text-slate-800">
-              {auditMeta?.fetchedAt ? new Date(auditMeta.fetchedAt).toLocaleString('es-AR') : 'Sin fecha registrada'}
+              {auditMeta?.fetchedAt ? measurementTime(auditMeta.fetchedAt, business.timezone) : 'Sin fecha registrada'}
             </p>
           </div>
           <div className={`rounded-2xl border p-4 ${auditMeta?.pageSpeedError ? 'bg-amber-50 border-amber-200' : 'bg-emerald-50 border-emerald-200'}`}>
