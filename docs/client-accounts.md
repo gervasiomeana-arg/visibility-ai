@@ -25,6 +25,18 @@ y en el menú de cuenta móvil, fuera de los diez pasos de auditoría.
 - Las escrituras comparan `updated_at`: si otra pestaña modificó la ficha, el guardado
   falla y pide recargar. No sobrescribe silenciosamente el historial.
 
+## Enlace PayPal
+
+La ficha admite un enlace HTTPS generado por el propietario en PayPal. En cada abono
+pendiente, Copiar solicitud prepara un texto con cliente, mes, saldo, moneda y enlace.
+El propietario lo envía por WhatsApp; el botón no envía mensajes ni registra cobros.
+El enlace no cambia automáticamente su configuración en PayPal. Comprobar destinatario,
+importe y moneda antes de enviarlo. Confirmar el ingreso en PayPal antes de registrarlo
+manualmente. No requiere nuevas credenciales ni migración SQL: usa la ficha existente.
+
+Las horas de pagos, cargas y envíos se presentan explícitamente en formato de 24 horas
+con la zona del espacio. Los timestamps guardados no se modifican.
+
 ## Informes y envíos
 
 Exportar el PDF desde Informe, cargarlo en la ficha, descargarlo y enviarlo manualmente.
