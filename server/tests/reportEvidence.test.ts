@@ -1,12 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { comparableSearchPeriods, measurementDateLabel, measuredSeries, reportEvidence, reportSearchEvidence, searchPositionChange } from '../../shared/reportEvidence';
+import { comparableSearchPeriods, measurementDateLabel, measuredSeries, reportEvidence, reportSearchEvidence, validatedSearchHistory, searchPositionChange } from '../../shared/reportEvidence';
 import { storageService } from '../../src/services/storageService';
 import type { ExecutiveIssue, MonthlyEvolution } from '../../src/types';
 const empty: MonthlyEvolution = { source: 'real', months: [], visibility: [], googlePositions: [], estimatedVisits: [], consultations: [], fixedProblems: [], monthComparison: { visibilityChangePercent: 0, improvedPositionsCount: 0, solvedProblemsCount: 0, newOpportunitiesCount: 0, consultationsTotal: 0 } };
 const issue = (businessId: string, source: 'real' | 'demo', severity: 'high' | 'medium' | 'ok', name: string): ExecutiveIssue => ({ id: name, businessId, source, severity, name, simpleExplanation: '', possibleSolution: '', category: 'SEO', impactText: '' });
 const previous = { loadedAt: '2026-10-01', siteUrl: 'sc-domain:openvoley.com', startDate: '2026-09-01', endDate: '2026-09-28' };
 const latest = { loadedAt: '2026-11-01', siteUrl: previous.siteUrl, startDate: '2026-10-01', endDate: '2026-10-28' };
+
+test('evolution omits foreign records without shifting the remaining period or copying stored CTR',()=>{
+  const evolution={...empty,searchMonths:['wrong old label','wrong new label'],searchPeriods:[{...previous,siteUrl:'sc-domain:foreign.com'},latest],searchClicks:[900,7],searchImpressions:[1000,200],searchCtr:[90,999],searchPositions:[9,12]};
+  const result=validatedSearchHistory(evolution,'https://openvoley.com/');
+  assert.deepEqual(result.labels,['','2026-10-01 a 2026-10-28']);
+  assert.ok(Number.isNaN(result.clicks[0]));assert.ok(Number.isNaN(result.positions[0]));
+  assert.equal(result.clicks[1],7);assert.equal(result.ctr[1],3.5);assert.equal(result.positions[1],12);
+  assert.ok(result.warning.includes('1 medición'));
+  assert.equal(reportSearchEvidence(evolution,'https://openvoley.com/').positionChange,null);
+});
+
+test('evolution preserves measured zeros while omitting unmeasured CTR and position',()=>{
+  const evolution={...empty,searchMonths:['old','new'],searchPeriods:[previous,latest],searchClicks:[0,0],searchImpressions:[100,0],searchPositions:[12,0]};
+  const result=validatedSearchHistory(evolution,'https://openvoley.com/');
+  assert.deepEqual(result.clicks,[0,0]);assert.deepEqual(result.impressions,[100,0]);
+  assert.equal(result.ctr[0],0);assert.ok(Number.isNaN(result.ctr[1]));assert.ok(Number.isNaN(result.positions[1]));
+});
+
+test('evolution rejects misaligned arrays and cannot turn an invalid load date into a position improvement',()=>{
+  const evolution={...empty,searchMonths:['old','new'],searchPeriods:[{...previous,loadedAt:'invalid'},latest],searchClicks:[3,7],searchImpressions:[100,200],searchPositions:[18,12]};
+  assert.equal(reportSearchEvidence(evolution,'https://openvoley.com/').positionChange,null);
+  const result=validatedSearchHistory({...evolution,searchClicks:[7]},'https://openvoley.com/');
+  assert.deepEqual(result.labels,[]);assert.deepEqual(result.clicks,[]);assert.ok(result.warning);
+});
 
 test('report search metrics share their property and period and derive CTR from supplied counts',()=>{
   const evolution={...empty,searchMonths:['Septiembre','Octubre'],searchPeriods:[previous,latest],searchClicks:[3,7],searchImpressions:[100,200],searchCtr:[999,999],searchPositions:[18,12]};

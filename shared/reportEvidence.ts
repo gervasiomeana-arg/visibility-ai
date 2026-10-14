@@ -90,8 +90,33 @@ export function reportSearchEvidence(evolution: MonthlyEvolution, businessUrl: s
   const validCounts=(index:number)=>Number.isSafeInteger(clicks[index]) && clicks[index]>=0 && Number.isSafeInteger(impressions[index]) && impressions[index]>=0 && clicks[index]<=impressions[index];
   if (!validCounts(n-1)) return { ...missing,warning:'Las cifras de búsqueda guardadas no son consistentes. Volvé a importar el período antes de incluirlo en el informe.' };
   const latest={ period,clicks:clicks[n-1],impressions:impressions[n-1],ctr:impressions[n-1]>0?Number((clicks[n-1]/impressions[n-1]*100).toFixed(2)):null };
-  const positionChange=n>1 && validCounts(n-2) && impressions[n-2]>0 && impressions[n-1]>0 && propertyMatchesBusiness(periods[n-2].siteUrl || '',businessUrl) ? searchPositionChange(evolution):null;
+  const positionChange=n>1 && validCounts(n-2) && Number.isFinite(Date.parse(periods[n-2].loadedAt)) && impressions[n-2]>0 && impressions[n-1]>0 && propertyMatchesBusiness(periods[n-2].siteUrl || '',businessUrl) ? searchPositionChange(evolution):null;
   return {latest,positionChange,warning:''};
+}
+
+export function validatedSearchHistory(evolution: MonthlyEvolution, businessUrl: string) {
+  const empty={labels:[] as string[],clicks:[] as number[],impressions:[] as number[],ctr:[] as number[],positions:[] as number[],periods:[] as SearchHistoryPeriod[],warning:''};
+  if (evolution.source !== 'real') return empty;
+  const periods=evolution.searchPeriods || [];
+  const labels=evolution.searchMonths || [],clicks=evolution.searchClicks || [],impressions=evolution.searchImpressions || [];
+  const latest=reportSearchEvidence(evolution,businessUrl);
+  if (periods.length!==labels.length || clicks.length!==labels.length || impressions.length!==labels.length) return {...empty,warning:latest.warning};
+  const snapshots=periods.map((_,index)=>reportSearchEvidence({...evolution,
+    searchPeriods:periods.slice(0,index+1),searchMonths:labels.slice(0,index+1),
+    searchClicks:clicks.slice(0,index+1),searchImpressions:impressions.slice(0,index+1),
+    searchPositions:evolution.searchPositions?.slice(0,index+1),
+  },businessUrl).latest);
+  const positions=evolution.searchPositions || [];
+  const excluded=snapshots.filter(snapshot=>!snapshot).length;
+  return {
+    labels:snapshots.map(snapshot=>snapshot?`${snapshot.period.startDate} a ${snapshot.period.endDate}`:''),
+    clicks:snapshots.map(snapshot=>snapshot?.clicks ?? Number.NaN),
+    impressions:snapshots.map(snapshot=>snapshot?.impressions ?? Number.NaN),
+    ctr:snapshots.map(snapshot=>snapshot?.ctr ?? Number.NaN),
+    positions:snapshots.map((snapshot,index)=>snapshot && snapshot.impressions>0 && positions.length===periods.length && Number.isFinite(positions[index]) && positions[index]>0?positions[index]:Number.NaN),
+    periods,
+    warning:latest.warning || (excluded?`${excluded} medición${excluded===1?'':'es'} de búsqueda excluida${excluded===1?'':'s'} del historial mostrado: no se pudo validar su propiedad, período o cifras. Volvé a importar los datos si corresponde.`:''),
+  };
 }
 
 export function measurementDateLabel(value?: string, locale = 'es-AR', timeZone = 'UTC'): string {

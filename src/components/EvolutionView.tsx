@@ -1,6 +1,6 @@
 import { technicalScoreChange } from '../../shared/scoreEvidence';
 import React, { useState } from 'react';
-import { measuredSeries, comparableSearchPeriods, searchPositionChange, technicalFindingReduction, findingChangeLabel } from '../../shared/reportEvidence';
+import { measuredSeries, comparableSearchPeriods, reportSearchEvidence, validatedSearchHistory, technicalFindingReduction, findingChangeLabel } from '../../shared/reportEvidence';
 import {
   TrendingUp,
   Calendar,
@@ -34,8 +34,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
   const { months, monthComparison } = evolution;
   const isRealHistory = evolution.source === 'real';
-  const searchMonths = evolution.searchMonths || [];
-  const searchPositions = evolution.searchPositions || [];
+  const searchHistory = validatedSearchHistory(evolution,business.url);
+  const searchMonths = searchHistory.labels;
+  const searchPositions = searchHistory.positions;
 
   const technicalSeries = isRealHistory ? measuredSeries(months, evolution.visibility) : [];
   const technicalChange = technicalScoreChange(evolution);
@@ -43,7 +44,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const reduction = technicalFindingReduction(evolution);
   const hasSolvedProblemsSeries = reduction !== null;
 
-  const averagePositionDelta = searchPositionChange(evolution);
+  const averagePositionDelta = reportSearchEvidence(evolution,business.url).positionChange;
 
   const solvedProblems = reduction;
 
@@ -103,7 +104,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     },
     searchImpressions: {
       label: 'Impresiones en Google',
-      values: evolution.searchImpressions || [],
+      values: searchHistory.impressions,
       unit: 'impresiones',
       gradient: 'from-blue-500 to-indigo-600',
       description: 'Impresiones de las consultas recuperadas desde Google Search Console; pueden no representar el total del sitio.',
@@ -111,7 +112,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     },
     searchClicks: {
       label: 'Clics desde Google',
-      values: evolution.searchClicks || [],
+      values: searchHistory.clicks,
       unit: 'clics',
       gradient: 'from-emerald-500 to-teal-600',
       description: 'Clics de las consultas recuperadas desde Google Search Console; pueden no representar el total del sitio.',
@@ -119,10 +120,10 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
     },
     searchCtr: {
       label: 'CTR en Google',
-      values: evolution.searchCtr || [],
+      values: searchHistory.ctr,
       unit: '% CTR',
       gradient: 'from-purple-500 to-indigo-600',
-      description: 'Porcentaje de clics sobre impresiones reportado por Google Search Console.',
+      description: 'Porcentaje calculado con los clics e impresiones del mismo registro de Search Console. Sin impresiones, no se calcula una tasa.',
       source: 'SEARCH CONSOLE',
     },
     searchPositions: {
@@ -157,9 +158,9 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const plottedValues = points.map(point => point.value);
   const hasHistory = plottedCount > 0;
   const maxVal = hasHistory ? Math.max(...plottedValues.map(value=>Math.abs(value)), 1) * 1.15 : 1;
-  const searchPeriodCount = evolution.searchPeriods?.length || 0;
+  const searchPeriodCount = searchHistory.periods.length;
   const hasComparablePeriods = searchPeriodCount >= 2 && comparableSearchPeriods(
-    evolution.searchPeriods?.[searchPeriodCount - 2], evolution.searchPeriods?.[searchPeriodCount - 1]
+    searchHistory.periods[searchPeriodCount - 2], searchHistory.periods[searchPeriodCount - 1]
   );
   const completeLastPair = points.length >= 2 && points.at(-1)!.index === currentConfig.values.length - 1 && points.at(-2)!.index === currentConfig.values.length - 2;
   const hasComparison = points.length >= 2 && (effectiveSelectedMetric === 'visibility' ? hasTechnicalComparison : !isSearchMetric || (hasComparablePeriods && completeLastPair));
@@ -278,6 +279,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
 
   return (
     <div className="space-y-6 pb-14">
+      {searchHistory.warning && <p role="status" className="rounded-xl bg-amber-50 text-amber-900 p-4 text-sm">{searchHistory.warning}</p>}
       <div className="vai-panel rounded-xl p-6 sm:p-8 lg:p-9 ring-1 ring-slate-200/60">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -425,7 +427,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
               {isSearchMetric && hasComparison ? 'Período anterior comparable:' : 'Primera medición mostrada:'}{' '}
               <strong>{firstValue} {currentConfig.unit}</strong> ({firstLabel})
               {' → '}
-              Estado actual:{' '}
+              {isSearchMetric && points.at(-1)?.index !== currentConfig.values.length-1 ? 'Última medición válida mostrada:' : 'Estado actual:'}{' '}
               <strong>{lastValue} {currentConfig.unit}</strong> ({plottedMonths[plottedMonths.length - 1]})
             </span>
             <span className={`font-bold ${comparisonClass}`}>
