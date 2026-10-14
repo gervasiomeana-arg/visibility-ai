@@ -1,5 +1,6 @@
 import type { ActionTask, ExecutiveIssue, MonthlyEvolution, SearchHistoryPeriod } from '../src/types';
 import { technicalScoreChange } from './scoreEvidence';
+import { propertyMatchesBusiness } from './searchConsoleDiagnostics';
 
 export function summaryEvidence(businessId: string, supplied: ExecutiveIssue[]) {
   const own = supplied.filter(issue => issue.businessId === businessId);
@@ -32,12 +33,12 @@ export function measuredSeries(labels: string[], values: number[], positiveOnly 
   });
 }
 
-export function reportEvidence(businessId: string, evolution: MonthlyEvolution, issues: ExecutiveIssue[]) {
+export function reportEvidence(businessId: string, evolution: MonthlyEvolution, issues: ExecutiveIssue[], businessUrl?: string) {
   const ownIssues = issues.filter(issue => issue.businessId === businessId);
   const realIssues = ownIssues.filter(issue => issue.source === 'real');
   const hasMeasurements = evolution.source === 'real' && (
     measuredSeries(evolution.months, evolution.visibility).length > 0 ||
-    measuredSeries(evolution.searchMonths || [], evolution.searchImpressions || []).length > 0
+    (businessUrl ? !!reportSearchEvidence(evolution,businessUrl).latest : measuredSeries(evolution.searchMonths || [], evolution.searchImpressions || []).length > 0)
   );
   const mode = hasMeasurements || realIssues.length > 0 ? 'PARCIAL REAL'
     : evolution.source === 'demo' ? 'DEMO' : 'SIN DATOS';
@@ -68,6 +69,24 @@ export function searchPositionChange(evolution: MonthlyEvolution): number | null
   if (n < 2 || periods.length !== n || !comparableSearchPeriods(periods[n - 2], periods[n - 1]) ||
       !Number.isFinite(values[n - 2]) || values[n - 2] <= 0 || !Number.isFinite(values[n - 1]) || values[n - 1] <= 0) return null;
   return Number((values[n - 2] - values[n - 1]).toFixed(1));
+}
+
+export function reportSearchEvidence(evolution: MonthlyEvolution, businessUrl: string) {
+  const missing = { latest:null, positionChange:null, warning:'' };
+  if (evolution.source !== 'real') return missing;
+  const periods=evolution.searchPeriods || [], labels=evolution.searchMonths || [];
+  const clicks=evolution.searchClicks || [], impressions=evolution.searchImpressions || [];
+  if (!periods.length && !labels.length && !clicks.length && !impressions.length) return missing;
+  const n=periods.length;
+  if (!n || labels.length!==n || clicks.length!==n || impressions.length!==n) return { ...missing,warning:'Las mediciones de búsqueda guardadas están incompletas. Volvé a importar el período antes de incluirlo en el informe.' };
+  const period=periods[n-1];
+  if (!periodBounds(period) || !Number.isFinite(Date.parse(period.loadedAt))) return { ...missing,warning:'No se pudo validar el período y la fecha de carga de las mediciones de búsqueda. Volvé a importarlas.' };
+  if (!propertyMatchesBusiness(period.siteUrl!,businessUrl)) return { ...missing,warning:'Las mediciones de búsqueda guardadas no corresponden al sitio de este negocio. Importá una propiedad correspondiente al sitio actual.' };
+  const validCounts=(index:number)=>Number.isSafeInteger(clicks[index]) && clicks[index]>=0 && Number.isSafeInteger(impressions[index]) && impressions[index]>=0 && clicks[index]<=impressions[index];
+  if (!validCounts(n-1)) return { ...missing,warning:'Las cifras de búsqueda guardadas no son consistentes. Volvé a importar el período antes de incluirlo en el informe.' };
+  const latest={ period,clicks:clicks[n-1],impressions:impressions[n-1],ctr:impressions[n-1]>0?Number((clicks[n-1]/impressions[n-1]*100).toFixed(2)):null };
+  const positionChange=n>1 && validCounts(n-2) && impressions[n-2]>0 && impressions[n-1]>0 && propertyMatchesBusiness(periods[n-2].siteUrl || '',businessUrl) ? searchPositionChange(evolution):null;
+  return {latest,positionChange,warning:''};
 }
 
 export function measurementDateLabel(value?: string, locale = 'es-AR', timeZone = 'UTC'): string {

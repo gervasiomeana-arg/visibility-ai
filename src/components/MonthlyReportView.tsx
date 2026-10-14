@@ -4,7 +4,7 @@ import { Download, FileText, Printer } from 'lucide-react';
 import { prepareReportPdf, reportPdfBlocks } from '../services/reportPdfService';
 import { reportPdfName } from '../../shared/reportPdfName';
 import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, SeoAuditResult } from '../types';
-import { measuredSeries, reportEvidence, searchPositionChange, measurementDateLabel, technicalFindingReduction, taskPlanEvidence } from '../../shared/reportEvidence';
+import { measuredSeries, reportEvidence, reportSearchEvidence, measurementDateLabel, technicalFindingReduction, taskPlanEvidence } from '../../shared/reportEvidence';
 
 interface MonthlyReportViewProps {
   business: Business;
@@ -42,31 +42,26 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     finally {exporting.current=false;if(alive.current)setPdfBusy(false);}
   }
   const dateLabel = (value?: string) => measurementDateLabel(value, business.locale || 'es-AR', business.timezone || 'America/Argentina/Buenos_Aires');
-  const evidence = reportEvidence(business.id, evolution, issues);
+  const evidence = reportEvidence(business.id, evolution, issues, business.url);
   const { mode, priorities, useDemoMetrics } = evidence;
   const isReal = mode === 'PARCIAL REAL';
   const technical = evolution.source === 'real' ? measuredSeries(evolution.months, evolution.visibility) : [];
   const technicalChange = technicalScoreChange(evolution);
-  const positionChange = searchPositionChange(evolution);
+  const search = reportSearchEvidence(evolution,business.url);
+  const positionChange = search.positionChange;
   const reduction = technicalFindingReduction(evolution);
   const plan = taskPlanEvidence(business.id, tasks);
   const currentTasks = plan.tasks.filter(task => task.source !== 'demo');
   const performance = webMeasurement(auditMeta, business.scores.web, business.scoreSources?.web || 'unavailable');
-  const latestSearch = evolution.source === 'real' ? evolution.searchPeriods?.at(-1) : undefined;
+  const latestSearch = search.latest?.period;
   const auditDates = evolution.source === 'real' ? evolution.auditDates || [] : [];
   const lastIssueDate = evidence.realIssues.map(issue => issue.checkedAt).filter((date): date is string => !!date && Number.isFinite(Date.parse(date))).sort().at(-1);
   const auditDate = auditMeta?.fetchedAt || lastIssueDate || auditDates.at(-1);
-  const searchCount = evolution.source === 'real' ? measuredSeries(evolution.searchMonths || [], evolution.searchImpressions || []).length : 0;
+  const searchCount = search.latest ? 1 : 0;
   const signed = (value: number) => `${value > 0 ? '+' : ''}${Number(value.toFixed(1))}`;
-  const searchValue = (values?: number[]) => {
-    if (evolution.source !== 'real') return null;
-    const index = (evolution.searchMonths?.length || 0) - 1;
-    const value = index >= 0 ? values?.[index] : undefined;
-    return typeof value === 'number' && Number.isFinite(value) ? value : null;
-  };
-  const clicks = searchValue(evolution.searchClicks);
-  const impressions = searchValue(evolution.searchImpressions);
-  const ctr = impressions !== null && impressions > 0 ? searchValue(evolution.searchCtr) : null;
+  const clicks = search.latest?.clicks ?? null;
+  const impressions = search.latest?.impressions ?? null;
+  const ctr = search.latest?.ctr ?? null;
   const metrics = [
     { label: 'Clics de consultas recuperadas', value: clicks !== null ? clicks.toLocaleString('es-AR') : '—', source: clicks !== null ? 'SEARCH CONSOLE' : 'SIN FUENTE', note: 'Último período medido; no equivale a consultas comerciales.' },
     { label: 'Impresiones de consultas recuperadas', value: impressions !== null ? impressions.toLocaleString('es-AR') : '—', source: impressions !== null ? 'SEARCH CONSOLE' : 'SIN FUENTE', note: 'Último período medido; el alcance depende de las consultas disponibles.' },
@@ -113,6 +108,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
           </div>}
           <div className="rounded-xl bg-slate-50 p-4 space-y-1"><strong>Google Search Console</strong>
             <p>{searchCount ? `Período: ${latestSearch?.startDate && latestSearch.endDate ? `${latestSearch.startDate} a ${latestSearch.endDate}` : 'No registrado en el historial anterior'}.` : 'Sin mediciones guardadas disponibles.'}</p>
+            {search.warning && <p className="font-semibold">{search.warning}</p>}
             {latestSearch && <><p className="break-all">Propiedad: {latestSearch.siteUrl || 'No registrada'}.</p><p>Cargado: {dateLabel(latestSearch.loadedAt)}.</p></>}
             {searchCount > 0 && clicks === 0 && impressions === 0 && <p className="font-semibold">Sin consultas de búsqueda recuperadas para este período. Este resultado no demuestra que el sitio no haya recibido visitas.</p>}
             <p>Las cifras agregan las consultas recuperadas; no representan necesariamente todos los clics del sitio. Una medición guardada no confirma que la conexión siga activa.</p>
