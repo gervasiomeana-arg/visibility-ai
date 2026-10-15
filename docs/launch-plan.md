@@ -1,9 +1,9 @@
 # Plan de cierre comercial: tres jornadas estimadas
 
-La lista se muestra al propietario del espacio en un panel flotante. Comienza expandida
-y permanece disponible al navegar. Se puede minimizar para liberar la pantalla y no
-aparece dentro del PDF. Los siete controles son pruebas reales; no se completan porque
-pasen pruebas de código ni por tener variables configuradas.
+Por indicación del operador, el plan se sigue en el chat y ya no se monta el panel
+flotante en Visibility. Los registros anteriores se conservan. Los siete controles
+son pruebas reales; no se completan porque pasen pruebas de código ni por tener
+variables configuradas.
 
 | Jornada | Control | Evidencia para completarlo |
 |---|---|---|
@@ -22,7 +22,7 @@ No hay almacenamiento local que simule sincronización. Un error mantiene el con
 sin confirmar y permite recargar. El marcado es un registro manual, no certificación
 automática de los resultados.
 
-## Activación
+## Implementación anterior (referencia técnica)
 
 1. Aplicar `supabase/migrations/202610140002_launch_plan_and_business_scope.sql` en SQL
    Editor del Supabase utilizado por Visibility. Crea la lista y refuerza la relación
