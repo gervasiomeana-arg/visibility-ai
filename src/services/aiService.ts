@@ -1,6 +1,6 @@
 import { ContentGenerationRequest } from '../types';
 import { authService } from './authService';
-import { apiFetchJson } from './apiClient';
+import { requestContentDraft } from './contentClient';
 import { requestAssistantReply } from './assistantClient';
 import { AssistantTurn, normalizeAssistantHistory } from '../../shared/assistantContext';
 
@@ -30,17 +30,7 @@ export const aiService = {
     req: ContentGenerationRequest,
     context?: { workspaceId?: string; businessId?: string; businessContext?: { name: string; description?: string; url?: string } }
   ): Promise<string> {
-    const data = await apiFetchJson<{ content?: string | null }>(
-      '/api/content/generate',
-      {
-        method: 'POST',
-        headers: await authService.getAuthorizationHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ ...req, ...context }),
-      }
-    );
-    if (!data.content?.trim()) {
-      throw new Error('No se recibió contenido. Revisá la configuración del generador e intentá nuevamente.');
-    }
-    return data.content;
+    return requestContentDraft({ ...req, ...context },
+      await authService.getAuthorizationHeaders({ 'Content-Type': 'application/json' }));
   },
 };

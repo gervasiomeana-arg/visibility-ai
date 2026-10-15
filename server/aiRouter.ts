@@ -194,6 +194,7 @@ router.post(
       contents: promptText,
       config: {
         temperature: 0.7,
+        httpOptions: { timeout: 45000 },
       },
     });
 

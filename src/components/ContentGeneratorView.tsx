@@ -17,6 +17,7 @@ import { storageService } from '../services/storageService';
 import { contentRequestSignature, contentDraftState } from '../../shared/contentDraftState';
 import { validateContentInput, validateContentOutput } from '../../shared/contentContext';
 import { aiService } from '../services/aiService';
+import { ContentGenerationFeedback } from './ContentGenerationFeedback';
 
 interface ContentGeneratorViewProps {
   business: Business;
@@ -32,6 +33,8 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
   const [savedDraft] = useState(() => storageService.getContentDraft(business.id));
   const live = useRef(true);
   const busy = useRef(false);
+  const resultPanel = useRef<HTMLDivElement>(null);
+  const [resultNotice, setResultNotice] = useState('');
   const [error, setError] = useState('');
   const [saveFailed, setSaveFailed] = useState(false);
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
@@ -93,19 +96,27 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
     { id: 'google_post', label: 'Google Business Profile', icon: Share2, desc: 'Publicación para el mapa y perfil de Google' },
   ];
 
+  const showResult = () => {
+    resultPanel.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
   const handleGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (busy.current) return;
-    if (!topic.trim() || !businessType.trim() || !goal.trim()) {
-      setError('Completá el tema, el tipo de negocio y el objetivo.');
+    setResultNotice('');
+    const validation = validateContentInput({ contentType, topic, keyword, city, businessType, goal, tone, topicRelation, businessContext: { name: business.name, description: business.description, url: business.url } });
+    if (validation) {
+      setError(validation);
+      const missing = [['content-topic', topic], ['content-relation', topicRelation], ['content-businessType', businessType], ['content-goal', goal]].find(([, value]) => !value.trim());
+      if (missing) document.getElementById(missing[0])?.focus();
+      else showResult();
       return;
     }
-    const validation = validateContentInput({ contentType, topic, keyword, city, businessType, goal, tone, topicRelation, businessContext: { name: business.name, description: business.description, url: business.url } });
-    if (validation) { setError(validation); return; }
     const requestSignature = currentSignature;
     busy.current = true;
     setError('');
     setIsGenerating(true);
+    showResult();
     try {
       const result = await aiService.generateContent(
         {
@@ -124,9 +135,9 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
           businessContext: { name: business.name, description: business.description, url: business.url },
         }
       );
-      if (live.current) { setGeneratedResult(result); setGeneratedFor(requestSignature); setIsApproved(false); setCopied(false); }
+      if (live.current) { setGeneratedResult(result); setGeneratedFor(requestSignature); setIsApproved(false); setCopied(false); setResultNotice('Borrador generado. Podés leerlo y editarlo aquí; revisalo antes de copiar o aprobar.'); showResult(); }
     } catch (err) {
-      if (live.current) setError(err instanceof Error ? err.message : 'No se pudo generar el texto. Intentá nuevamente.');
+      if (live.current) { setError(err instanceof Error ? err.message : 'No se pudo generar el texto. Intentá nuevamente.'); showResult(); }
     } finally {
       busy.current = false;
       if (live.current) setIsGenerating(false);
@@ -221,7 +232,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
             Datos del contenido
           </h2>
 
-          <form onSubmit={handleGenerate} className="space-y-4 text-xs">
+          <form id="content-generation-form" noValidate onSubmit={handleGenerate} className="space-y-4 text-xs">
             {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-800">{error}</p>}
             {!business.description?.trim() && <div role="alert" className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-amber-900">
               <p>Falta la descripción confirmada del negocio. Completala para evitar textos genéricos o servicios supuestos.</p>
@@ -267,7 +278,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
 
               <div>
                 <label htmlFor="content-city" className="font-semibold text-slate-700 block mb-1">
-                  Ciudad o Localidad:
+                  Ciudad o Localidad (opcional):
                 </label>
                 <input
                   type="text"
@@ -350,17 +361,21 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
         </div>
 
         {/* Right: Editable Result & Approval (7 cols) */}
-        <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
+        <div ref={resultPanel} tabIndex={-1} aria-label="Resultado de generación" className="scroll-mt-44 lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col min-h-[500px]">
           <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
             <div>
               <h2 className="text-sm font-bold text-slate-900 font-heading">
                 {draftState.title}
               </h2>
               <span className="text-[11px] text-slate-500">
-                Podes modificar el texto directamente antes de copiarlo a tu web
+                El contenido generado aparece aquí. En celular, debajo del formulario.
               </span>
             </div>
 
+            <button type="submit" form="content-generation-form" disabled={isGenerating}
+              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer disabled:opacity-60">
+              {isGenerating ? 'Generando…' : generatedResult ? 'Generar de nuevo' : 'Generar contenido'}
+            </button>
             {generatedResult && (
               <div className="flex items-center gap-2">
                 <button
@@ -387,6 +402,8 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
             )}
           </div>
 
+          <ContentGenerationFeedback generating={isGenerating} error={error} hasDraft={Boolean(generatedResult)} />
+          {resultNotice && !isGenerating && !error && <p role="status" className="mt-3 text-sm text-emerald-800">{resultNotice}</p>}
           {generatedResult && (draftState.outdated || error) && <p role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
             Este texto se conserva de un borrador anterior. No es el resultado de una nueva generación con los datos actuales. Revisá el formulario y el mensaje de error antes de volver a generar.
           </p>}
@@ -410,7 +427,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
                   </span>
                 </div>
               </div>
-            ) : (
+            ) : !isGenerating && !error ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
                 <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
                   <PenTool className="w-6 h-6" />
@@ -429,7 +446,7 @@ const ContentGeneratorForm: React.FC<ContentGeneratorViewProps> = ({
                   Completar los datos
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
