@@ -92,3 +92,19 @@ test('fresh audit tasks carry the measured date and refresh a stored legacy task
     assert.equal(saved.status, 'en_progreso');assert.equal(saved.userEvidence, 'Nota del entrenador');
   });
 });
+
+test('a demonstration completion cannot verify or close a new audit task, while its manual note is retained', () => {
+  const demonstration = { ...base, id: 'demo-lcp', source: 'demo', status: 'verificada_auditoria', completionType: 'auditoria', completedAt: '2026-10-01T12:00:00Z', manualUpdatedAt: '2026-10-15T12:00:00Z', userEvidence: 'Nota escrita mientras se revisaba el ejemplo' } as ActionTask;
+  const fresh = { ...base, measuredAt: '2026-10-15T13:00:00Z' };
+  const [merged] = deduplicateAndReconcileTasks(business.id, [demonstration, fresh], business);
+  assert.equal(merged.source, 'seo-audit');
+  assert.equal(merged.status, 'pendiente');
+  assert.equal(merged.completionType, null);
+  assert.equal(merged.completedAt, undefined);
+  assert.equal(merged.userEvidence, demonstration.userEvidence);
+  const [manual] = deduplicateAndReconcileTasks(business.id, [{ ...demonstration, id: base.id }, { ...fresh, id: 'manual-lcp', source: 'manual' }], business);
+  assert.equal(manual.source, 'manual');
+  assert.equal(manual.status, 'pendiente');
+  const [onlyDemo] = deduplicateAndReconcileTasks(business.id, [demonstration], business);
+  assert.equal(onlyDemo.status, 'verificada_auditoria');
+});

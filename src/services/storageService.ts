@@ -245,19 +245,24 @@ export function deduplicateAndReconcileTasks(
       const primary =
         datedAudits[0] ||
         [...items].reverse().find((i) => i.source === 'seo-audit') ||
+        [...items].reverse().find((i) => i.source === 'manual') ||
         items.find((i) => i.id.startsWith(`task-${businessId}-`)) ||
         items[0];
 
-      const anyAuditVerified = items.find(
+      // Demonstration completion cannot close a task backed by real evidence.
+      const statusItems = primary.source === 'seo-audit' || primary.source === 'manual'
+        ? items.filter(item => item.source !== 'demo') : items;
+
+      const anyAuditVerified = statusItems.find(
         (i) => i.status === 'verificada_auditoria' || i.completionType === 'auditoria'
       );
-      const anyManualCompleted = items.find(
+      const anyManualCompleted = statusItems.find(
         (i) =>
           i.status === 'completada_manual' ||
           (i.status === 'completada' && i.completionType === 'manual')
       );
-      const anyGenericCompleted = items.find((i) => i.status === 'completada');
-      const anyInProgress = items.find((i) => i.status === 'en_progreso');
+      const anyGenericCompleted = statusItems.find((i) => i.status === 'completada');
+      const anyInProgress = statusItems.find((i) => i.status === 'en_progreso');
 
       let resolvedStatus = primary.status;
       let resolvedCompletionType = primary.completionType;
@@ -282,11 +287,11 @@ export function deduplicateAndReconcileTasks(
 
       // A newer explicit edit wins over stale remote state or a newly generated audit.
       // This also preserves intentional clearing of a note or reopening of a task.
-      const latestManual = [...items].filter(item => item.manualUpdatedAt && Number.isFinite(Date.parse(item.manualUpdatedAt)))
+      const latestManual = [...statusItems].filter(item => item.manualUpdatedAt && Number.isFinite(Date.parse(item.manualUpdatedAt)))
         .sort((a, b) => Date.parse(b.manualUpdatedAt!) - Date.parse(a.manualUpdatedAt!))[0];
 
       const completedAt =
-        items.find((i) => Boolean(i.completedAt))?.completedAt ||
+        statusItems.find((i) => Boolean(i.completedAt))?.completedAt ||
         (resolvedStatus === 'completada' ||
         resolvedStatus === 'completada_manual' ||
         resolvedStatus === 'verificada_auditoria'
@@ -709,7 +714,7 @@ export const storageService = {
       return 'SEO';
     };
 
-    return items.map(normalizeH1Item).map((item) => ({
+    return items.filter(item => item.source === 'real').map(normalizeH1Item).map((item) => ({
       id: `issue-${businessId}-${item.key}`,
       businessId,
       name: item.title,
@@ -730,7 +735,7 @@ export const storageService = {
 
   buildActionTasksFromSeoAudit(businessId: string, items: SeoAuditItem[]): ActionTask[] {
     const business = this.getBusinesses().find((b) => b.id === businessId);
-    const tasks = items.map(normalizeH1Item)
+    const tasks = items.filter(item => item.source === 'real').map(normalizeH1Item)
       .filter((item) => item.status !== 'ok')
       .map((item) => {
         const isH1 = item.key === 'h1';

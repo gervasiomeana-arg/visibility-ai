@@ -408,6 +408,7 @@ test('saved H1 notes survive reads, status changes and new audits within their w
     storageService.setScope('workspace-evidence');
     values.set('visibility_ai_businesses:workspace-evidence', JSON.stringify([evidenceBusiness]));
     const [newH1] = storageService.buildActionTasksFromSeoAudit(evidenceBusiness.id, [{
+      source: 'real', checkedAt: '2026-10-15T12:00:00Z',
       key: 'h1', title: 'Encabezado H1', status: 'warning', statusLabel: 'Revisar',
       metricValue: '0 H1', impact: 'Medio', category: 'Contenido',
       simpleExplanation: 'No detectado en HTML inicial', solution: 'Comprobar el DOM',
