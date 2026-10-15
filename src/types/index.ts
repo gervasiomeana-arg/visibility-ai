@@ -185,6 +185,7 @@ export interface Opportunity {
 }
 
 export interface ActionTask {
+  auditEvidence?: { url: string; checkedAt: string; status: 'ok' | 'warning' | 'error'; metricValue?: string };
   measuredAt?: string;
   manualUpdatedAt?: string;
   lcpDiagnostics?: import('../../shared/lcpDiagnostics').LcpDiagnostics;

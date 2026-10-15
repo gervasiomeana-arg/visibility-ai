@@ -1,3 +1,4 @@
+import { reconcileTaskAuditEvidence } from '../../shared/taskAuditEvidence';
 import type { CompetitorResearchResult } from '../../shared/competitorResearch';
 import { measuredScore } from '../../shared/scoreEvidence';
 import { h1Guidance, normalizeH1Item } from '../../shared/h1Guidance';
@@ -812,7 +813,7 @@ export const storageService = {
       // Merge previous tasks with newly passed tasks so no tasks are lost
       // and duplicates are merged conserving states and evidence
       const combined = [...previous, ...tasks];
-      const reconciled = deduplicateAndReconcileTasks(businessId, combined, business);
+      const reconciled = reconcileTaskAuditEvidence(businessId, deduplicateAndReconcileTasks(businessId, combined, business), this.getSeoAudit(businessId), this.getSeoAuditMeta(businessId));
       parsed[businessId] = reconciled;
       localStorage.setItem(scopedKey(STORAGE_KEYS.ACTION_TASKS), JSON.stringify(parsed));
     } catch {
@@ -1242,7 +1243,7 @@ export const storageService = {
       }));
     }
 
-    const reconciled = deduplicateAndReconcileTasks(businessId, rawTasks, business);
+    const reconciled = reconcileTaskAuditEvidence(businessId, deduplicateAndReconcileTasks(businessId, rawTasks, business), this.getSeoAudit(businessId), this.getSeoAuditMeta(businessId));
 
     if (rawTasks.length > 0) {
       try {
