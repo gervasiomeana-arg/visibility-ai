@@ -43,6 +43,7 @@ export const searchConsoleService = {
   async status(): Promise<SearchConsoleStatus> {
     return apiFetchJson<SearchConsoleStatus>('/api/search-console/status', {
       headers: await authHeaders(),
+      signal: AbortSignal.timeout(60000),
     });
   },
 
@@ -56,6 +57,7 @@ export const searchConsoleService = {
           'Content-Type': 'application/json',
         }),
         body: JSON.stringify({ returnTo }),
+        signal: AbortSignal.timeout(30000),
       }
     );
 
@@ -69,6 +71,7 @@ export const searchConsoleService = {
       {
         method: 'POST',
         headers: await authHeaders(),
+        signal: AbortSignal.timeout(60000),
       }
     );
   },
@@ -78,6 +81,7 @@ export const searchConsoleService = {
       '/api/search-console/sites',
       {
         headers: await authHeaders(),
+        signal: AbortSignal.timeout(60000),
       }
     );
     return data.sites || [];
