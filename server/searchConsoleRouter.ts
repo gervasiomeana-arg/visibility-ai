@@ -13,12 +13,18 @@ import {
   requireSupabaseAuth,
 } from './supabaseAuth';
 import { recordUsageEventSafe } from './usageTelemetry';
+import { validateSearchQueryInput } from '../shared/searchAnalytics';
+import { querySearchAnalytics } from './searchAnalyticsService';
 
 type SearchConsoleSession = {
   accessToken: string;
   refreshToken?: string;
   expiresAt: number;
+  userId?: string;
 };
+
+class SearchConsoleConnectionUnavailable extends Error {}
+class SearchConsoleAuthorizationExpired extends Error {}
 
 type PendingOAuthState = {
   createdAt: number;
@@ -130,6 +136,7 @@ async function supabaseConnectionRequest(
   return fetch(`${config.url}/rest/v1/${path}`, {
     ...init,
     headers,
+    signal: AbortSignal.timeout(15000),
   });
 }
 
@@ -178,9 +185,17 @@ async function loadDurableSearchConsoleSession(
     throw new Error('Could not load Search Console connection');
   }
 
-  const rows: any[] = await response.json();
+  const rows: any = await response.json();
+  if (!Array.isArray(rows) || rows.length > 1) {
+    throw new Error('Invalid stored Search Console connection response');
+  }
   const row = rows[0];
-  if (!row) return null;
+  if (rows.length === 0) return null;
+  if (!row || typeof row.access_token_ciphertext !== 'string' ||
+    (row.refresh_token_ciphertext != null && typeof row.refresh_token_ciphertext !== 'string') ||
+    typeof row.expires_at !== 'string' || !Number.isFinite(new Date(row.expires_at).getTime())) {
+    throw new Error('Invalid stored Search Console connection');
+  }
 
   return {
     accessToken: decryptToken(row.access_token_ciphertext),
@@ -240,7 +255,7 @@ async function refreshSearchConsoleToken(
 ): Promise<SearchConsoleSession> {
   if (session.expiresAt > Date.now() + 60_000) return session;
   if (!session.refreshToken) {
-    throw new Error('Search Console session expired');
+    throw new SearchConsoleAuthorizationExpired('Search Console session expired');
   }
 
   const params = new URLSearchParams({
@@ -254,17 +269,24 @@ async function refreshSearchConsoleToken(
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: params,
+    signal: AbortSignal.timeout(20000),
   });
 
   if (!response.ok) {
-    throw new Error('Could not refresh Search Console access');
+    const failure: any = await response.json().catch(() => null);
+    if (response.status === 400 && failure?.error === 'invalid_grant') throw new SearchConsoleAuthorizationExpired('Google authorization expired');
+    throw new SearchConsoleConnectionUnavailable('Could not refresh Search Console access');
   }
 
   const data: any = await response.json();
+  if (typeof data.access_token !== 'string' || !data.access_token || !Number.isFinite(data.expires_in) || data.expires_in <= 0) {
+    throw new SearchConsoleConnectionUnavailable('Invalid token refresh response');
+  }
   return {
+    ...session,
     accessToken: data.access_token,
     refreshToken: session.refreshToken,
-    expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000,
+    expiresAt: Date.now() + data.expires_in * 1000,
   };
 }
 
@@ -277,11 +299,11 @@ async function getSearchConsoleSession(
   supabaseAccessToken?: string;
 } | null> {
   const authToken = bearerToken(req);
+  if (!authToken) return null;
+  const user = await getSupabaseUserFromToken(authToken);
+  if (!user) return null;
 
   if (durableSearchConsoleConfigured() && authToken) {
-    const user = await getSupabaseUserFromToken(authToken);
-    if (!user) return null;
-
     try {
       const existing = await loadDurableSearchConsoleSession(
         user.id,
@@ -307,8 +329,9 @@ async function getSearchConsoleSession(
         userId: user.id,
         supabaseAccessToken: authToken,
       };
-    } catch {
-      return null;
+    } catch (error) {
+      if (error instanceof SearchConsoleAuthorizationExpired) return null;
+      throw new SearchConsoleConnectionUnavailable('Could not check stored connection');
     }
   }
 
@@ -317,7 +340,7 @@ async function getSearchConsoleSession(
   if (!sessionId) return null;
 
   const existing = searchConsoleSessions.get(sessionId);
-  if (!existing) return null;
+  if (!existing || existing.userId !== user.id) return null;
 
   try {
     const refreshed = await refreshSearchConsoleToken(existing);
@@ -326,9 +349,12 @@ async function getSearchConsoleSession(
     }
 
     return { id: sessionId, session: refreshed };
-  } catch {
-    searchConsoleSessions.delete(sessionId);
-    return null;
+  } catch (error) {
+    if (error instanceof SearchConsoleAuthorizationExpired) {
+      searchConsoleSessions.delete(sessionId);
+      return null;
+    }
+    throw new SearchConsoleConnectionUnavailable('Could not check session connection');
   }
 }
 
@@ -337,7 +363,7 @@ router.get('/status', async (req, res) => {
   try {
     active = await getSearchConsoleSession(req);
   } catch {
-    // Session lookup is optional for status check
+    return res.status(503).json({ error: 'No se pudo comprobar la conexión de Search Console. Reintentá más tarde; este error no confirma que debas volver a conectar Google.' });
   }
 
   const missing: string[] = [];
@@ -401,19 +427,15 @@ router.all(['/auth/start', '/oauth/start'], async (req, res) => {
       });
     }
 
-    let userId: string | undefined;
-    let supabaseAccessToken: string | undefined;
-
-    if (durableSearchConsoleConfigured()) {
-      const authToken = bearerToken(req);
-      if (authToken) {
-        const user = await getSupabaseUserFromToken(authToken);
-        if (user) {
-          userId = user.id;
-          supabaseAccessToken = authToken;
-        }
-      }
-    }
+    if (!getSupabaseConfig().configured) return res.status(503).json({ error: 'La autenticación de Supabase no está configurada.' });
+    const authToken = bearerToken(req);
+    if (!authToken) return res.status(401).json({ error: 'Ingresá a Visibility antes de conectar Google.' });
+    let user;
+    try { user = await getSupabaseUserFromToken(authToken); }
+    catch { return res.status(503).json({ error: 'No se pudo comprobar la sesión. Reintentá más tarde.' }); }
+    if (!user) return res.status(401).json({ error: 'La sesión no permite iniciar esta conexión.' });
+    const userId = user.id;
+    const supabaseAccessToken = authToken;
 
     const returnToRaw =
       typeof req.body?.returnTo === 'string'
@@ -444,6 +466,7 @@ router.all(['/auth/start', '/oauth/start'], async (req, res) => {
       searchConsoleStates.set(state, {
         createdAt: Date.now(),
         returnTo,
+        userId,
       });
     }
 
@@ -526,6 +549,7 @@ router.get(['/oauth/callback', '/callback'], async (req, res) => {
           'content-type': 'application/x-www-form-urlencoded',
         },
         body: params,
+        signal: AbortSignal.timeout(20000),
       }
     );
 
@@ -534,6 +558,7 @@ router.get(['/oauth/callback', '/callback'], async (req, res) => {
     }
 
     const tokenData: any = await tokenResponse.json();
+    if (typeof tokenData.access_token !== 'string' || !tokenData.access_token || !Number.isFinite(tokenData.expires_in) || tokenData.expires_in <= 0) throw new Error('Invalid Google token response');
     let refreshToken: string | undefined =
       tokenData.refresh_token;
 
@@ -576,7 +601,8 @@ router.get(['/oauth/callback', '/callback'], async (req, res) => {
     } else {
       const sessionId =
         crypto.randomBytes(24).toString('hex');
-      searchConsoleSessions.set(sessionId, session);
+      if (!pending.userId) throw new Error('Missing session owner');
+      searchConsoleSessions.set(sessionId, { ...session, userId: pending.userId });
       setSearchConsoleSessionCookie(res, sessionId);
     }
 
@@ -623,9 +649,8 @@ router.post('/disconnect', requireSupabaseAuth, async (req, res) => {
   } else {
     const cookies = parseCookies(req.headers.cookie);
     if (cookies.visibility_gsc_session) {
-      searchConsoleSessions.delete(
-        cookies.visibility_gsc_session
-      );
+      const session = searchConsoleSessions.get(cookies.visibility_gsc_session);
+      if (session?.userId === res.locals.authUser?.id) searchConsoleSessions.delete(cookies.visibility_gsc_session);
     }
   }
 
@@ -657,6 +682,7 @@ router.get('/sites', requireSupabaseAuth, async (req, res) => {
         headers: {
           authorization: `Bearer ${active.session.accessToken}`,
         },
+        signal: AbortSignal.timeout(20000),
       }
     );
 
@@ -667,6 +693,13 @@ router.get('/sites', requireSupabaseAuth, async (req, res) => {
     }
 
     const data: any = await response.json();
+    if (!data || typeof data !== 'object' || Array.isArray(data) || data.error ||
+      Object.keys(data).some(key => key !== 'siteEntry') ||
+      ('siteEntry' in data && (!Array.isArray(data.siteEntry) || data.siteEntry.some((site: any) =>
+        !site || typeof site.siteUrl !== 'string' || !site.siteUrl.trim() ||
+        typeof site.permissionLevel !== 'string' || !site.permissionLevel.trim())))) {
+      throw new Error('Invalid Google properties response');
+    }
     const sites = Array.isArray(data.siteEntry)
       ? data.siteEntry.map((site: any) => ({
           siteUrl: site.siteUrl,
@@ -676,15 +709,14 @@ router.get('/sites', requireSupabaseAuth, async (req, res) => {
 
     return res.json({ sites });
   } catch (error: any) {
-    return res.status(502).json({
-      error:
-        error.message ||
-        'Could not load Search Console sites',
-    });
+    return res.status(error instanceof SearchConsoleConnectionUnavailable ? 503 : 502).json({ error: 'No se pudieron consultar las propiedades de Search Console. Reintentá más tarde; los datos guardados no se modificaron.' });
   }
 });
 
 router.post('/query', requireSupabaseAuth, async (req, res) => {
+  let input;
+  try { input = validateSearchQueryInput(req.body); }
+  catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'Consulta no válida.' }); }
   try {
     const active = await getSearchConsoleSession(req);
     if (!active) {
@@ -693,80 +725,8 @@ router.post('/query', requireSupabaseAuth, async (req, res) => {
         .json({ error: 'Search Console is not connected' });
     }
 
-    const {
-      siteUrl,
-      startDate,
-      endDate,
-      rowLimit,
-      workspaceId,
-      businessId,
-    } = req.body;
-    if (!siteUrl || typeof siteUrl !== 'string') {
-      return res
-        .status(400)
-        .json({ error: 'siteUrl is required' });
-    }
-
-    const safeStart =
-      typeof startDate === 'string' ? startDate : '';
-    const safeEnd =
-      typeof endDate === 'string' ? endDate : '';
-
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(safeStart) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(safeEnd)
-    ) {
-      return res.status(400).json({
-        error: 'Valid startDate and endDate are required',
-      });
-    }
-
-    const limit = Math.min(
-      Math.max(Number(rowLimit) || 100, 1),
-      500
-    );
-
-    const endpoint =
-      `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(
-        siteUrl
-      )}/searchAnalytics/query`;
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${active.session.accessToken}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        startDate: safeStart,
-        endDate: safeEnd,
-        dimensions: ['query'],
-        rowLimit: limit,
-        dataState: 'final',
-      }),
-    });
-
-    if (!response.ok) {
-      const details = await response.text();
-      throw new Error(
-        `Search Console query returned HTTP ${response.status}: ${details.slice(
-          0,
-          300
-        )}`
-      );
-    }
-
-    const data: any = await response.json();
-    const rows = Array.isArray(data.rows)
-      ? data.rows.map((row: any) => ({
-          query: row.keys?.[0] || '',
-          clicks: Number(row.clicks || 0),
-          impressions: Number(row.impressions || 0),
-          ctr: Number(row.ctr || 0),
-          position: Number(row.position || 0),
-        }))
-      : [];
-
+    const { workspaceId, businessId } = req.body;
+    const result = await querySearchAnalytics(active.session.accessToken, input);
     recordUsageEventSafe(req, {
       workspaceId:
         typeof workspaceId === 'string' ? workspaceId : undefined,
@@ -776,22 +736,14 @@ router.post('/query', requireSupabaseAuth, async (req, res) => {
       eventType: 'search_console_query',
       units: 1,
       metadata: {
-        rowsReturned: rows.length,
+        rowsReturned: result.rows.length,
       },
     });
 
-    return res.json({
-      rows,
-      startDate: safeStart,
-      endDate: safeEnd,
-      source: 'google-search-console',
-    });
+    return res.json(result);
   } catch (error: any) {
-    return res.status(502).json({
-      error:
-        error.message ||
-        'Could not query Search Console',
-    });
+    const safeMessage = typeof error?.message === 'string' && /^(La respuesta de Search Console|No se pudo consultar Google Search Console)/.test(error.message);
+    return res.status(error instanceof SearchConsoleConnectionUnavailable ? 503 : 502).json({ error: safeMessage ? error.message : 'No se pudo completar la consulta de Search Console. Reintentá más tarde.' });
   }
 });
 

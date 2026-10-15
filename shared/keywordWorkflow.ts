@@ -1,12 +1,13 @@
 import type { Business, ContentGenerationRequest, KeywordItem } from '../src/types';
 import type { SearchConsoleQueryRow } from '../src/services/searchConsoleService';
+import { validateSearchQueryRows } from './searchAnalytics';
 
 export function keywordRequestScope(business: Pick<Business, 'id' | 'url' | 'workspaceId'>, storageScope: string): string {
   return JSON.stringify([storageScope, business.workspaceId || 'local', business.id, business.url]);
 }
 
 export function measuredKeywords(business: Business, rows: SearchConsoleQueryRow[]): KeywordItem[] {
-  return rows.map((row, index) => ({
+  return validateSearchQueryRows(rows).map((row, index) => ({
     id: `gsc-${business.id}-${index}`, businessId: business.id, keyword: row.query,
     position: row.position > 0 ? Math.round(row.position * 10) / 10 : 0,
     searchVolume: 0, difficulty: 'Sin medición', evolution: 0, intent: 'Sin clasificar',
