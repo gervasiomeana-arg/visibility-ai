@@ -282,6 +282,7 @@ export type ActiveTab =
   | 'dashboard'
   | 'executive-summary'
   | 'seo'
+  | 'social-networks'
   | 'keywords'
   | 'competitors'
   | 'opportunities'
