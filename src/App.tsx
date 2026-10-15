@@ -19,6 +19,7 @@ import { SeoAuditView } from './components/SeoAuditView';
 import { KeywordsView } from './components/KeywordsView';
 import { CompetitorsView } from './components/CompetitorsView';
 import { OpportunitiesView } from './components/OpportunitiesView';
+import { SocialNetworksView } from './components/SocialNetworksView';
 import { ContentGeneratorView } from './components/ContentGeneratorView';
 import { ActionPlanView } from './components/ActionPlanView';
 import { EvolutionView } from './components/EvolutionView';
@@ -896,6 +897,8 @@ export default function App() {
                 onOpenAssistantWithPrompt={handleOpenAssistantWithPrompt}
               />
             )}
+
+            {activeTab === 'social-networks' && (activeWorkspace ? <SocialNetworksView business={activeBusiness} workspaceId={activeWorkspace.id} canEdit={activeWorkspace.role === 'owner'} evolution={evolution} setActiveTab={setActiveTab} /> : <section className="vai-panel p-6 rounded-2xl"><h1 className="text-2xl font-bold">Redes</h1><p className="mt-3 text-sm">Para guardar perfiles y métricas necesitás ingresar a un espacio de trabajo con Supabase configurado.</p><button type="button" className="vai-button vai-button-secondary mt-4" onClick={() => setActiveTab('admin')}>Abrir ajustes</button></section>)}
 
             {activeTab === 'evolution' && (
               <EvolutionView
