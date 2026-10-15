@@ -1,4 +1,5 @@
 import { normalizeAuditUrl } from '../../shared/auditUrl';
+import { validateSeoAuditResponse } from '../../shared/seoAuditResponse';
 import { SeoAuditResult } from '../types';
 import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
@@ -8,16 +9,18 @@ export const seoAuditService = {
     url: string,
     context?: { workspaceId?: string; businessId?: string }
   ): Promise<SeoAuditResult> {
-    return apiFetchJson<SeoAuditResult>('/api/seo/audit', {
+    const requestedUrl = normalizeAuditUrl(url);
+    const result = await apiFetchJson<unknown>('/api/seo/audit', {
       method: 'POST',
       headers: await authService.getAuthorizationHeaders({
         'Content-Type': 'application/json',
       }),
       body: JSON.stringify({
-        url: normalizeAuditUrl(url),
+        url: requestedUrl,
         workspaceId: context?.workspaceId,
         businessId: context?.businessId,
       }),
     });
+    return validateSeoAuditResponse(result, requestedUrl);
   },
 };

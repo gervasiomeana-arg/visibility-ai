@@ -709,7 +709,7 @@ export const storageService = {
       return 'SEO';
     };
 
-    return items.map(normalizeH1Item).map((item) => ({
+    return items.filter(item => item.source === 'real').map(normalizeH1Item).map((item) => ({
       id: `issue-${businessId}-${item.key}`,
       businessId,
       name: item.title,
@@ -730,7 +730,7 @@ export const storageService = {
 
   buildActionTasksFromSeoAudit(businessId: string, items: SeoAuditItem[]): ActionTask[] {
     const business = this.getBusinesses().find((b) => b.id === businessId);
-    const tasks = items.map(normalizeH1Item)
+    const tasks = items.filter(item => item.source === 'real').map(normalizeH1Item)
       .filter((item) => item.status !== 'ok')
       .map((item) => {
         const isH1 = item.key === 'h1';
