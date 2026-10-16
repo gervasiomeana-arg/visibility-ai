@@ -264,6 +264,11 @@ export const ActionPlanView: React.FC<ActionPlanViewProps> = ({
                   : 'border-slate-200 hover:border-slate-300'
               }`}
             >
+              {task.auditEvidence && <p className="mb-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                Última comprobación del factor: <strong>{task.auditEvidence.status === 'ok' ? 'Correcto' : task.auditEvidence.status === 'warning' ? 'Advertencia' : 'Error'}</strong>
+                {task.auditEvidence.metricValue ? ` · ${task.auditEvidence.metricValue}` : ''} · {measurementTime(task.auditEvidence.checkedAt, business.timezone)}.
+                {' '}Se refiere al alcance de ese factor, no a toda la página.
+              </p>}
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-3.5 min-w-0">
                   {/* Status indicator opens explicit controls; it never completes a task. */}

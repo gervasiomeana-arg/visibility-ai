@@ -1,9 +1,9 @@
 # Plan de cierre comercial: tres jornadas estimadas
 
-La lista se muestra al propietario del espacio en un panel flotante. Comienza expandida
-y permanece disponible al navegar. Se puede minimizar para liberar la pantalla y no
-aparece dentro del PDF. Los siete controles son pruebas reales; no se completan porque
-pasen pruebas de código ni por tener variables configuradas.
+Por indicación del operador, el plan se sigue en el chat y ya no se monta el panel
+flotante en Visibility. Los registros anteriores se conservan. Los siete controles
+son pruebas reales; no se completan porque pasen pruebas de código ni por tener
+variables configuradas.
 
 | Jornada | Control | Evidencia para completarlo |
 |---|---|---|
@@ -22,7 +22,7 @@ No hay almacenamiento local que simule sincronización. Un error mantiene el con
 sin confirmar y permite recargar. El marcado es un registro manual, no certificación
 automática de los resultados.
 
-## Activación
+## Implementación anterior (referencia técnica)
 
 1. Aplicar `supabase/migrations/202610140002_launch_plan_and_business_scope.sql` en SQL
    Editor del Supabase utilizado por Visibility. Crea la lista y refuerza la relación
@@ -49,3 +49,20 @@ También se prueba evidencia obligatoria, reapertura y visualización de las tre
 Los siete controles reales comienzan pendientes. Las pruebas locales no completan
 ninguno de ellos. Falta aplicar el script en Supabase, publicar y comprobar guardado
 del plan en la app, además de realizar las pruebas reales enumeradas.
+
+## Evidencia revisada al 15/10/2026
+
+Este estado documenta comprobaciones de la sesión; no modifica las casillas guardadas
+en Supabase. Cada marca requiere guardar la evidencia en el espacio correspondiente.
+
+| Control | Estado comprobado |
+|---|---|
+| Revisar un PDF real | Completado: PDF Neomed del 14/10, tres páginas, perfil, fuentes, fechas y disposición revisados. Los valores PageSpeed se contrastaron con su registro exportado; no se repitió esa medición histórica en la API. |
+| Guardar y recuperar el PDF en Clientes | Completado: el operador confirmó recarga y descarga desde Clientes; el archivo recuperado coincide exactamente con el original (32005 bytes, SHA-256 06bf924e13c42cb3c74c7e762912513e994069c6a3f95d8d0901f1ad036749eb). |
+| Pagos y registro de envío | Pendiente: pago de prueba registrado, pero el envío real y su confirmación por WhatsApp quedaron aplazados. |
+| Importar consultas reales de Google | Pendiente: falta una importación autorizada no vacía y comprobar conservación. Un resultado vacío válido no completa este control. |
+| Separación de datos en Supabase | Pendiente: el diagnóstico de correspondencia pasó; falta cambio interactivo entre negocios. Las pruebas locales no sustituyen esa comprobación. |
+| Piloto completo | Pendiente de recorrer la app publicada con guardado y entrega reales. |
+| Revisión final | Pendiente de repetir el recorrido completo con otro negocio. |
+
+Redes se revisará después de estos controles, por indicación del operador.

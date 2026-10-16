@@ -25,7 +25,6 @@ import { ActionPlanView } from './components/ActionPlanView';
 import { EvolutionView } from './components/EvolutionView';
 import { MonthlyReportView } from './components/MonthlyReportView';
 import { ClientsView } from './components/ClientsView';
-import { LaunchChecklist } from './components/LaunchChecklist';
 import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { NewBusinessModal } from './components/NewBusinessModal';
@@ -773,7 +772,6 @@ export default function App() {
       />
 
       {/* Main Content Area */}
-      {activeWorkspace?.role === 'owner' && <LaunchChecklist key={activeWorkspace.id} workspace={activeWorkspace} onNavigate={setActiveTab}/>}
       <main id="main-content" tabIndex={-1} className="flex-1">
         {activeTab === 'landing' && (
           <LandingPage

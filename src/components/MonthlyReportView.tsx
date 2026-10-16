@@ -126,7 +126,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
       </section>
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Qué muestran las mediciones</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{metrics.map(metric => <div key={metric.label} className="rounded-xl border border-slate-200 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">{metrics.map(metric => <div key={metric.label} data-pdf-keep={`metric-${metric.label}`} className="rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-slate-600">{metric.label}</p><p className="text-xl font-bold text-slate-900 my-1">{metric.value}</p>
           <p className="text-[10px] font-semibold text-indigo-600">{metric.source}</p><p className="text-xs text-slate-500 mt-1">{metric.note}</p>
         </div>)}</div>
@@ -142,9 +142,15 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
       {isReal && <section className="space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Estado del plan de acción</h3>
         {currentTasks.length ? <><p className="text-xs text-slate-600">{plan.pending} tareas pendientes o en curso · {plan.manualCompleted} marcadas como completadas manualmente · {plan.verified} registradas como verificadas por auditoría.</p>
-          {plan.notes.map(task => <div key={task.id} className="rounded-xl border border-slate-200 p-3 text-xs space-y-1">
+          {plan.notes.map(task => <div key={task.id} data-pdf-keep={`note-${task.id}`} className="rounded-xl border border-slate-200 p-3 text-xs space-y-1">
             <strong>{task.title} · Nota manual</strong><p className="whitespace-pre-wrap break-words text-slate-600">{task.userEvidence}</p>
-            <p className="text-slate-500">Actualizada: {dateLabel(task.manualUpdatedAt || task.completedAt || undefined)}. Registro de avance, no medición técnica.</p>
+            <p className="text-slate-500">Actualizada: {dateLabel(task.manualUpdatedAt)}. Registro de avance, no medición técnica.</p>
+          </div>)}
+          {currentTasks.filter(task => task.auditEvidence && task.status === 'verificada_auditoria').slice(0, 3).map(task => <div key={`verified-${task.id}`} data-pdf-keep={`verification-${task.id}`} className="rounded-xl border border-emerald-200 p-3 text-xs space-y-1">
+            <strong>{task.title} · Factor verificado por auditoría</strong>
+            <p>{task.auditEvidence!.metricValue || 'Resultado correcto del factor evaluado'} · {measurementTime(task.auditEvidence!.checkedAt, business.timezone)}.</p>
+            <p className="break-all">URL comprobada: {task.auditEvidence!.url}</p>
+            <p>La comprobación se limita a ese factor y fecha; no certifica toda la web.</p>
           </div>)}
           <p className="text-xs text-slate-500">Los estados y notas reflejan el registro del plan. Una nota o un marcado manual no constituye verificación técnica.</p></> : <p className="text-sm text-slate-500">Sin tareas reales o manuales registradas para este negocio.</p>}
       </section>}

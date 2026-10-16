@@ -66,3 +66,7 @@ no exposición de tokens y fallas de API. PostgreSQL embebido prueba migración 
 conservación de filas, permisos por propietario, claves negocio/espacio, identidad
 inmutable y rechazo de versión vieja. No equivalen a aplicar la migración en Supabase,
 conectar cuentas reales ni verificar la interfaz publicada con el operador.
+
+El botón Registrar perfil de cada tarjeta desplaza al formulario de la red elegida y
+enfoca su URL, incluso si esa red ya estaba seleccionada. Si falló la carga, el mismo
+formulario explica el bloqueo y permite reintentar; no simula un perfil guardado.
