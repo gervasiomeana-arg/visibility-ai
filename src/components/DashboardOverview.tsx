@@ -174,7 +174,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           <div className="vai-overview-score shrink-0">
-            <span className="vai-overline">Índice de visibilidad</span>
+            <span className="vai-overline">{isRealDiagnosis ? 'Índice técnico parcial' : 'Índice de ejemplo'}</span>
             <div className="vai-score-value mt-3">{scores.overall}<small>/100</small></div>
             <p className="text-[10px] text-slate-600 font-semibold mt-3">{labelForSource(scoreSources.overall)}</p>
           </div>
@@ -297,22 +297,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 <Sparkles className="w-5 h-5" />
               </div>
               <span className="text-2xl font-extrabold text-slate-900 font-heading">
-                {scores.aiVisibility} <span className="text-xs text-slate-400 font-normal">/100</span>
+                {isRealDiagnosis ? 'Sin medir' : <>{scores.aiVisibility} <span className="text-xs text-slate-400 font-normal">/100</span></>}
               </span>
             </div>
             <h3 className="text-sm font-bold text-slate-900 mt-4 font-heading">Visibilidad IA</h3>
             <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-              Presencia en respuestas de ChatGPT, Gemini, Perplexity y Google AI Overviews.
+              {isRealDiagnosis ? 'Todavía no se midió la presencia en respuestas de ChatGPT, Gemini, Perplexity ni Google AI Overviews.' : 'Ejemplo ilustrativo de presencia en respuestas de asistentes de IA.'}
             </p>
             <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span className="text-purple-700 font-semibold bg-purple-50 px-2 py-0.5 rounded">
-                {labelForSource(scoreSources.aiVisibility)}
+                {isRealDiagnosis ? 'SIN MEDICIÓN' : labelForSource(scoreSources.aiVisibility)}
               </span>
               <button
                 onClick={() => setActiveTab('opportunities')}
                 className="text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-0.5 cursor-pointer"
               >
-                Optimizar con IA <ChevronRight className="w-3.5 h-3.5" />
+                Ver oportunidades <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

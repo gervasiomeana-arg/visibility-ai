@@ -11,9 +11,10 @@ const audit = (key: string, source: 'real' | 'demo' = 'real'): SeoAuditItem => (
 test('technical SEO findings open audit review, while title/meta/H1 support content drafts', () => {
   const opportunities = storageService.buildOpportunitiesFromSeoAudit(business, [audit('https'), audit('robots'), audit('title'), audit('meta-description'), audit('h1'), audit('fake', 'demo')]);
   assert.equal(opportunities.length, 5);
-  assert.deepEqual(opportunities.map(opportunityKind), ['technical', 'technical', 'content', 'content', 'content']);
-  assert.equal(opportunityKind({ ...opportunities[0], kind: 'content' }), 'technical');
-  assert.equal(opportunityKind({ ...opportunities[0], findingType: undefined, kind: undefined }), 'technical');
+  const byFinding = new Map(opportunities.map(item => [item.findingType, item]));
+  assert.deepEqual(['https', 'robots', 'title', 'meta-description', 'h1'].map(key => opportunityKind(byFinding.get(key)!)), ['technical', 'technical', 'content', 'content', 'content']);
+  assert.equal(opportunityKind({ ...byFinding.get('https')!, kind: 'content' }), 'technical');
+  assert.equal(opportunityKind({ ...byFinding.get('https')!, findingType: undefined, kind: undefined }), 'technical');
 });
 
 test('unknown CTR is never treated as a measured zero and foreign rows are excluded', () => {

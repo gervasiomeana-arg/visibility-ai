@@ -15,6 +15,7 @@ export function assistantFailureMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 401 || error.status === 403) return 'No se pudo autorizar la consulta. Revisá tu sesión y volvé a intentarlo.';
     if (error.status === 429) return error.message;
+    if (error.status >= 500 && ['ai_configuration', 'ai_credentials', 'ai_quota', 'ai_model', 'ai_request', 'ai_timeout', 'ai_unavailable'].includes((error.details as any)?.code)) return error.message;
     if (error.status >= 500) return 'El servicio del asistente no está disponible en este momento. Podés reintentar más tarde.';
   }
   return 'No se pudo obtener una respuesta. Revisá la conexión y volvé a intentarlo.';

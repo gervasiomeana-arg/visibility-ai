@@ -29,7 +29,7 @@ export const OpportunitiesView: React.FC<OpportunitiesViewProps> = ({ business, 
       return <article key={opp.id} className="vai-panel rounded-xl p-6 sm:p-7 border border-slate-200 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
           <span className="font-semibold text-indigo-600">{index + 1}. {isDemo ? 'EJEMPLO DEMO' : backed ? `PROPUESTA · ${opp.source === 'seo-audit' ? 'AUDITORÍA' : 'SEARCH CONSOLE'}` : 'SIN EVIDENCIA VERIFICABLE'}</span>
-          <span className="text-slate-500">Prioridad propuesta: {opp.potentialImpact}</span>
+          <span className="text-slate-500">{opp.priority ? `Prioridad técnica: ${opp.priority}` : `Impacto propuesto: ${opp.potentialImpact}`}</span>
         </div>
         <h2 className="text-lg font-bold text-slate-900 font-heading break-words">{opp.detectedProblem}</h2>
         <p className="text-sm text-slate-600 break-words">{opp.simpleExplanation}</p>

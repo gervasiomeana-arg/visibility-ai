@@ -158,6 +158,7 @@ export interface Competitor {
 }
 
 export interface Opportunity {
+  priority?: PriorityLevel;
   id: string;
   businessId: string;
   detectedProblem: string;

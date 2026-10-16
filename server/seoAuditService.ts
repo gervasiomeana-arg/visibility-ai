@@ -1,3 +1,4 @@
+import { dominantLcpPhase } from '../shared/lcpDiagnostics';
 import { h1Guidance } from '../shared/h1Guidance';
 import { normalizeAuditUrl } from '../shared/auditUrl';
 import { performanceSolution } from '../shared/performanceSolution';
@@ -641,12 +642,10 @@ function pageSpeedItems(metrics: any) {
   return items.map((item) => {
     const diagnostics = item.key === 'lcp' ? metrics.lcpDiagnostics : undefined;
     const details = performanceSolution(item.key, item.metricValue, diagnostics);
-    const delay = diagnostics?.timings?.resourceLoadDelay;
-    const duration = diagnostics?.timings?.resourceLoadDuration;
-    const lateRequest = typeof delay === 'number' && typeof duration === 'number' && delay > duration && delay > 0;
+    const phase = dominantLcpPhase(diagnostics);
     return {
       ...item,
-      ...(item.key === 'lcp' && lateRequest ? { simpleExplanation: 'En el desglose observado, la espera antes de solicitar el recurso LCP supera su tiempo de descarga. Revisar el descubrimiento y la prioridad del recurso.' } : {}),
+      ...(item.key === 'lcp' && phase ? { simpleExplanation: phase.explanation } : {}),
       ...details,
       ...(diagnostics ? { lcpDiagnostics: diagnostics, solution: details?.proposedChange || item.solution } : {}),
     };

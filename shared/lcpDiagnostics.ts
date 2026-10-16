@@ -38,6 +38,17 @@ export function extractLcpDiagnostics(audits: Record<string, any>): LcpDiagnosti
   return Object.keys(result.timings).length || Object.keys(result.checks).length || result.element ? result : undefined;
 }
 
+export function dominantLcpPhase(diagnostics?: LcpDiagnostics) {
+  const labels = { timeToFirstByte: 'respuesta inicial del servidor', resourceLoadDelay: 'espera antes de solicitar el recurso LCP', resourceLoadDuration: 'descarga del recurso LCP', elementRenderDelay: 'espera para mostrar el elemento' };
+  const observed = (Object.keys(labels) as (keyof typeof labels)[]).flatMap(key => {
+    const value = diagnostics?.timings?.[key];
+    return typeof value === 'number' && Number.isFinite(value) && value > 0 ? [{ key, value }] : [];
+  }).sort((a, b) => b.value - a.value);
+  if (!observed.length || (observed[1] && observed[0].value === observed[1].value)) return undefined;
+  const largest = observed[0];
+  return { ...largest, explanation: `La fase de mayor duración registrada es la ${labels[largest.key]} (${largest.value.toLocaleString('es-AR', { maximumFractionDigits: 2 })} ms). El desglose orienta la revisión, pero no identifica por sí solo la causa.` };
+}
+
 export function lcpDiagnosticSolution(diagnostics?: LcpDiagnostics) {
   if (!diagnostics) return undefined;
   const data: string[] = [];
@@ -49,6 +60,9 @@ export function lcpDiagnosticSolution(diagnostics?: LcpDiagnostics) {
   }
   if (data.length) data.push('Desglose observado de Lighthouse; no sumar estas fases para reconstruir el LCP simulado');
   if (diagnostics.element) data.push(`Elemento identificado por Lighthouse: ${diagnostics.element}`);
+  const dominant = dominantLcpPhase(diagnostics);
+  if (dominant) data.push(dominant.explanation);
+  if (dominant?.key === 'elementRenderDelay') proposals.push('Revisar qué impide mostrar el elemento LCP después de cargar su recurso: estilos, fuentes o trabajo de renderizado, según los diagnósticos del informe. No atribuir la causa solo a la prioridad de descarga.');
   const checks = diagnostics.checks || {};
   if (checks.requestDiscoverable === false) {
     data.push('PageSpeed indica que la imagen LCP no se descubre en el documento inicial');

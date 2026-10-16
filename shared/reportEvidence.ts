@@ -49,7 +49,7 @@ export function reportEvidence(businessId: string, evolution: MonthlyEvolution, 
     : evolution.source === 'demo' ? 'DEMO' : 'SIN DATOS';
   const usableIssues = mode === 'DEMO' ? ownIssues.filter(issue => issue.source === 'demo') : realIssues;
   const priorities = usableIssues.filter(issue => issue.severity !== 'ok')
-    .sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1)).slice(0, 3);
+    .sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1) || a.name.localeCompare(b.name)).slice(0, 3);
   return { mode, realIssues, usableIssues, priorities, useDemoMetrics: mode === 'DEMO' };
 }
 
