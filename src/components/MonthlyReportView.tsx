@@ -1,11 +1,13 @@
 import { technicalScoreChange } from '../../shared/scoreEvidence';
 import { reportPerformance } from '../../shared/reportPerformance';
 import { measurementTime } from '../../shared/measurementTime';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Download, FileText, Printer } from 'lucide-react';
 import { prepareReportPdf, reportPdfBlocks } from '../services/reportPdfService';
 import { reportPdfName } from '../../shared/reportPdfName';
-import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, SeoAuditResult } from '../types';
+import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, SeoAuditResult, Workspace } from '../types';
+import { SaveReportToClient } from './SaveReportToClient';
+import type { GeneratedReportStore } from '../../shared/generatedClientReport';
 import { measuredSeries, reportEvidence, reportSearchEvidence, measurementDateLabel, technicalFindingReduction, findingChangeLabel, taskPlanEvidence } from '../../shared/reportEvidence';
 
 interface MonthlyReportViewProps {
@@ -14,10 +16,13 @@ interface MonthlyReportViewProps {
   issues: ExecutiveIssue[];
   tasks?: ActionTask[];
   auditMeta?: Partial<SeoAuditResult> | null;
+  workspace?: Workspace | null;
+  clientReportStore?: GeneratedReportStore;
+  onOpenClients?: () => void;
 }
 const emptyTasks: ActionTask[] = [];
 
-export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = emptyTasks, auditMeta }) => {
+export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = emptyTasks, auditMeta, workspace, clientReportStore, onOpenClients }) => {
   const articleRef = useRef<HTMLElement>(null);
   const exporting = useRef(false);
   const [pdfBusy,setPdfBusy] = useState(false);
@@ -28,6 +33,15 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
   useEffect(() => { alive.current=true; return () => {alive.current=false;}; },[]);
   useEffect(() => () => { if(download)URL.revokeObjectURL(download.url); },[download]);
   useEffect(() => {reportVersion.current++;setDownload(null);setPdfError('');},[business,evolution,issues,tasks,auditMeta]);
+  const prepareForClient = useCallback(async () => {
+    const article = articleRef.current;
+    if (!article) throw new Error('El informe todavía no está disponible.');
+    const version = reportVersion.current;
+    const name = reportPdfName(business.name,new Intl.DateTimeFormat('en-CA',{timeZone:business.timezone || 'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
+    const blob = await prepareReportPdf(reportPdfBlocks(article));
+    if (!alive.current || articleRef.current !== article || version !== reportVersion.current) throw new Error('El informe cambió durante la preparación. Revisalo antes de guardar.');
+    return new File([blob], name, {type:'application/pdf'});
+  }, [business,evolution,issues,tasks,auditMeta]);
   async function exportPdf() {
     if(exporting.current || !articleRef.current)return;
     const article = articleRef.current;
@@ -85,6 +99,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     </div>
     {pdfError && <p role="alert" className="no-print rounded-xl bg-red-50 text-red-800 p-4">{pdfError}</p>}
     {download && <p role="status" className="no-print rounded-xl bg-emerald-50 p-4 text-sm">PDF preparado. Si la descarga no comenzó, <a href={download.url} download={download.name} className="underline font-semibold">descargá el PDF preparado</a>. Si AI Studio bloquea la descarga, abrí Visibility publicada y repetí este paso.</p>}
+    {isReal && clientReportStore && workspace?.role === 'owner' && business.workspaceId === workspace.id && <SaveReportToClient key={`${workspace.id}:${business.id}`} workspace={workspace} business={business} prepare={prepareForClient} store={clientReportStore} onOpenClients={onOpenClients} />}
     <article ref={articleRef} className="vai-report-document bg-white rounded-2xl p-5 sm:p-10 border border-slate-200 shadow-sm max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
       <header className="pb-6 border-b border-slate-200 space-y-2">
         <p className="text-xs font-bold tracking-widest text-indigo-600">VISIBILITY · {mode}</p>
