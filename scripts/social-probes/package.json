@@ -1,0 +1,8 @@
+{
+  "name": "visibility-anonymous-social-experiments",
+  "private": true,
+  "type": "module",
+  "description": "Isolated experiments; not imported by the Visibility production server",
+  "scripts": { "probe:instagram": "node playwright_probe.mjs" },
+  "devDependencies": { "playwright-core": "1.62.1" }
+}
