@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { publicReadFailure } from './publicReadFailure';
 import { fetchPublicProfileHtml } from './seoAuditService';
 import { calendarDay, publicProfileUrl, validatePublicSnapshot, type PublicNetwork, type PublicPost, type PublicSnapshot } from '../shared/socialMetrics';
 
@@ -95,8 +96,10 @@ export function publicResearchInput(body: any) {
 export async function collectPublicProfile(input: ReturnType<typeof publicResearchInput>, reader: PageReader = fetchPublicProfileHtml) {
   try {
     const page = await reader(input.profileUrl);
-    if (publicProfileUrl(input.network, page.finalUrl) !== input.profileUrl) return { status: 'unavailable' as const, message: 'La red redirigió a otra página. No se confirmó la identidad del perfil ni se guardaron cifras.' };
+    const final = new URL(page.finalUrl);
+    if (/\/(accounts\/login|login)(?:\/|$)/i.test(final.pathname)) return { status: 'unavailable' as const, diagnostic: { code: 'login-required' }, message: 'La consulta terminó en una página de inicio de sesión. El perfil confirmado se conserva y no se usaron credenciales.' };
+    if (publicProfileUrl(input.network, page.finalUrl) !== input.profileUrl) return { status: 'unavailable' as const, diagnostic: { code: 'identity-mismatch' }, message: 'La red redirigió a otra página. No se confirmó la identidad del perfil ni se guardaron cifras.' };
     const snapshot = parsePublicSocialHtml(input.network, input.profileUrl, page.html, input.start, input.end, page.fetchedAt);
-    return snapshot ? { status: 'measured' as const, snapshot, message: 'Datos públicos identificados. La muestra puede ser parcial; revisala antes de guardar.' } : { status: 'unavailable' as const, message: 'La página no entregó recuentos públicos verificables sin sesión. Abrí el perfil y cargá los valores visibles con evidencia; los datos anteriores se conservan.' };
-  } catch { return { status: 'unavailable' as const, message: 'No se pudo leer el perfil público sin sesión. Puede requerir JavaScript, bloquear consultas o no estar disponible. No se estimaron cifras; podés registrar lo observado manualmente.' }; }
+    return snapshot ? { status: 'measured' as const, snapshot, message: 'Datos públicos identificados. La muestra puede ser parcial; revisala antes de guardar.' } : { status: 'unavailable' as const, diagnostic: { code: 'no-public-counters' }, message: 'La página no entregó recuentos públicos verificables sin sesión. Abrí el perfil y cargá los valores visibles con evidencia; los datos anteriores se conservan.' };
+  } catch (error) { const diagnostic = publicReadFailure(error); return { status: 'unavailable' as const, diagnostic, message: diagnostic.message }; }
 }

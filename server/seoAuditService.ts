@@ -4,6 +4,7 @@ import { normalizeAuditUrl } from '../shared/auditUrl';
 import { performanceSolution } from '../shared/performanceSolution';
 import { extractLcpDiagnostics } from '../shared/lcpDiagnostics';
 import dns from 'dns/promises';
+import { PublicPageError } from './publicReadFailure';
 import https from 'https';
 import net from 'net';
 
@@ -368,9 +369,9 @@ async function readTextLimited(response: Response): Promise<string> {
 export async function fetchPublicProfileHtml(rawUrl: string) {
   const requestedUrl = normalizeAuditUrl(rawUrl);
   const { response, finalUrl } = await safeFetch(requestedUrl);
-  if (!response.ok) throw new Error('El sitio no respondió correctamente.');
+  if (!response.ok) throw new PublicPageError('http', response.status);
   if (!/text\/html|application\/xhtml\+xml/i.test(response.headers.get('content-type') || '')) {
-    throw new Error('La dirección no devolvió una página HTML.');
+    throw new PublicPageError('content-type');
   }
   return { requestedUrl, finalUrl, html: await readTextLimited(response), fetchedAt: new Date().toISOString() };
 }
