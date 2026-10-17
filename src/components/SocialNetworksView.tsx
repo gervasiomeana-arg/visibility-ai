@@ -1,584 +1,101 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Business, ActiveTab, MonthlyEvolution } from '../types';
-import { measurementDateLabel } from '../../shared/reportEvidence';
-import { reportSearchEvidence } from '../../shared/reportEvidence';
-import {
-  calendarDay,
-  socialNetworks,
-  networkNames,
-  metricDefinitions,
-  socialProfileUrl,
-  validateSocialMeasurement,
-  type SocialAccount,
-  type SocialMetric,
-  type SocialNetwork,
-} from '../../shared/socialMetrics';
+import type { ActiveTab, Business, MonthlyEvolution } from '../types';
+import { MonthlyChart } from './SocialMonthlyChart';
 import { socialMetricsService } from '../services/socialMetricsService';
-import { SocialMetricBars } from './SocialMetricBars';
-import { SocialMetricsFinder } from './SocialMetricsFinder';
-import { measurementTime } from '../../shared/measurementTime';
-import { PublicSocialResearch } from './PublicSocialResearch';
+import { publicProfileUrl, type PublicNetwork, type SocialAccount } from '../../shared/socialMetrics';
+import { hasUnverifiedSeeds, monthlyMetrics, monthlySeries } from '../../shared/socialMonthly';
 
 interface Props {
-  business: Business;
-  allBusinesses?: Business[];
-  workspaceId: string;
-  canEdit: boolean;
-  evolution: MonthlyEvolution;
-  setActiveTab: (tab: ActiveTab) => void;
+  business: Business; allBusinesses?: Business[]; workspaceId: string; canEdit: boolean;
+  evolution: MonthlyEvolution; setActiveTab: (tab: ActiveTab) => void;
   onSelectBusiness?: (businessId: string) => void;
 }
-
-function SocialNetworksForm({
-  business,
-  allBusinesses = [business],
-  workspaceId,
-  canEdit,
-  evolution,
-  setActiveTab,
-  onSelectBusiness,
-}: Props) {
+const names = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' };
+function SocialNetworksForm({ business, allBusinesses = [business], workspaceId, canEdit, onSelectBusiness }: Props) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [network, setNetwork] = useState<PublicNetwork>('instagram');
+  const [start, setStart] = useState(`${today.slice(0,4)}-01-01`);
+  const [end, setEnd] = useState(today);
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [revision, setRevision] = useState(0);
-  const [network, setNetwork] = useState<SocialNetwork>('instagram');
   const [profile, setProfile] = useState('');
-  const [accountId, setAccountId] = useState('');
-  const profileSection = useRef<HTMLElement>(null);
-  const profileInput = useRef<HTMLInputElement>(null);
-
-  function openProfileEditor(nextNetwork: SocialNetwork) {
-    setNetwork(nextNetwork);
-    profileSection.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    profileSection.current?.focus({ preventScroll: true });
-    profileInput.current?.focus({ preventScroll: true });
-  }
-
-  const [token, setToken] = useState('');
-  const [values, setValues] = useState<Partial<Record<SocialMetric, string>>>({});
-  const [evidence, setEvidence] = useState('');
-  const [capturedAt, setCapturedAt] = useState(new Date().toISOString().slice(0, 10));
-  const [metric, setMetric] = useState<SocialMetric>('followers');
-  const search = reportSearchEvidence(evolution, business.url).latest;
-  const [start, setStart] = useState(search?.period.startDate || '2026-09-01');
-  const [end, setEnd] = useState(search?.period.endDate || '2026-09-30');
   const [busy, setBusy] = useState(false);
-  const lock = useRef(false);
-  const live = useRef(true);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    live.current = true;
-    return () => {
-      live.current = false;
-    };
-  }, []);
-
+  const [message, setMessage] = useState('');
+  const [candidates, setCandidates] = useState<string[]>([]);
+  const live = useRef(true), lock = useRef(false), version = useRef(0);
+  useEffect(() => { live.current = true; return () => { live.current = false; version.current++; }; }, []);
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setLoadError('');
-    socialMetricsService
-      .list(workspaceId, business.id)
-      .then((result) => {
-        if (!cancelled) {
-          setAccounts(result);
-          const fb = result.find((a) => a.network === 'facebook');
-          const ig = result.find((a) => a.network === 'instagram');
-          if (ig && ig.presence?.status !== 'not-used') {
-            setNetwork('instagram');
-          } else if (fb && fb.presence?.status !== 'not-used') {
-            setNetwork('facebook');
-          }
-        }
-      })
-      .catch((reason) => {
-        if (!cancelled) setLoadError(reason.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [workspaceId, business.id, revision]);
-
-  const selected = accounts.find((account) => account.network === network);
-
-  useEffect(() => {
-    setProfile(selected?.profileUrl || '');
-    setAccountId(selected?.accountId || '');
-    setToken('');
-    setValues({});
-    setEvidence('');
-  }, [network, selected?.updatedAt]);
-
-  useEffect(() => {
-    setMessage('');
-    setError('');
-  }, [network]);
-
-  async function save(mode: 'profile' | 'manual' | 'api') {
-    if (!canEdit || loading || loadError || lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setError('');
-    setMessage('');
+    socialMetricsService.list(workspaceId, business.id).then(rows => { if (!cancelled) setAccounts(rows); })
+      .catch(() => { if (!cancelled) setLoadError('No se pudieron cargar las mediciones guardadas. Revisá la conexión y volvé a abrir Redes.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [workspaceId, business.id]);
+  const account = accounts.find(a => a.network === network);
+  useEffect(() => { setProfile(account?.profileUrl || ''); }, [network, account?.profileUrl]);
+  useEffect(() => { setCandidates([]); setError(''); setMessage(''); version.current++; }, [network]);
+  let series: ReturnType<typeof monthlySeries>[] = [], periodError = '';
+  try { series = (Object.keys(monthlyMetrics) as (keyof typeof monthlyMetrics)[]).map(metric => monthlySeries(account, network, metric, start, end)); }
+  catch (reason) { periodError = reason instanceof Error ? reason.message : 'Período inválido.'; }
+  async function run() {
+    if (lock.current || !canEdit || loading || loadError || periodError) return;
+    lock.current = true; setBusy(true); setError(''); setMessage('');
+    const request = ++version.current;
+    const current = () => live.current && request === version.current;
     try {
-      const profileUrl = socialProfileUrl(network, profile.trim());
-      const next: SocialAccount = {
-        ...selected,
-        presence: undefined,
-        workspaceId,
-        businessId: business.id,
-        network,
-        profileUrl,
-        accountId: accountId.trim(),
-        measurements: selected?.measurements || [],
-        updatedAt: selected?.updatedAt,
-      };
-      let metricToShow: SocialMetric | undefined;
-      if (mode !== 'profile') {
-        let measurement;
-        if (mode === 'api') {
-          try {
-            measurement = await socialMetricsService.measure(network, profileUrl, next.accountId, token);
-          } finally {
-            if (live.current) setToken('');
-          }
-          if (!live.current) return;
-        } else {
-          if (!calendarDay(capturedAt)) throw new Error('Indicá una fecha real de medición.');
-          const metrics = Object.fromEntries(
-            Object.entries(values)
-              .filter(([, value]) => value?.trim())
-              .map(([key, value]) => {
-                if (!/^\d+$/.test(value!.trim()))
-                  throw new Error('Usá números enteros sin puntos ni comas; dejá vacío lo que no mediste.');
-                return [key, Number(value)];
-              })
-          );
-          measurement = validateSocialMeasurement({
-            id: crypto.randomUUID(),
-            network,
-            profileUrl,
-            capturedAt,
-            accountId: next.accountId || undefined,
-            source: 'manual',
-            evidence: evidence.trim(),
-            metrics,
-            periodStart: start,
-            periodEnd: end,
-          });
-        }
-        next.measurements = [...next.measurements, measurement].slice(-100);
-        metricToShow = Object.keys(measurement.metrics)[0] as SocialMetric;
+      let url = profile.trim();
+      if (!url) {
+        const result = await socialMetricsService.discover(business.url);
+        if (!current()) return;
+        const urls = [...new Set(result.candidates.filter(c => c.network === network).map(c => c.profileUrl))];
+        setCandidates(urls);
+        setMessage(urls.length ? 'Confirmá el perfil del cliente para consultar sus datos públicos.' : `No se encontró un perfil verificable de ${names[network]} en la web del cliente. Podés indicar su enlace.`);
+        return;
       }
-      const saved = await socialMetricsService.save(next);
-      if (live.current) {
-        if (metricToShow) setMetric(metricToShow);
-        setAccounts((current) => [...current.filter((account) => account.network !== network), saved]);
-        setMessage(
-          mode === 'profile'
-            ? 'Perfil guardado en el espacio de trabajo.'
-            : 'Medición guardada. Ya podés verla en el gráfico y el historial.'
-        );
+      url = publicProfileUrl(network, url);
+      let currentAccount = account;
+      if (!currentAccount || currentAccount.profileUrl !== url || currentAccount.presence) {
+        currentAccount = await socialMetricsService.save({ workspaceId, businessId: business.id, network, profileUrl: url, accountId: '', measurements: account?.measurements || [], updatedAt: account?.updatedAt, publicProfiles: [{ role: 'own', name: business.name, profileUrl: url, confirmed: true, snapshots: account?.publicProfiles?.find(p => p.role === 'own')?.snapshots || [] }, ...(account?.publicProfiles || []).filter(p => p.role !== 'own' && p.profileUrl !== url)] });
+        if (!current()) return;
+        setAccounts(rows => [...rows.filter(a => a.network !== network), currentAccount!]);
       }
-    } catch (reason) {
-      if (live.current) setError(reason instanceof Error ? reason.message : 'No se confirmó el guardado.');
-    } finally {
-      lock.current = false;
-      if (live.current) setBusy(false);
-    }
+      const result = await socialMetricsService.collectPublic(network, url, start, end);
+      if (!current()) return;
+      if (result.status !== 'measured' || !result.snapshot) { setMessage(`Sin datos verificados nuevos. ${result.message} Las mediciones anteriores se conservan.`); return; }
+      const previous = currentAccount?.publicProfiles?.find(p => p.role === 'own' && p.profileUrl === url);
+      const own = { role: 'own' as const, name: business.name, profileUrl: url, confirmed: true, snapshots: [...(previous?.snapshots || []), result.snapshot].slice(-120) };
+      const updated: SocialAccount = { workspaceId, businessId: business.id, network, profileUrl: url, accountId: currentAccount?.profileUrl === url ? currentAccount.accountId : '', measurements: currentAccount?.measurements || [], updatedAt: currentAccount?.updatedAt, publicProfiles: [own, ...(currentAccount?.publicProfiles || []).filter(p => p.role !== 'own' && p.profileUrl !== url)], presence: undefined };
+      const saved = await socialMetricsService.save(updated);
+      if (current()) {
+        setAccounts(rows => [...rows.filter(a => a.network !== network), saved]);
+        setMessage('Lectura pública guardada con su fecha real. Solo se grafican métricas verificadas; no se reconstruyen meses anteriores ni totales a partir de muestras.');
+      }
+    } catch (reason) { if (current()) setError(reason instanceof Error ? reason.message : 'No se pudo confirmar la consulta o el guardado.'); }
+    finally { lock.current = false; if (live.current) setBusy(false); }
   }
-
-  const google: SocialAccount | null = search
-    ? {
-        workspaceId,
-        businessId: business.id,
-        network: 'google',
-        profileUrl: business.url,
-        accountId: search.period.siteUrl || '',
-        measurements: [
-          {
-            id: 'current-search',
-            accountId: search.period.siteUrl,
-            network: 'google',
-            profileUrl: business.url,
-            capturedAt: search.period.loadedAt,
-            source: 'google-search-console',
-            evidence: `Search Console · ${search.period.siteUrl}`,
-            periodStart: search.period.startDate,
-            periodEnd: search.period.endDate,
-            metrics: { clicks: search.clicks, impressions: search.impressions },
-          },
-        ],
-      }
-    : null;
-
-  const history = accounts
-    .flatMap((account) =>
-      account.measurements.map((measurement) => ({
-        ...measurement,
-        current:
-          measurement.profileUrl === account.profileUrl &&
-          (!account.accountId || measurement.accountId === account.accountId),
-      }))
-    )
-    .sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))
-    .slice(0, 12);
-
-  return (
-    <div className="space-y-6 pb-20">
-      <header className="vai-panel p-6 rounded-2xl">
-        <p className="vai-overline">Presencia digital por canal</p>
-        <h1 className="font-heading text-3xl font-bold mt-2">Redes · {business.name}</h1>
-        <p className="text-sm text-slate-600 mt-2">
-          Consultá las métricas de Instagram, Facebook y TikTok en gráficos de barras. Buscá por cliente y mes o compará con tus competidores.
-        </p>
-      </header>
-
-      {loading && <p role="status" className="text-sm text-slate-500">Cargando perfiles y métricas de {business.name}…</p>}
-      {loadError && (
-        <div role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">
-          {loadError}
-          <button type="button" onClick={() => setRevision((value) => value + 1)} className="underline ml-3 font-semibold">
-            Reintentar carga
-          </button>
-        </div>
-      )}
-
-      {/* 1. Main Search & Monthly Bar Chart Component */}
-      <SocialMetricsFinder
-        business={business}
-        allBusinesses={allBusinesses}
-        accounts={accounts}
-        workspaceId={workspaceId}
-        canEdit={canEdit}
-        onSelectBusiness={onSelectBusiness}
-        onSaveAccount={async (account) => {
-          if (lock.current || !live.current) throw new Error('Esperá a que termine el guardado actual.');
-          lock.current = true;
-          setBusy(true);
-          try {
-            const saved = await socialMetricsService.save(account);
-            if (live.current) {
-              setAccounts((current) => [...current.filter((a) => a.network !== saved.network), saved]);
-            }
-          } finally {
-            lock.current = false;
-            if (live.current) setBusy(false);
-          }
-        }}
-      />
-
-      {/* 2. Public Social Research & Competitors Module */}
-      <PublicSocialResearch
-        business={business}
-        workspaceId={workspaceId}
-        accounts={accounts}
-        disabled={!canEdit || loading || Boolean(loadError) || busy}
-        start={start}
-        end={end}
-        onSave={async (account) => {
-          if (lock.current || !live.current) throw new Error('Esperá a que termine el guardado actual.');
-          lock.current = true;
-          setBusy(true);
-          try {
-            const saved = await socialMetricsService.save(account);
-            if (live.current) {
-              setAccounts((current) => [...current.filter((a) => a.network !== saved.network), saved]);
-            }
-          } finally {
-            lock.current = false;
-            if (live.current) setBusy(false);
-          }
-        }}
-      />
-
-      {/* 3. Advanced Manual Profile / API Editor & Legacy Bars */}
-      <details className="vai-panel p-5 rounded-2xl space-y-5">
-        <summary className="font-semibold cursor-pointer text-slate-800">
-          Google y registro avanzado de perfiles / API oficial
-        </summary>
-        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          {socialNetworks.map((name) => {
-            const account = accounts.find((item) => item.network === name);
-            return (
-              <div key={name} className="vai-panel p-4 rounded-xl">
-                <h2 className="font-semibold">{networkNames[name]}</h2>
-                <p className="text-xs text-slate-500 mt-2">
-                  {name === 'google'
-                    ? search
-                      ? 'Medición importada disponible'
-                      : 'Sin medición importada'
-                    : account?.presence?.status === 'not-used'
-                    ? 'Sin cuenta · confirmado por el usuario'
-                    : account
-                    ? `${account.measurements.length} mediciones guardadas`
-                    : 'Sin perfil registrado'}
-                </p>
-                {name === 'google' ? (
-                  <button onClick={() => setActiveTab('keywords')} className="underline text-sm mt-3">
-                    Abrir Search Console
-                  </button>
-                ) : account?.profileUrl ? (
-                  <a href={account.profileUrl} target="_blank" rel="noopener noreferrer" className="underline text-sm mt-3 block">
-                    Ver perfil
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    aria-controls="social-profile-editor"
-                    onClick={() => openProfileEditor(name)}
-                    className="underline text-sm mt-3"
-                  >
-                    Registrar perfil
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="vai-panel p-4 rounded-xl grid sm:grid-cols-3 gap-3">
-          <label className="text-xs">
-            Métrica
-            <select
-              className="w-full border rounded-lg p-2 mt-1"
-              value={metric}
-              onChange={(event) => setMetric(event.target.value as SocialMetric)}
-            >
-              {Object.entries(metricDefinitions).map(([key, definition]) => (
-                <option key={key} value={key}>
-                  {definition.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs">
-            Inicio del período
-            <input
-              type="date"
-              className="w-full border rounded-lg p-2 mt-1"
-              value={start}
-              onChange={(event) => setStart(event.target.value)}
-            />
-          </label>
-          <label className="text-xs">
-            Fin del período
-            <input
-              type="date"
-              className="w-full border rounded-lg p-2 mt-1"
-              value={end}
-              onChange={(event) => setEnd(event.target.value)}
-            />
-          </label>
-        </div>
-
-        <SocialMetricBars
-          name={business.name}
-          accounts={[...accounts, ...(google ? [google] : [])]}
-          metric={metric}
-          start={start}
-          end={end}
-          timezone={business.timezone}
-        />
-
-        {!search && (
-          <p className="text-xs text-slate-500">
-            Para medir Google, conectá Search Console e importá una propiedad de este negocio en Búsquedas. Una cuenta conectada sin importación no aporta cifras a este gráfico.
-          </p>
-        )}
-
-        <section
-          id="social-profile-editor"
-          ref={profileSection}
-          tabIndex={-1}
-          aria-labelledby="social-profile-heading"
-          className="vai-panel scroll-mt-44 p-6 rounded-2xl space-y-4"
-        >
-          <h2 id="social-profile-heading" className="font-heading text-xl font-bold">
-            Perfil y métricas · {networkNames[network]}
-          </h2>
-          {loadError && (
-            <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
-              No se puede guardar el perfil mientras falle la carga de Redes. {loadError}
-              <button type="button" onClick={() => setRevision((value) => value + 1)} className="underline ml-2">
-                Reintentar carga
-              </button>
-            </p>
-          )}
-          <p className="text-xs text-slate-500">
-            La URL identifica el perfil; no obtiene estadísticas por sí sola. Vacío significa sin medición, y 0 significa un cero observado.
-          </p>
-          <fieldset disabled={!canEdit || loading || Boolean(loadError) || busy} className="space-y-4 disabled:opacity-60">
-            <div className="grid sm:grid-cols-3 gap-3">
-              <label className="text-sm">
-                Red
-                <select
-                  value={network}
-                  onChange={(event) => setNetwork(event.target.value as SocialNetwork)}
-                  className="w-full border p-2 rounded-lg mt-1"
-                >
-                  {socialNetworks
-                    .filter((name) => name !== 'google')
-                    .map((name) => (
-                      <option key={name} value={name}>
-                        {networkNames[name]}
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label className="text-sm sm:col-span-2">
-                URL del perfil oficial
-                <input
-                  ref={profileInput}
-                  type="url"
-                  value={profile}
-                  onChange={(event) => setProfile(event.target.value)}
-                  className="w-full border p-2 rounded-lg mt-1"
-                  placeholder={`https://www.${network}.com/tu-perfil`}
-                />
-              </label>
-            </div>
-            <label className="text-sm block">
-              Identificador de cuenta para API (opcional al registrar perfil)
-              <input
-                value={accountId}
-                onChange={(event) => setAccountId(event.target.value)}
-                maxLength={128}
-                className="w-full border p-2 rounded-lg mt-1"
-              />
-            </label>
-            <button type="button" onClick={() => void save('profile')} className="vai-button vai-button-secondary">
-              Guardar perfil
-            </button>
-            <details className="border rounded-xl p-4">
-              <summary className="cursor-pointer font-semibold">Cargar medición manual con evidencia</summary>
-              <p className="text-xs text-slate-500 mt-3">
-                Transcribí datos de la cuenta o de su informe exportado. No se presentan como una consulta automática. Las métricas acumuladas no son el resultado del período.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-3 mt-4">
-                {Object.entries(metricDefinitions)
-                  .filter(([, definition]) => (definition.networks as readonly string[]).includes(network))
-                  .map(([key, definition]) => (
-                    <label key={key} className="text-xs">
-                      {definition.label}
-                      <input
-                        inputMode="numeric"
-                        value={values[key as SocialMetric] || ''}
-                        onChange={(event) => setValues((current) => ({ ...current, [key]: event.target.value }))}
-                        placeholder="Sin medición"
-                        className="w-full border rounded-lg p-2 mt-1"
-                      />
-                    </label>
-                  ))}
-              </div>
-              <label className="text-xs block mt-4">
-                Fecha observada
-                <input
-                  type="date"
-                  value={capturedAt}
-                  onChange={(event) => setCapturedAt(event.target.value)}
-                  className="border rounded-lg p-2 ml-2"
-                />
-              </label>
-              <label className="text-xs block mt-4">
-                Evidencia / nombre del informe y procedencia
-                <textarea
-                  value={evidence}
-                  onChange={(event) => setEvidence(event.target.value)}
-                  maxLength={2000}
-                  className="w-full border rounded-lg p-2 mt-1"
-                  placeholder="Ej.: exportación de Meta Business Suite del cliente, período indicado"
-                />
-              </label>
-              <p className="text-xs text-slate-500 my-3">
-                Para alcance, visualizaciones e interacciones se usa el período elegido arriba.
-              </p>
-              <button type="button" onClick={() => void save('manual')} className="vai-button vai-button-primary">
-                Guardar medición manual
-              </button>
-            </details>
-            <details className="border rounded-xl p-4">
-              <summary className="cursor-pointer font-semibold">Consultar API oficial · acceso autorizado</summary>
-              <p className="text-xs text-slate-500 mt-3">
-                Requiere un token autorizado de la cuenta y sus permisos. Confirmá que el identificador pertenece al perfil que registraste.
-              </p>
-              <label className="text-xs block mt-4">
-                Token autorizado (solo para esta consulta)
-                <input
-                  type="password"
-                  autoComplete="off"
-                  value={token}
-                  onChange={(event) => setToken(event.target.value)}
-                  className="w-full border rounded-lg p-2 mt-1"
-                />
-              </label>
-              <button type="button" onClick={() => void save('api')} className="vai-button vai-button-primary mt-3">
-                Consultar y guardar métricas oficiales
-              </button>
-            </details>
-          </fieldset>
-          {!canEdit && <p className="text-xs">Acceso de lectura: solo el propietario puede registrar datos de redes.</p>}
-          {busy && <p role="status">Comprobando y guardando…</p>}
-          {message && <p role="status" className="text-emerald-800">{message}</p>}
-          {error && <p role="alert" className="text-red-800 whitespace-pre-wrap">{error}</p>}
-        </section>
-
-        <section className="vai-panel p-6 rounded-2xl">
-          <h2 className="font-heading text-xl font-bold">Últimas mediciones guardadas</h2>
-          {!history.length ? (
-            <p className="text-sm mt-3 text-slate-500">Todavía no hay mediciones sociales guardadas para este negocio.</p>
-          ) : (
-            <div className="overflow-x-auto mt-4">
-              <table className="w-full text-xs text-left">
-                <thead>
-                  <tr>
-                    <th className="p-2">Red / fecha</th>
-                    <th className="p-2">Valores</th>
-                    <th className="p-2">Fuente y evidencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((row) => (
-                    <tr key={row.id} className="border-t">
-                      <td className="p-2">
-                        {networkNames[row.network]}
-                        <br />
-                        {row.source === 'manual' && /^\d{4}-\d{2}-\d{2}$/.test(row.capturedAt)
-                          ? measurementDateLabel(row.capturedAt, business.locale, business.timezone)
-                          : measurementTime(row.capturedAt, business.timezone)}
-                        {!row.current && <p className="text-amber-600">Perfil anterior · no se grafica como actual</p>}
-                        {row.periodStart && <p className="text-slate-400">{row.periodStart} a {row.periodEnd}</p>}
-                      </td>
-                      <td className="p-2">
-                        {Object.entries(row.metrics).map(([key, value]) => (
-                          <p key={key}>
-                            {metricDefinitions[key as SocialMetric].label}: {value?.toLocaleString('es-AR')}
-                          </p>
-                        ))}
-                      </td>
-                      <td className="p-2 whitespace-pre-wrap">
-                        {row.source === 'manual' ? 'Carga manual' : 'API oficial'}
-                        <br />
-                        {row.evidence}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      </details>
-    </div>
-  );
+  return <div className="space-y-6">
+    <header><h2 className="font-heading text-2xl font-bold">Redes</h2><p className="text-sm text-slate-500 mt-2">Elegí un cliente, una red y el período que querés revisar.</p></header>
+    <section className="vai-panel rounded-2xl p-5 space-y-4">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <label className="text-sm font-medium">Cliente<select disabled={busy} className="block border rounded-lg p-3 w-full mt-2" value={business.id} onChange={e => onSelectBusiness?.(e.target.value)}>{allBusinesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+        <label className="text-sm font-medium">Red<select disabled={busy} className="block border rounded-lg p-3 w-full mt-2" value={network} onChange={e => setNetwork(e.target.value as PublicNetwork)}>{Object.entries(names).map(([key,name]) => <option key={key} value={key}>{name}</option>)}</select></label>
+        <label className="text-sm font-medium">Desde<input disabled={busy} type="date" value={start} max={end || today} className="block border rounded-lg p-3 w-full mt-2" onChange={e => { setStart(e.target.value); setMessage(''); }} /></label>
+        <label className="text-sm font-medium">Hasta<input disabled={busy} type="date" value={end} min={start} max={today} className="block border rounded-lg p-3 w-full mt-2" onChange={e => { setEnd(e.target.value); setMessage(''); }} /></label>
+      </div>
+      <div className="flex flex-wrap gap-3 items-center"><button onClick={run} disabled={busy || loading || !!loadError || !!periodError || !canEdit} className="rounded-lg bg-emerald-800 text-white px-5 py-3 disabled:opacity-50">{busy ? 'Buscando…' : 'Buscar datos públicos'}</button><span className="text-xs text-slate-500">{loading ? 'Cargando historial…' : 'Los gráficos muestran las mediciones guardadas del período.'}</span></div>
+      <details open={!account?.profileUrl} className="text-sm"><summary className="cursor-pointer">Perfil de {names[network]}</summary><label className="block mt-3">Enlace confirmado del cliente<input disabled={busy || !canEdit} type="url" value={profile} onChange={e => setProfile(e.target.value)} className="block border rounded-lg p-3 w-full mt-2" placeholder={`https://www.${network}.com/${network === 'tiktok' ? '@' : ''}perfil/`} /></label>{candidates.map(url => <button key={url} className="block underline mt-3 break-all text-left" onClick={() => { setProfile(url); setCandidates([]); setMessage('Perfil seleccionado. Confirmá que corresponde al cliente y pulsá Buscar datos públicos.'); }}>Usar {url}</button>)}</details>
+      <p className="text-xs text-slate-500">Seguidores: última medición observada de cada mes. Visualizaciones y alcance: solo informes del período exacto. La consulta pública actual no recupera automáticamente el historial ni el alcance privado.</p>
+    </section>
+    {(loadError || error || periodError) && <p role="alert" className="border border-red-200 bg-red-50 p-4 rounded-xl">{loadError || error || periodError}</p>}
+    {message && <p role="status" className="border bg-slate-50 p-4 rounded-xl">{message}</p>}
+    {account && hasUnverifiedSeeds(account) && <p role="alert" className="border border-amber-200 bg-amber-50 p-4 rounded-xl text-sm">Se detectaron cifras precargadas sin evidencia real. Se excluyeron de los gráficos; no se borraron registros guardados.</p>}
+    {!loading && !loadError && !periodError && <>
+      {!series.some(points => points.some(p => p.value !== null)) && <p className="text-sm text-slate-600">Sin datos verificados para {names[network]} en este período.</p>}
+      {account?.presence?.status === 'not-used' && <p className="text-sm">Sin cuenta · confirmado por el operador. No equivale a cero seguidores.</p>}
+      <div className="grid xl:grid-cols-3 gap-5">{(Object.entries(monthlyMetrics)).map(([metric,title],i) => <MonthlyChart key={metric} title={title} points={series[i]} />)}</div>
+    </>}
+  </div>;
 }
-
-export function SocialNetworksView(props: Props) {
-  return <SocialNetworksForm key={`${props.workspaceId}:${props.business.id}:${props.business.url}`} {...props} />;
-}
+export function SocialNetworksView(props: Props) { return <SocialNetworksForm key={`${props.workspaceId}:${props.business.id}:${props.business.url}`} {...props} />; }
