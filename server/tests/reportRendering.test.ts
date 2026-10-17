@@ -4,7 +4,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MonthlyReportView } from '../../src/components/MonthlyReportView';
 import { EvolutionView } from '../../src/components/EvolutionView';
-import type { Business, MonthlyEvolution, ExecutiveIssue, ActionTask } from '../../src/types';
+import type { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, Workspace } from '../../src/types';
 
 const business = { id: 'own', name: 'Cliente seleccionado', url: 'https://own.example', description: 'Descripción confirmada', scores: { web: 0 }, scoreSources: { web: 'unavailable' } } as Business;
 const evolution: MonthlyEvolution = { source: 'real', months: [], visibility: [], fixedProblems: [], googlePositions: [], estimatedVisits: [], consultations: [], monthComparison: { visibilityChangePercent: 0, improvedPositionsCount: 0, solvedProblemsCount: 0, newOpportunitiesCount: 0, consultationsTotal: 0 }, searchMonths: ['2026-09-14 a 2026-10-11'], searchClicks: [0], searchImpressions: [0], searchCtr: [0], searchPeriods: [{ siteUrl: 'sc-domain:own.example', startDate: '2026-09-14', endDate: '2026-10-11', loadedAt: '2026-10-13T20:00:00Z' }] };
@@ -19,6 +19,16 @@ test('client report preserves empty measured search scope without inventing CTR,
   assert.ok(html.includes('SIN MEDICIÓN'));
   assert.ok(html.includes('Sin medición actual de rendimiento disponible'));
   assert.ok(!html.includes('NaN'));
+});
+
+test('direct client saving is offered only for an owner and the selected real business workspace', () => {
+  const ownBusiness = {...business,workspaceId:'workspace'};
+  const workspace = {id:'workspace',role:'owner'} as Workspace;
+  const clientReportStore = {list:async () => [],saveReport:async () => { throw Error('SSR must not write'); }};
+  assert.match(render({business:ownBusiness,workspace,clientReportStore}),/Guardar en Clientes/);
+  assert.doesNotMatch(render({business:ownBusiness,workspace:{...workspace,role:'viewer'},clientReportStore}),/Guardar en Clientes/);
+  assert.doesNotMatch(render({business:ownBusiness,workspace:{...workspace,id:'foreign'},clientReportStore}),/Guardar en Clientes/);
+  assert.doesNotMatch(render({business:ownBusiness,workspace,clientReportStore,evolution:{...evolution,source:'demo',searchPeriods:[],searchClicks:[],searchImpressions:[]}}),/Guardar en Clientes/);
 });
 
 test('client report includes dated mobile FCP and LCP values and labels their laboratory scope', () => {

@@ -24,6 +24,7 @@ import { ContentGeneratorView } from './components/ContentGeneratorView';
 import { ActionPlanView } from './components/ActionPlanView';
 import { EvolutionView } from './components/EvolutionView';
 import { MonthlyReportView } from './components/MonthlyReportView';
+import { clientService } from './services/clientService';
 import { ClientsView } from './components/ClientsView';
 import { AdminView } from './components/AdminView';
 import { AiAssistantModal } from './components/AiAssistantModal';
@@ -908,11 +909,15 @@ export default function App() {
 
             {activeTab === 'monthly-report' && (
               <MonthlyReportView
+                key={`${activeWorkspace?.id}:${activeBusiness.id}`}
                 business={activeBusiness}
                 evolution={evolution}
                 issues={issues}
                 tasks={actionTasks}
                 auditMeta={seoAuditMeta}
+                workspace={activeWorkspace}
+                onOpenClients={() => setActiveTab('clients')}
+                clientReportStore={clientService}
               />
             )}
 
