@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Business, Workspace } from '../types';
 import type { ClientAccount } from '../../shared/clientLedger';
-import { saveGeneratedClientReport, type GeneratedReportStore } from '../../shared/generatedClientReport';
+import { saveGeneratedClientReport, type GeneratedReportStore, type PreparedClientReport } from '../../shared/generatedClientReport';
 
 export function SaveReportToClient({ workspace, business, prepare, store, onOpenClients }: {
   workspace: Workspace;
   business: Business;
-  prepare: () => Promise<File>;
+  prepare: () => Promise<PreparedClientReport>;
   store: GeneratedReportStore;
   onOpenClients?: () => void;
 }) {

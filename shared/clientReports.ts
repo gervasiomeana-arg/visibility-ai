@@ -20,6 +20,7 @@ export async function saveClientReport(client: ClientAccount, report: ClientRepo
   if (client.reports.some(item => item.id === report.id)) throw new Error('El informe ya está registrado.');
   if (!client.businessIds.includes(report.businessId)) throw new Error('El negocio no está asociado a este cliente.');
   if (!report.title.trim() || report.title.length > 160 || !report.period.trim() || report.period.length > 100 || !report.businessName.trim() || !Number.isFinite(Date.parse(report.createdAt)) || report.sentAt || report.sentRecordedAt || report.channel) throw new Error('Revisá los datos del informe. El envío se registra después, por separado.');
+  if (report.contentSha256 !== undefined && !/^[a-f0-9]{64}$/.test(report.contentSha256)) throw new Error('La huella de contenido del informe es inválida.');
   const savedReport: ClientReport = { ...report, fileName: file.name, filePath: path, fileSizeBytes: file.size, fileSha256: await pdfFingerprint(file) };
   await store.upload(path, file);
   let failure: unknown;
@@ -33,7 +34,7 @@ export async function saveClientReport(client: ClientAccount, report: ClientRepo
     const current = await store.read(client.workspaceId, client.id);
     const registered = current?.reports.find(item => item.id === report.id);
     if (current?.workspaceId === client.workspaceId && current.id === client.id && registered &&
-      (['filePath','fileSha256','fileSizeBytes','fileName','businessId','businessName','title','period','createdAt'] as const).every(key => registered[key] === savedReport[key])) return current;
+      (['filePath','fileSha256','contentSha256','fileSizeBytes','fileName','businessId','businessName','title','period','createdAt'] as const).every(key => registered[key] === savedReport[key])) return current;
   } catch (error) { if (!failure) failure = error; }
   const detail = failure instanceof Error ? failure.message : 'La lectura de Supabase no devolvió el informe esperado.';
   throw new Error(`El PDF se cargó, pero no se pudo confirmar el registro del informe. El archivo se conserva para evitar perderlo. Recargá Clientes antes de volver a cargarlo. ${detail}`);
