@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { exactPublicCount, publicMetadataCounts } from './publicSocialMetadata';
 import { publicReadFailure } from './publicReadFailure';
 import { fetchPublicProfileHtml } from './seoAuditService';
 import { calendarDay, publicProfileUrl, validatePublicSnapshot, type PublicNetwork, type PublicPost, type PublicSnapshot } from '../shared/socialMetrics';
@@ -39,7 +40,7 @@ function actionCounts(node: any) {
   const output: { likes?: number; comments?: number; views?: number; followers?: number } = {};
   for (const item of Array.isArray(node.interactionStatistic) ? node.interactionStatistic : node.interactionStatistic ? [node.interactionStatistic] : []) {
     const type = typeof item.interactionType === 'string' ? item.interactionType : item.interactionType?.['@type'];
-    const value = count(item.userInteractionCount); if (value === undefined) continue;
+    const value = exactPublicCount(item.userInteractionCount); if (value === undefined) continue;
     const action = String(type || '').split(/[\/#]/).at(-1);
     if (action === 'FollowAction' || action === 'SubscribeAction') output.followers = value;
     if (action === 'LikeAction') output.likes = value;
@@ -51,7 +52,8 @@ function actionCounts(node: any) {
 export function parsePublicSocialHtml(network: PublicNetwork, profile: string, html: string, start: string, end: string, capturedAt = new Date().toISOString()): PublicSnapshot | null {
   const profileUrl = publicProfileUrl(network, profile), nodes = jsonNodes(html);
   const username = new URL(profileUrl).pathname.split('/').filter(Boolean)[0].replace(/^@/, '');
-  let followers: number | undefined, totalPosts: number | undefined;
+  const metadata = publicMetadataCounts(network, profileUrl, html);
+  let followers: number | undefined = metadata.followers, totalPosts: number | undefined = metadata.totalPosts;
   const posts = new Map<string, PublicPost>();
   function addPost(url: unknown, publishedAt: unknown, values: Pick<PublicPost, 'likes' | 'comments' | 'views'>) {
     if (typeof url !== 'string' || typeof publishedAt !== 'string' || !calendarDay(publishedAt.slice(0, 10))) return;
@@ -61,8 +63,9 @@ export function parsePublicSocialHtml(network: PublicNetwork, profile: string, h
   }
   for (const node of nodes) {
     // TikTok embeds public data associated with a specific, verified username.
-    if (network === 'tiktok' && typeof node.user?.uniqueId === 'string' && node.user.uniqueId.toLowerCase() === username && node.stats) {
-      followers = count(node.stats.followerCount); totalPosts = count(node.stats.videoCount);
+    if (network === 'tiktok' && typeof node.user?.uniqueId === 'string' && node.user.uniqueId.toLowerCase() === username && (node.stats || node.statsV2)) {
+      const stats = node.statsV2 || node.stats;
+      followers = exactPublicCount(stats.followerCount) ?? followers; totalPosts = exactPublicCount(stats.videoCount) ?? totalPosts;
     }
     if (network === 'tiktok' && typeof node.author?.uniqueId === 'string' && node.author.uniqueId.toLowerCase() === username && node.stats && typeof node.id === 'string' && /^\d+$/.test(node.id)) {
       const stamp = Number(node.createTime) * 1000;
@@ -83,7 +86,7 @@ export function parsePublicSocialHtml(network: PublicNetwork, profile: string, h
     }
   }
   if (followers === undefined && totalPosts === undefined && !posts.size) return null;
-  return validatePublicSnapshot(network, { id: crypto.randomUUID(), profileUrl, capturedAt, source: 'public-web', evidence: `HTML público sin sesión · ${profileUrl} · muestra disponible; no acredita cobertura completa`, followers, totalPosts, posts: [...posts.values()], periodStart: start, periodEnd: end });
+  return validatePublicSnapshot(network, { id: crypto.randomUUID(), profileUrl, capturedAt, source: 'public-web', evidence: `HTML público sin sesión · ${profileUrl} · ${metadata.method || 'datos estructurados identificados'} · muestra disponible; no acredita cobertura completa`, followers, totalPosts, posts: [...posts.values()], periodStart: start, periodEnd: end });
 }
 export async function discoverPublicProfiles(domain: string, reader: PageReader = fetchPublicProfileHtml) {
   const page = await reader(domain);
