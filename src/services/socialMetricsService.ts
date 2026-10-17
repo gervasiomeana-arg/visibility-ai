@@ -1,12 +1,23 @@
 import { socialStorageFailure } from '../../shared/socialStorageFailure';
 import { supabase, authService } from './authService';
 import { apiFetchJson } from './apiClient';
-import { validateSocialAccount, validateSocialMeasurement, type SocialAccount, type SocialMeasurement } from '../../shared/socialMetrics';
+import { publicProfileUrl, validatePublicSnapshot, validateSocialAccount, validateSocialMeasurement, type PublicNetwork, type PublicSnapshot, type SocialAccount, type SocialMeasurement } from '../../shared/socialMetrics';
 function db() { if (!supabase) throw new Error('Redes necesita Supabase configurado.'); return supabase; }
 function decode(row: any): SocialAccount {
   return validateSocialAccount({ ...row.payload, workspaceId: row.workspace_id, businessId: row.business_id, network: row.network, updatedAt: row.updated_at });
 }
 export const socialMetricsService = {
+  async discover(domain: string): Promise<{ candidates: { network: PublicNetwork; profileUrl: string; foundOn: string }[]; checkedAt: string; finalUrl: string; note: string }> {
+    return apiFetchJson('/api/social/public/discover', { method: 'POST', headers: await authService.getAuthorizationHeaders({ 'content-type': 'application/json' }), body: JSON.stringify({ domain }), signal: AbortSignal.timeout(35000) });
+  },
+  async collectPublic(network: PublicNetwork, profileUrl: string, start: string, end: string): Promise<{ status: 'measured' | 'unavailable'; snapshot?: PublicSnapshot; message: string }> {
+    const result = await apiFetchJson<{ status: 'measured' | 'unavailable'; snapshot?: PublicSnapshot; message: string }>('/api/social/public/collect', { method: 'POST', headers: await authService.getAuthorizationHeaders({ 'content-type': 'application/json' }), body: JSON.stringify({ network, profileUrl, start, end }), signal: AbortSignal.timeout(35000) });
+    if (result.status === 'measured') {
+      const snapshot = validatePublicSnapshot(network, result.snapshot!);
+      if (publicProfileUrl(network, snapshot.profileUrl) !== publicProfileUrl(network, profileUrl) || snapshot.periodStart !== start || snapshot.periodEnd !== end || snapshot.source !== 'public-web') throw new Error('La observación no corresponde al perfil o período consultado.');
+    }
+    return result;
+  },
   async list(workspaceId: string, businessId: string): Promise<SocialAccount[]> {
     const { data, error } = await db().from('business_social_accounts').select('workspace_id,business_id,network,payload,updated_at').eq('workspace_id', workspaceId).eq('business_id', businessId);
     if (error) throw new Error(socialStorageFailure(error));

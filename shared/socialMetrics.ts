@@ -21,6 +21,61 @@ export interface SocialMeasurement {
 export interface SocialAccount {
   workspaceId: string; businessId: string; network: SocialNetwork;
   profileUrl: string; accountId: string; measurements: SocialMeasurement[]; updatedAt?: string;
+  publicProfiles?: PublicSocialProfile[];
+}
+export type PublicNetwork = Exclude<SocialNetwork, 'google'>;
+export interface PublicPost {
+  url: string; publishedAt: string; likes?: number; comments?: number; views?: number;
+}
+export interface PublicSnapshot {
+  id: string; profileUrl: string; capturedAt: string; source: 'public-web' | 'manual-public';
+  evidence: string; followers?: number; totalPosts?: number; posts: PublicPost[];
+  periodStart: string; periodEnd: string;
+}
+export interface PublicSocialProfile {
+  role: 'own' | 'competitor-1' | 'competitor-2'; name: string; profileUrl: string;
+  confirmed: boolean; snapshots: PublicSnapshot[];
+}
+/** Canonical identity, excluding share links, login screens and individual posts. */
+export function publicProfileUrl(network: PublicNetwork, value: string): string {
+  const url = new URL(socialProfileUrl(network, value));
+  if (url.port) throw new Error('El perfil no debe incluir un puerto.');
+  const parts = url.pathname.split('/').filter(Boolean);
+  const reserved = /^(p|reel|reels|stories|explore|accounts|login|share|sharer|watch|video|videos|search|hashtag|intent|help|privacy|legal|plugins|dialog)$/i;
+  if (network === 'facebook' && parts[0] === 'profile.php' && /^\d+$/.test(url.searchParams.get('id') || '')) return `https://www.facebook.com/profile.php?id=${url.searchParams.get('id')}`;
+  if (parts.length !== 1 || reserved.test(parts[0]) || !/^[A-Za-z0-9_.@-]+$/.test(parts[0]) || (network === 'tiktok' && !/^@[A-Za-z0-9_.]+$/.test(parts[0]))) throw new Error('Usá la dirección del perfil, no una publicación ni un enlace para compartir.');
+  return `https://www.${network}.com/${parts[0].toLowerCase()}/`;
+}
+export function validatePublicSnapshot(network: PublicNetwork, value: PublicSnapshot): PublicSnapshot {
+  if (!value || typeof value.id !== 'string' || !value.id || typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) ||
+    !['public-web', 'manual-public'].includes(value.source) || typeof value.evidence !== 'string' || value.evidence.trim().length < 8 || value.evidence.length > 2000 ||
+    !calendarDay(value.periodStart) || !calendarDay(value.periodEnd) || value.periodStart > value.periodEnd || !Array.isArray(value.posts) || value.posts.length > 100) throw new Error('La observación pública necesita fecha, período y evidencia.');
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value.capturedAt) && !calendarDay(value.capturedAt)) throw new Error('Fecha observada inválida.');
+  publicProfileUrl(network, value.profileUrl);
+  const observedDay = value.capturedAt.slice(0, 10);
+  if (!calendarDay(observedDay) || observedDay > new Date().toISOString().slice(0, 10) || value.periodEnd > new Date().toISOString().slice(0, 10)) throw new Error('No se guardan observaciones ni períodos futuros.');
+  const validCount = (count: unknown) => typeof count === 'number' && Number.isSafeInteger(count) && count >= 0;
+  for (const count of [value.followers, value.totalPosts]) if (count !== undefined && !validCount(count)) throw new Error('Los recuentos deben ser enteros observados; un dato desconocido se deja vacío.');
+  if (value.followers === undefined && value.totalPosts === undefined && !value.posts.length) throw new Error('No se guardan observaciones vacías.');
+  const seen = new Set<string>();
+  for (const post of value.posts) {
+    const url = new URL(socialProfileUrl(network, post.url));
+    if (url.port || url.search || url.hash || seen.has(url.href) || !calendarDay(post.publishedAt) || post.publishedAt < value.periodStart || post.publishedAt > value.periodEnd || post.publishedAt > observedDay) throw new Error('Revisá la URL, fecha, período o duplicación de la publicación.');
+    seen.add(url.href);
+    for (const count of [post.likes, post.comments, post.views]) if (count !== undefined && !validCount(count)) throw new Error('Los recuentos de la publicación no son válidos.');
+  }
+  return value;
+}
+export function validatePublicProfiles(network: PublicNetwork, profiles: PublicSocialProfile[]) {
+  if (!Array.isArray(profiles) || profiles.length > 3) throw new Error('Registrá el negocio y hasta dos competidores.');
+  const roles = new Set<string>(), urls = new Set<string>();
+  for (const profile of profiles) {
+    const url = publicProfileUrl(network, profile.profileUrl);
+    if (!['own', 'competitor-1', 'competitor-2'].includes(profile.role) || roles.has(profile.role) || urls.has(url) || typeof profile.name !== 'string' || !profile.name.trim() || profile.name.length > 160 || typeof profile.confirmed !== 'boolean' || !Array.isArray(profile.snapshots) || profile.snapshots.length > 120) throw new Error('Los perfiles deben ser distintos y tener nombre y rol válidos.');
+    roles.add(profile.role); urls.add(url);
+    for (const snapshot of profile.snapshots) validatePublicSnapshot(network, snapshot);
+  }
+  return profiles;
 }
 export function calendarDay(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -69,6 +124,7 @@ export function validateSocialAccount(account: SocialAccount): SocialAccount {
   if (!account || !account.workspaceId || !account.businessId || !socialNetworks.includes(account.network) || account.network === 'google' ||
     typeof account.accountId !== 'string' || account.accountId.length > 128 || !Array.isArray(account.measurements) || account.measurements.length > 100) throw new Error('La ficha de la red no es válida.');
   socialProfileUrl(account.network, account.profileUrl);
+  if (account.publicProfiles !== undefined) validatePublicProfiles(account.network as PublicNetwork, account.publicProfiles);
   for (const measurement of account.measurements) {
     validateSocialMeasurement(measurement);
     if (measurement.network !== account.network) throw new Error('La medición corresponde a otra red.');
