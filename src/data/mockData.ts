@@ -76,28 +76,6 @@ export const INITIAL_BUSINESSES: Business[] = [
       ok: 14,
     },
   },
-  {
-    id: 'biz-hotel-nuevohorizonte',
-    name: 'Hotel Nuevo Horizonte Centro',
-    url: 'https://www.nuevohorizontehotel.com.ar',
-    category: 'Hotelería y Turismo',
-    city: 'Mar del Plata',
-    country: 'Argentina',
-    createdAt: '2026-03-01',
-    scores: {
-      overall: 69,
-      google: 75,
-      seo: 62,
-      web: 68,
-      aiVisibility: 52,
-    },
-    totalOpportunities: 18,
-    problemsCount: {
-      high: 3,
-      medium: 7,
-      ok: 12,
-    },
-  },
 ];
 
 export const INITIAL_EXECUTIVE_ISSUES: Record<string, ExecutiveIssue[]> = {

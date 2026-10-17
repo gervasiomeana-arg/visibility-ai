@@ -897,12 +897,12 @@ export default function App() {
               />
             )}
 
-            {activeTab === 'social-networks' && (
+            {activeTab === 'social-networks' && activeWorkspace && (
               <SocialNetworksView
                 business={activeBusiness}
                 allBusinesses={businesses}
-                workspaceId={activeWorkspace?.id || 'local-workspace'}
-                canEdit={!activeWorkspace || activeWorkspace.role === 'owner'}
+                workspaceId={activeWorkspace.id}
+                canEdit={activeWorkspace.role === 'owner'}
                 evolution={evolution}
                 setActiveTab={setActiveTab}
                 onSelectBusiness={handleSelectBusiness}
