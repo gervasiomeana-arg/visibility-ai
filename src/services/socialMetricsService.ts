@@ -7,6 +7,7 @@ function decode(row: any): SocialAccount {
   return validateSocialAccount({ ...row.payload, workspaceId: row.workspace_id, businessId: row.business_id, network: row.network, updatedAt: row.updated_at });
 }
 export const socialMetricsService = {
+  async instagramDiscoveryStatus(): Promise<{ configured: boolean; missing: string[]; operatorAllowed: boolean }> { return apiFetchJson('/api/social/instagram/discovery/status', { headers: await authService.getAuthorizationHeaders(), signal: AbortSignal.timeout(10000) }); },
   async discover(domain: string): Promise<{ candidates: { network: PublicNetwork; profileUrl: string; foundOn: string }[]; checkedAt: string; finalUrl: string; note: string }> {
     return apiFetchJson('/api/social/public/discover', { method: 'POST', headers: await authService.getAuthorizationHeaders({ 'content-type': 'application/json' }), body: JSON.stringify({ domain }), signal: AbortSignal.timeout(35000) });
   },
@@ -14,7 +15,7 @@ export const socialMetricsService = {
     const result = await apiFetchJson<{ status: 'measured' | 'unavailable'; snapshot?: PublicSnapshot; message: string }>('/api/social/public/collect', { method: 'POST', headers: await authService.getAuthorizationHeaders({ 'content-type': 'application/json' }), body: JSON.stringify({ network, profileUrl, start, end }), signal: AbortSignal.timeout(35000) });
     if (result.status === 'measured') {
       const snapshot = validatePublicSnapshot(network, result.snapshot!);
-      if (publicProfileUrl(network, snapshot.profileUrl) !== publicProfileUrl(network, profileUrl) || snapshot.periodStart !== start || snapshot.periodEnd !== end || snapshot.source !== 'public-web') throw new Error('La observación no corresponde al perfil o período consultado.');
+      if (publicProfileUrl(network, snapshot.profileUrl) !== publicProfileUrl(network, profileUrl) || snapshot.periodStart !== start || snapshot.periodEnd !== end || !['public-web', 'official-public-api'].includes(snapshot.source)) throw new Error('La observación no corresponde al perfil o período consultado.');
     }
     return result;
   },
