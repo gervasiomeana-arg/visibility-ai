@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { saveGeneratedClientReport } from '../../shared/generatedClientReport';
+import { readFileSync } from 'node:fs';
+import { reportContentFingerprint, saveGeneratedClientReport } from '../../shared/generatedClientReport';
+import { createReportPdf, type ReportPdfBlock } from '../../shared/reportPdf';
 import { pdfFingerprint, saveClientReport, verifyClientReportDownload } from '../../shared/clientReports';
 import type { ClientAccount } from '../../shared/clientLedger';
 
@@ -11,7 +13,8 @@ const client: ClientAccount = {
 };
 const request = { workspaceId, clientId:client.id, business:{id:'business',workspaceId,name:'Negocio QA'}, title:'Diagnóstico', period:'Octubre 2026' };
 // Storage fixture only, not a client deliverable or a live PDF export.
-const prepare = async () => new File(['%PDF-1.7\nQA\n%%EOF'],'Visibility-QA.pdf',{type:'application/pdf'});
+const blocks: ReportPdfBlock[] = [{kind:'title',text:'Negocio QA'},{kind:'body',text:'LCP: 3,349 s · Medición: 17/10/2026'}];
+const prepare = async () => ({file:new File(['%PDF-1.7\nQA\n%%EOF'],'Visibility-QA.pdf',{type:'application/pdf'}),contentSha256:await reportContentFingerprint(blocks)});
 
 test('direct report rejects a foreign workspace or a client no longer associated before generating or storing', async () => {
   let generated = 0;
@@ -78,11 +81,32 @@ test('unconfirmed database persistence does not turn a direct save into success'
 });
 
 test('retry after a lost acknowledgement cannot upload the same registered document again', async () => {
-  const file = await prepare();
+  const {file} = await prepare();
   const fresh = {...client,reports:[{id:'existing',businessId:'business',businessName:'Negocio QA',title:request.title,period:request.period,fileName:file.name,filePath:'existing.pdf',createdAt:'2026-10-17T12:00:00Z',fileSha256:await pdfFingerprint(file)}]};
   let uploads = 0;
   await assert.rejects(saveGeneratedClientReport(request,prepare,()=>true,{
     list:async () => [fresh],saveReport:async () => {uploads++;return fresh;},
   }),/ya está guardado/);
   assert.equal(uploads,0);
+});
+
+test('regenerating a real PDF changes its binary hash but cannot duplicate unchanged report content', async () => {
+  const font = (name:string) => readFileSync(new URL(`../../src/assets/pdf-fonts/${name}`,import.meta.url)).toString('base64');
+  const fonts = {regular:font('DejaVuSans-report.ttf'),bold:font('DejaVuSans-report-bold.ttf')};
+  const one = new File([createReportPdf(blocks,fonts)],'one.pdf',{type:'application/pdf'});
+  const two = new File([createReportPdf(blocks,fonts)],'two.pdf',{type:'application/pdf'});
+  const contentSha256 = await reportContentFingerprint(blocks);
+  assert.notEqual(await pdfFingerprint(one),await pdfFingerprint(two),'jsPDF produces distinct document identifiers');
+  const fresh = {...client,reports:[{id:'existing',businessId:'business',businessName:'Negocio QA',title:request.title,period:request.period,fileName:one.name,filePath:'existing.pdf',createdAt:'2026-10-17T12:00:00Z',contentSha256,fileSha256:await pdfFingerprint(one)}]};
+  let uploads=0;
+  await assert.rejects(saveGeneratedClientReport(request,async () => ({file:two,contentSha256}),()=>true,{
+    list:async () => [fresh],saveReport:async () => {uploads++;return fresh;},
+  }),/mismo contenido/);
+  assert.equal(uploads,0);
+  const changed = await reportContentFingerprint([...blocks,{kind:'body',text:'Medición nueva: LCP 2,1 s'}]);
+  assert.notEqual(changed,contentSha256);
+  await saveGeneratedClientReport(request,async () => ({file:two,contentSha256:changed}),()=>true,{
+    list:async () => [fresh],saveReport:async (_client,report) => {assert.equal(report.contentSha256,changed);uploads++;return fresh;},
+  });
+  assert.equal(uploads,1);
 });

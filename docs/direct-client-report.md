@@ -11,6 +11,8 @@ La vista Informe permite guardar su PDF en una ficha asociada al negocio sin des
 - El guardado existente valida PDF, calcula SHA-256, carga el archivo privado y confirma el registro mediante otra lectura.
 - Cambiar de negocio, salir de la vista o actualizar el informe durante su preparación cancela la carga. Una escritura ya iniciada permanece vinculada al cliente original; no se transfiere al siguiente negocio.
 - Un documento idéntico, con el mismo negocio, título y período, no vuelve a cargarse tras recargar la lista.
+- La detección del guardado directo utiliza una huella del contenido del informe, independiente de la fecha de creación y del identificador interno aleatorio del PDF. La huella de bytes se conserva por separado para comprobar la descarga.
+- Los informes anteriores sin huella de contenido siguen disponibles; no se deduplican retroactivamente por su texto ni se borran copias existentes.
 - El registro queda sin fecha ni canal de envío. Guardar no envía WhatsApp, no acredita recepción y no registra pagos.
 
 ## Verificación antes de cerrar el piloto

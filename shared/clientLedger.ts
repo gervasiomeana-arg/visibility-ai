@@ -1,7 +1,7 @@
 export interface ClientInvoice { id: string; period: string; dueOn: string; amountCents: number; currency: string; createdAt: string }
 export interface ClientPayment { id: string; invoiceId: string; amountCents: number; paidAt: string; method: string; recordedAt: string }
 export interface ClientDeliveryCorrection { previousSentAt: string; previousRecordedAt?: string; previousChannel?: 'WhatsApp' | 'Correo' | 'Otro'; correctedAt: string; reason: string }
-export interface ClientReport { id: string; businessId: string; businessName: string; title: string; period: string; fileName: string; filePath: string; createdAt: string; fileSizeBytes?: number; fileSha256?: string; sentAt?: string; sentRecordedAt?: string; channel?: 'WhatsApp' | 'Correo' | 'Otro'; deliveryCorrections?: ClientDeliveryCorrection[] }
+export interface ClientReport { id: string; businessId: string; businessName: string; title: string; period: string; fileName: string; filePath: string; createdAt: string; fileSizeBytes?: number; fileSha256?: string; contentSha256?: string; sentAt?: string; sentRecordedAt?: string; channel?: 'WhatsApp' | 'Correo' | 'Otro'; deliveryCorrections?: ClientDeliveryCorrection[] }
 export interface ClientAccount {
   id: string; workspaceId: string; name: string; kind: 'Empresa' | 'Agencia' | 'Persona'; country: string;
   email: string; whatsapp: string; businessIds: string[]; monthlyFeeCents: number; currency: string; dueDay: number;

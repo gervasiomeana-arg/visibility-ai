@@ -7,7 +7,7 @@ import { prepareReportPdf, reportPdfBlocks } from '../services/reportPdfService'
 import { reportPdfName } from '../../shared/reportPdfName';
 import { Business, MonthlyEvolution, ExecutiveIssue, ActionTask, SeoAuditResult, Workspace } from '../types';
 import { SaveReportToClient } from './SaveReportToClient';
-import type { GeneratedReportStore } from '../../shared/generatedClientReport';
+import { reportContentFingerprint, type GeneratedReportStore } from '../../shared/generatedClientReport';
 import { measuredSeries, reportEvidence, reportSearchEvidence, measurementDateLabel, technicalFindingReduction, findingChangeLabel, taskPlanEvidence } from '../../shared/reportEvidence';
 
 interface MonthlyReportViewProps {
@@ -38,9 +38,11 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     if (!article) throw new Error('El informe todavía no está disponible.');
     const version = reportVersion.current;
     const name = reportPdfName(business.name,new Intl.DateTimeFormat('en-CA',{timeZone:business.timezone || 'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
-    const blob = await prepareReportPdf(reportPdfBlocks(article));
+    const blocks = reportPdfBlocks(article);
+    const contentSha256 = await reportContentFingerprint(blocks);
+    const blob = await prepareReportPdf(blocks);
     if (!alive.current || articleRef.current !== article || version !== reportVersion.current) throw new Error('El informe cambió durante la preparación. Revisalo antes de guardar.');
-    return new File([blob], name, {type:'application/pdf'});
+    return {file:new File([blob], name, {type:'application/pdf'}),contentSha256};
   }, [business,evolution,issues,tasks,auditMeta]);
   async function exportPdf() {
     if(exporting.current || !articleRef.current)return;
