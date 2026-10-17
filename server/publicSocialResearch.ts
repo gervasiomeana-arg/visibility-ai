@@ -9,9 +9,12 @@ export function discoverSocialLinks(html: string, base: string): PublicCandidate
   const result = new Map<string, PublicCandidate>();
   // Only links and JSON-LD sameAs, not arbitrary model-generated or guessed usernames.
   const links = [...html.matchAll(/\bhref\s*=\s*["']([^"']+)["']/gi)].map(m => decode(m[1]));
+  // Static URL literals used by buttons/configuration are candidates too; scripts are never executed.
+  const literals = decode(html).replace(/\\u002f/gi, '/').replace(/\\\//g, '/');
+  links.push(...[...literals.matchAll(/["'](https?:\/\/(?:www\.)?(?:instagram\.com|facebook\.com|tiktok\.com)\/[^\s"'<>\\]*)["']/gi)].map(m => m[1]));
   for (const node of jsonNodes(html)) if (node['@type'] === 'Organization' || node['@type'] === 'LocalBusiness' || node['@type'] === 'Person') links.push(...(Array.isArray(node.sameAs) ? node.sameAs : typeof node.sameAs === 'string' ? [node.sameAs] : []).filter((s: unknown) => typeof s === 'string'));
   for (const link of links) for (const network of ['facebook', 'instagram', 'tiktok'] as const) {
-    try { const profileUrl = publicProfileUrl(network, new URL(link, base).href); result.set(profileUrl, { network, profileUrl, foundOn: base }); } catch { /* not a supported profile */ }
+    try { const target = new URL(link, base); if (target.protocol === 'http:' && /^(www\.)?(instagram|facebook|tiktok)\.com$/i.test(target.hostname)) target.protocol = 'https:'; const profileUrl = publicProfileUrl(network, target.href); result.set(profileUrl, { network, profileUrl, foundOn: base }); } catch { /* not a supported profile */ }
   }
   return [...result.values()].slice(0, 30);
 }
@@ -65,8 +68,8 @@ export function parsePublicSocialHtml(network: PublicNetwork, profile: string, h
       if (Number.isFinite(stamp) && stamp > 0 && stamp <= 8640000000000000) addPost(`https://www.tiktok.com/@${username}/video/${node.id}`, new Date(stamp).toISOString(), { likes: count(node.stats.diggCount), comments: count(node.stats.commentCount), views: count(node.stats.playCount) });
     }
     // Some public Instagram responses include exact account counts and its own timeline.
-    if (network === 'instagram' && typeof node.username === 'string' && node.username.toLowerCase() === username && node.edge_followed_by) {
-      followers = count(node.edge_followed_by.count); totalPosts = count(node.edge_owner_to_timeline_media?.count);
+    if (network === 'instagram' && typeof node.username === 'string' && node.username.toLowerCase() === username) {
+      followers = count(node.edge_followed_by?.count) ?? count(node.follower_count) ?? followers; totalPosts = count(node.edge_owner_to_timeline_media?.count) ?? count(node.media_count) ?? totalPosts;
       for (const edge of Array.isArray(node.edge_owner_to_timeline_media?.edges) ? node.edge_owner_to_timeline_media.edges : []) {
         const post = edge.node; if (!post || !/^[A-Za-z0-9_-]+$/.test(post.shortcode || '')) continue;
         const stamp = Number(post.taken_at_timestamp) * 1000;

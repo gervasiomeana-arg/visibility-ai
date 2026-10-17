@@ -48,3 +48,12 @@ export function publicRecommendations(network: PublicNetwork, profiles: PublicSo
   if (profiles.filter(p => p.role !== 'own' && p.confirmed).length < 2) output.push('Confirmá dos competidores del mismo sector y mercado para completar la comparación.');
   return output;
 }
+
+/** A confirmed operator record takes precedence over absence of links in initial HTML. */
+export function confirmedSocialDiscovery(account: import('./socialMetrics').SocialAccount | undefined, requestedDomain: string, businessDomain: string) {
+  const host = (value: string) => { try { return new URL(/^https:\/\//i.test(value) ? value : `https://${value}`).host.toLowerCase().replace(/^www\./, ''); } catch { return ''; } };
+  if (!account || !host(requestedDomain) || host(requestedDomain) !== host(businessDomain)) return null;
+  if (account.presence?.status === 'not-used') return { status: 'not-used' as const };
+  const own = account.publicProfiles?.find(p => p.role === 'own' && p.confirmed);
+  return own ? { status: 'confirmed' as const, profileUrl: own.profileUrl } : null;
+}

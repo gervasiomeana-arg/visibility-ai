@@ -22,6 +22,7 @@ export interface SocialAccount {
   workspaceId: string; businessId: string; network: SocialNetwork;
   profileUrl: string; accountId: string; measurements: SocialMeasurement[]; updatedAt?: string;
   publicProfiles?: PublicSocialProfile[];
+  presence?: { status: 'not-used'; confirmedAt: string; evidence: string };
 }
 export type PublicNetwork = Exclude<SocialNetwork, 'google'>;
 export interface PublicPost {
@@ -110,7 +111,7 @@ export function validateSocialMeasurement(value: SocialMeasurement): SocialMeasu
   return value;
 }
 export function latestSocialMetric(account: SocialAccount | undefined, metric: SocialMetric, start: string, end: string): { value: number; measurement: SocialMeasurement } | null {
-  if (!account) return null;
+  if (!account || account.presence?.status === 'not-used') return null;
   const definition = metricDefinitions[metric];
   const measurements = account.measurements.filter(measurement => {
     try { validateSocialMeasurement(measurement); } catch { return false; }
@@ -122,8 +123,9 @@ export function latestSocialMetric(account: SocialAccount | undefined, metric: S
 }
 export function validateSocialAccount(account: SocialAccount): SocialAccount {
   if (!account || !account.workspaceId || !account.businessId || !socialNetworks.includes(account.network) || account.network === 'google' ||
-    typeof account.accountId !== 'string' || account.accountId.length > 128 || !Array.isArray(account.measurements) || account.measurements.length > 100) throw new Error('La ficha de la red no es válida.');
-  socialProfileUrl(account.network, account.profileUrl);
+    typeof account.profileUrl !== 'string' || typeof account.accountId !== 'string' || account.accountId.length > 128 || !Array.isArray(account.measurements) || account.measurements.length > 100) throw new Error('La ficha de la red no es válida.');
+  if (account.presence !== undefined && (account.presence.status !== 'not-used' || typeof account.presence.confirmedAt !== 'string' || !Number.isFinite(Date.parse(account.presence.confirmedAt)) || Date.parse(account.presence.confirmedAt) > Date.now() || typeof account.presence.evidence !== 'string' || account.presence.evidence.trim().length < 8 || account.presence.evidence.length > 2000)) throw new Error('La ausencia de cuenta debe tener confirmación, fecha y procedencia.');
+  if (account.profileUrl || account.presence?.status !== 'not-used') socialProfileUrl(account.network, account.profileUrl);
   if (account.publicProfiles !== undefined) validatePublicProfiles(account.network as PublicNetwork, account.publicProfiles);
   for (const measurement of account.measurements) {
     validateSocialMeasurement(measurement);
