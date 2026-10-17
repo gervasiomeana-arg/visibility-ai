@@ -288,6 +288,19 @@ export function searchSocialMetrics(
             }
           }
         }
+
+        // For cumulative followers, if no snapshot fell directly in this month, use latest available
+        if (metric === 'followers' && foundValue === null) {
+          const latestSnap = [...ownProfile.snapshots]
+            .filter((s) => s.followers !== undefined)
+            .sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))[0];
+          if (latestSnap && latestSnap.followers !== undefined) {
+            foundValue = latestSnap.followers;
+            foundSource = latestSnap.source;
+            foundEvidence = latestSnap.evidence;
+            foundCapturedAt = latestSnap.capturedAt;
+          }
+        }
       }
     }
 
@@ -369,14 +382,22 @@ export function searchSocialMetrics(
         (s) => (s.periodStart && s.periodStart.startsWith(period.key)) || (s.capturedAt && s.capturedAt.startsWith(period.key))
       );
 
+      const snapToUse =
+        monthlySnap ||
+        (metric === 'followers'
+          ? [...profile.snapshots]
+              .filter((s) => s.followers !== undefined)
+              .sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))[0]
+          : undefined);
+
       let val: number | null = null;
-      if (monthlySnap) {
-        if (metric === 'followers') val = monthlySnap.followers ?? null;
-        else if (metric === 'posts') val = monthlySnap.totalPosts ?? monthlySnap.posts?.length ?? null;
-        else if (metric === 'views' && monthlySnap.posts?.length) {
-          val = monthlySnap.posts.reduce((s, p) => s + (p.views || 0), 0) || null;
-        } else if (metric === 'interactions' && monthlySnap.posts?.length) {
-          val = monthlySnap.posts.reduce((s, p) => s + ((p.likes || 0) + (p.comments || 0)), 0) || null;
+      if (snapToUse) {
+        if (metric === 'followers') val = snapToUse.followers ?? null;
+        else if (metric === 'posts') val = snapToUse.totalPosts ?? snapToUse.posts?.length ?? null;
+        else if (metric === 'views' && snapToUse.posts?.length) {
+          val = snapToUse.posts.reduce((s, p) => s + (p.views || 0), 0) || null;
+        } else if (metric === 'interactions' && snapToUse.posts?.length) {
+          val = snapToUse.posts.reduce((s, p) => s + ((p.likes || 0) + (p.comments || 0)), 0) || null;
         }
       }
 

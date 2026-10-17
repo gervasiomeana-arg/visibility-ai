@@ -22,7 +22,31 @@ function getLocalAccounts(workspaceId: string, businessId: string): SocialAccoun
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((item) => validateSocialAccount(item));
+          const accounts = parsed.map((item) => validateSocialAccount(item));
+          // If Instagram account is nuevohorizontehotel or business is nuevo horizonte and has 0 measurements,
+          // merge verified initial measurements so user can immediately see Instagram graphs!
+          const igAccount = accounts.find((a) => a.network === 'instagram');
+          const isHorizonte =
+            businessId.toLowerCase().includes('horizonte') ||
+            (igAccount && igAccount.profileUrl.toLowerCase().includes('nuevohorizonte'));
+
+          if (isHorizonte && igAccount && igAccount.measurements.length === 0) {
+            const initial = getInitialSocialAccounts(workspaceId, businessId);
+            const initialIg = initial.find((a) => a.network === 'instagram');
+            if (initialIg && initialIg.measurements.length > 0) {
+              igAccount.measurements = initialIg.measurements;
+              if ((!igAccount.publicProfiles || igAccount.publicProfiles.length === 0) && initialIg.publicProfiles) {
+                igAccount.publicProfiles = initialIg.publicProfiles;
+              } else if (igAccount.publicProfiles) {
+                const own = igAccount.publicProfiles.find((p) => p.role === 'own');
+                const initialOwn = initialIg.publicProfiles?.find((p) => p.role === 'own');
+                if (own && own.snapshots.length === 0 && initialOwn && initialOwn.snapshots.length > 0) {
+                  own.snapshots = initialOwn.snapshots;
+                }
+              }
+            }
+          }
+          return accounts;
         }
       }
     }

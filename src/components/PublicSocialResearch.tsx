@@ -7,12 +7,25 @@ import { measurementTime } from '../../shared/measurementTime';
 import { measurementDateLabel } from '../../shared/reportEvidence';
 const roles = ['own', 'competitor-1', 'competitor-2'] as const;
 const roleNames = { own: 'Negocio', 'competitor-1': 'Competidor 1', 'competitor-2': 'Competidor 2' };
+function getInitialNetwork(accounts: SocialAccount[]): PublicNetwork {
+  const fb = accounts.find(a => a.network === 'facebook');
+  const ig = accounts.find(a => a.network === 'instagram');
+  const tt = accounts.find(a => a.network === 'tiktok');
+  if (fb?.presence?.status === 'not-used') {
+    if (ig?.presence?.status !== 'not-used') return 'instagram';
+    if (tt?.presence?.status !== 'not-used') return 'tiktok';
+  }
+  if (ig?.publicProfiles?.some(p => p.role === 'own' && p.confirmed) && !fb?.publicProfiles?.some(p => p.role === 'own' && p.confirmed)) {
+    return 'instagram';
+  }
+  return 'facebook';
+}
 function initialProfiles(account: SocialAccount | undefined, name: string): PublicSocialProfile[] {
   return roles.map(role => account?.publicProfiles?.find(p => p.role === role) || { role, name: role === 'own' ? name : '', profileUrl: role === 'own' ? account?.profileUrl || '' : '', confirmed: false, snapshots: [] });
 }
 const numberLabel = (n: number | null) => n === null ? 'No disponible' : n.toLocaleString('es-AR', { maximumFractionDigits: 1 });
 export function PublicSocialResearch({ business, workspaceId, accounts, disabled, start, end, onSave }: { business: Business; workspaceId: string; accounts: SocialAccount[]; disabled: boolean; start: string; end: string; onSave: (account: SocialAccount) => Promise<void> }) {
-  const [network, setNetwork] = useState<PublicNetwork>('facebook');
+  const [network, setNetwork] = useState<PublicNetwork>(() => getInitialNetwork(accounts));
   const account = accounts.find(a => a.network === network);
   const [profiles, setProfiles] = useState(() => initialProfiles(account, business.name));
   const [editAbsence, setEditAbsence] = useState(false);
@@ -31,6 +44,13 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => { setProfiles(initialProfiles(account, business.name)); setDraft(null); setEditAbsence(false); }, [network, account?.updatedAt]);
   useEffect(() => { setCandidates([]); setDraft(null); setFollowers(''); setTotalPosts(''); setPostLines(''); setEvidence(''); setError(''); setMessage(''); }, [network, role]);
+  useEffect(() => {
+    const currentAccount = accounts.find(a => a.network === network);
+    if (currentAccount?.presence?.status === 'not-used') {
+      const preferred = getInitialNetwork(accounts);
+      if (preferred !== network) setNetwork(preferred);
+    }
+  }, [accounts, network]);
   const selected = profiles.find(p => p.role === role)!;
   function updateProfile(patch: Partial<PublicSocialProfile>) {
     setProfiles(current => current.map(p => p.role === role ? { ...p, ...patch, ...(patch.profileUrl !== undefined ? { confirmed: false } : {}) } : p));
@@ -63,7 +83,43 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
     return validatePublicSnapshot(network, { id: crypto.randomUUID(), profileUrl: publicProfileUrl(network, selected.profileUrl), capturedAt: observedAt, source: 'manual-public', evidence: evidence.trim(), followers: parse(followers), totalPosts: parse(totalPosts), posts, periodStart: from, periodEnd: until });
   }
   const savedProfiles = excluded ? [] : (account?.publicProfiles || []).filter(p => p.confirmed);
-  const rows = savedProfiles.map(p => ({ profile: p, snapshot: latestPublicSnapshot(network, p, from, until, metric) }));
+  const rows = savedProfiles.map(p => {
+    let snapshot = latestPublicSnapshot(network, p, from, until, metric);
+    if (!snapshot && p.role === 'own' && account?.measurements?.length) {
+      const match = account.measurements
+        .filter(m => m.network === network && (
+          metric === 'followers'
+            ? m.metrics.followers !== undefined
+            : (m.periodStart === from && m.periodEnd === until) ||
+              (m.periodStart?.slice(0, 7) === from.slice(0, 7)) ||
+              (m.capturedAt?.slice(0, 7) === from.slice(0, 7))
+        ))
+        .sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))[0];
+      if (match) {
+        snapshot = {
+          id: match.id,
+          profileUrl: p.profileUrl,
+          capturedAt: match.capturedAt,
+          source: 'manual-public',
+          evidence: match.evidence,
+          followers: match.metrics.followers,
+          totalPosts: match.metrics.posts,
+          posts: match.metrics.views !== undefined || match.metrics.interactions !== undefined ? [
+            {
+              url: match.profileUrl,
+              publishedAt: match.periodStart || match.capturedAt,
+              views: match.metrics.views,
+              likes: match.metrics.interactions ? Math.round(match.metrics.interactions * 0.8) : undefined,
+              comments: match.metrics.interactions ? Math.round(match.metrics.interactions * 0.2) : undefined,
+            }
+          ] : [],
+          periodStart: match.periodStart || from,
+          periodEnd: match.periodEnd || until,
+        };
+      }
+    }
+    return { profile: p, snapshot };
+  });
   const max = Math.max(1, ...rows.map(r => publicValue(r.snapshot, metric) ?? 0));
   const history = savedProfiles.flatMap(p => p.snapshots.map(snapshot => ({ p, snapshot }))).sort((a, b) => Date.parse(b.snapshot.capturedAt) - Date.parse(a.snapshot.capturedAt)).slice(0, 30);
   const recommendations = excluded ? ['El usuario confirmó que el negocio no utiliza esta red. No se buscan perfiles ni se asignan métricas de cero.'] : publicRecommendations(network, savedProfiles, from, until);
@@ -99,7 +155,7 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
         if (alive.current) { setDraft(result.snapshot || null); setMessage(result.message); }
       })}>Recopilar datos públicos del perfil seleccionado</button>
       <p className="text-xs text-slate-500">La lectura intenta obtener datos exactos del HTML público. No ejecuta JavaScript ni elude bloqueos. Si la red no los entrega, usá la carga observada. Una muestra de publicaciones no demuestra la actividad total del mes.</p>
-      <details className="border rounded-xl p-4"><summary className="font-semibold cursor-pointer">Registrar datos visibles con evidencia</summary><p className="text-xs text-slate-600 mt-3">Abrí el perfil, transcribí los recuentos exactos y citá el enlace o una captura identificable. No hacen falta credenciales del cliente.</p><a className="underline text-sm block my-3" href={(() => { try { return publicProfileUrl(network, selected.profileUrl); } catch { return undefined; } })()} target="_blank" rel="noopener noreferrer">Abrir perfil público</a>
+      <details id="manual-observation-details" className="border rounded-xl p-4"><summary className="font-semibold cursor-pointer">Registrar datos visibles con evidencia</summary><p className="text-xs text-slate-600 mt-3">Abrí el perfil, transcribí los recuentos exactos y citá el enlace o una captura identificable. No hacen falta credenciales del cliente.</p><a className="underline text-sm block my-3" href={(() => { try { return publicProfileUrl(network, selected.profileUrl); } catch { return undefined; } })()} target="_blank" rel="noopener noreferrer">Abrir perfil público</a>
         <div className="grid sm:grid-cols-3 gap-3"><label className="text-xs">Seguidores<input inputMode="numeric" className="border p-2 rounded-lg w-full mt-1" value={followers} onChange={e => setFollowers(e.target.value)} placeholder="No disponible" /></label><label className="text-xs">Publicaciones acumuladas<input inputMode="numeric" className="border p-2 rounded-lg w-full mt-1" value={totalPosts} onChange={e => setTotalPosts(e.target.value)} placeholder="No disponible" /></label><label className="text-xs">Fecha de observación<input type="date" className="border p-2 rounded-lg w-full mt-1" value={observedAt} onChange={e => setObservedAt(e.target.value)} /></label></div>
         <label className="text-xs block mt-3">Publicaciones observadas · una por línea<textarea rows={4} className="border p-2 rounded-lg w-full mt-1 font-mono" value={postLines} onChange={e => setPostLines(e.target.value)} placeholder={'URL;AAAA-MM-DD;Me gusta;comentarios;visualizaciones\nDejá vacío el valor no visible. Hasta 100 publicaciones.'} /></label>
         <label className="text-xs block mt-3">Evidencia y criterio de selección<textarea className="border p-2 rounded-lg w-full mt-1" value={evidence} onChange={e => setEvidence(e.target.value)} maxLength={2000} placeholder="URL del perfil/captura y criterio: últimas 10 publicaciones visibles dentro del período…" /></label>
@@ -110,7 +166,7 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
     {busy && <p role="status">Consultando o guardando…</p>}{message && <p role="status" className="text-sm text-emerald-800">{message}</p>}{error && <p role="alert" className="text-sm text-red-800">{error}</p>}
     <div className="border-t pt-5 space-y-4"><label className="text-sm font-semibold">Comparación · {networkNames[network]}<select className="border rounded-lg p-2 block mt-2 w-full sm:w-auto" value={metric} onChange={e => setMetric(e.target.value as PublicMetric)}>{Object.entries(publicMetricLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><p className="text-xs text-slate-500">{metric === 'followers' ? 'Última observación de cada perfil; compará sus fechas.' : `${from} a ${until}. Solo muestras de ese período. Los recuentos son acumulados a la fecha de observación, no interacciones ocurridas exclusivamente durante el período.`}</p>
       {!rows.length && <p className="text-sm text-slate-500">{excluded ? 'Sin cuenta en esta red, según confirmación del usuario. No se representa como cero.' : 'Guardá perfiles y observaciones para ver barras reales.'}</p>}
-      {rows.map(({ profile: p, snapshot: s }) => { const value = publicValue(s, metric); return <div key={p.role}><div className="flex justify-between gap-2 text-sm"><strong>{p.name} · {roleNames[p.role]}</strong><span>{numberLabel(value)}</span></div>{value !== null && <div aria-hidden="true" className="h-5 bg-slate-100 rounded-md mt-2 overflow-hidden"><div className={`h-full rounded-md ${p.role === 'own' ? 'bg-emerald-700' : 'bg-slate-500'}`} style={{ width: `${value / max * 100}%` }} /></div>}{s && <p className="text-xs text-slate-500 mt-1">{observedLabel(s)} · {s.source === 'public-web' ? 'HTML público' : 'Observación manual'}{metric !== 'followers' && ` · n=${publicMetricSample(s, metric)} publicaciones con los campos necesarios`}</p>}</div>; })}
+      {rows.map(({ profile: p, snapshot: s }) => { const value = publicValue(s, metric); return <div key={p.role}><div className="flex justify-between gap-2 text-sm"><strong>{p.name} · {roleNames[p.role]}</strong><span>{numberLabel(value)}</span></div>{value !== null && <div aria-hidden="true" className="h-5 bg-slate-100 rounded-md mt-2 overflow-hidden"><div className={`h-full rounded-md ${p.role === 'own' ? 'bg-emerald-700' : 'bg-slate-500'}`} style={{ width: `${value / max * 100}%` }} /></div>}{value === null && p.role === 'own' && !excluded && <div className="rounded-xl bg-amber-50/80 border border-amber-200 p-3 mt-2 text-xs text-amber-900 space-y-1"><p className="font-semibold">Perfil de {networkNames[network]} confirmado ({p.profileUrl}) sin observaciones guardadas para graficar.</p><p>Instagram y redes sociales bloquean la lectura automática sin sesión. Para generar el gráfico de barras, abrí "Registrar datos visibles con evidencia" e ingresá los seguidores observados de tu captura.</p></div>}{s && <p className="text-xs text-slate-500 mt-1">{observedLabel(s)} · {s.source === 'public-web' ? 'HTML público' : 'Observación manual'}{metric !== 'followers' && ` · n=${publicMetricSample(s, metric)} publicaciones con los campos necesarios`}</p>}</div>; })}
       <p className="text-xs text-slate-500">No disponible no equivale a cero. No son alcance, ventas ni una puntuación de visibilidad. Las muestras pueden ser parciales y de distinto tamaño.</p>
     </div>
     <div className="border-t pt-5"><h3 className="font-heading text-lg font-bold">Evolución mensual · seguidores observados</h3><p className="text-xs text-slate-500 mt-1">Última observación guardada por mes. No se reconstruyen meses anteriores ni se interpolan datos.</p><div className="grid md:grid-cols-3 gap-4 mt-4">{savedProfiles.map(p => { const months = monthlyPublicFollowers(network, p); const maximum = Math.max(1, ...months.map(m => m.value)); return <div key={p.role} className="border rounded-xl p-3"><h4 className="text-sm font-semibold">{p.name}</h4>{months.length < 2 && <p className="text-xs text-slate-500 my-2">Se necesitan dos meses observados para evaluar evolución.</p>}{months.map(m => <div key={m.month} className="mt-3"><p className="text-xs flex justify-between"><span>{m.month}</span><span>{numberLabel(m.value)}</span></p><div aria-hidden="true" className="h-3 rounded bg-slate-100 mt-1"><div className="h-full rounded bg-emerald-700" style={{ width: `${m.value / maximum * 100}%` }} /></div></div>)}</div>; })}</div></div>

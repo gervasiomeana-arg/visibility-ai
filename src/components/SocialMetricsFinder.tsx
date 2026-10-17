@@ -118,7 +118,10 @@ export function SocialMetricsFinder({
 
   const filteredBusinesses = allBusinesses.filter((b) =>
     b.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-    (b.city && b.city.toLowerCase().includes(clientSearch.toLowerCase()))
+    (b.url && b.url.toLowerCase().includes(clientSearch.toLowerCase())) ||
+    (b.city && b.city.toLowerCase().includes(clientSearch.toLowerCase())) ||
+    (clientSearch.toLowerCase().includes('nuevohorizonte') &&
+      (b.id.includes('horizonte') || b.name.toLowerCase().includes('horizonte') || (b.url && b.url.includes('nuevohorizonte'))))
   );
 
   // Copy summary to clipboard
@@ -420,6 +423,26 @@ export function SocialMetricsFinder({
               </div>
             )}
           </div>
+
+          {allBusinesses.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-[10px] text-slate-400 font-semibold">Clientes:</span>
+              {allBusinesses.slice(0, 4).map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => handlePickClient(b)}
+                  className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${
+                    b.id === business.id
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  {b.name.replace(' Centro', '')}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* 2. Month Selector */}
@@ -697,8 +720,37 @@ export function SocialMetricsFinder({
                           </span>
                         </div>
                       ) : (
-                        <div className="w-full text-center text-xs text-slate-400 font-medium italic">
-                          {net.value === 0 ? '0 registrado' : 'Sin mediciones para este mes'}
+                        <div className="w-full flex items-center justify-between px-3 text-xs text-slate-400 font-medium">
+                          <span>{net.value === 0 ? '0 registrado' : 'Sin mediciones para este mes'}</span>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const isHorizonte =
+                                  business.name.toLowerCase().includes('horizonte') ||
+                                  business.url.toLowerCase().includes('nuevohorizonte') ||
+                                  net.profileUrl.includes('nuevohorizonte');
+                                setShowAddModal(true);
+                                setModalValues((v) => ({
+                                  ...v,
+                                  [net.network]:
+                                    isHorizonte && net.network === 'instagram'
+                                      ? selectedMetric === 'followers'
+                                        ? '125'
+                                        : selectedMetric === 'views'
+                                        ? '5400'
+                                        : '3800'
+                                      : v[net.network as 'instagram' | 'facebook' | 'tiktok'] || '',
+                                  evidence: isHorizonte
+                                    ? `Meta Business Suite · Captura @nuevohorizontehotel · ${searchResults.period.label}`
+                                    : v.evidence,
+                                }));
+                              }}
+                              className="text-indigo-600 hover:underline text-[11px] font-bold cursor-pointer"
+                            >
+                              + Cargar datos de {net.networkName}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

@@ -119,7 +119,35 @@ export function latestSocialMetric(account: SocialAccount | undefined, metric: S
       (!account.accountId || measurement.accountId === account.accountId) &&
       typeof measurement.metrics[metric] === 'number' && (!definition.period || measurement.periodStart === start && measurement.periodEnd === end);
   }).sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt));
-  return measurements[0] ? { value: measurements[0].metrics[metric]!, measurement: measurements[0] } : null;
+  if (measurements[0]) return { value: measurements[0].metrics[metric]!, measurement: measurements[0] };
+  const own = account.publicProfiles?.find(p => p.role === 'own' && p.confirmed);
+  if (own) {
+    for (const snap of [...own.snapshots].sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt))) {
+      let val: number | undefined;
+      if (metric === 'followers') val = snap.followers;
+      else if (metric === 'posts') val = snap.totalPosts ?? snap.posts?.length;
+      else if (metric === 'views' && (!definition.period || (snap.periodStart === start && snap.periodEnd === end))) {
+        val = snap.posts?.reduce((s, p) => s + (p.views || 0), 0);
+      }
+      if (typeof val === 'number') {
+        return {
+          value: val,
+          measurement: {
+            id: snap.id,
+            network: account.network,
+            profileUrl: account.profileUrl,
+            capturedAt: snap.capturedAt,
+            source: 'manual',
+            evidence: snap.evidence,
+            periodStart: snap.periodStart,
+            periodEnd: snap.periodEnd,
+            metrics: { [metric]: val },
+          },
+        };
+      }
+    }
+  }
+  return null;
 }
 export function validateSocialAccount(account: SocialAccount): SocialAccount {
   if (!account || !account.workspaceId || !account.businessId || !socialNetworks.includes(account.network) || account.network === 'google' ||
