@@ -9,3 +9,6 @@
 - Mantener SSRF, autenticación, aislamiento por negocio/espacio y errores de persistencia. Un error de Supabase nunca es éxito ni habilita datos de ejemplo.
 - No borrar registros de clientes al corregir un fallo: excluir precargas conocidas y conservar originales para revisión.
 - Los datos de ejemplo solo pueden existir en pruebas o demostraciones identificadas y aisladas del servicio real.
+
+- Instagram: Business Discovery consulta cuentas profesionales de terceros mediante la cuenta propia autorizada de Visibility. No confundir esta autorización técnica propia con pedir la contraseña o token del cliente. Nunca prometer cobertura de cuentas personales ni Insights privados.
+- Si Business Discovery está configurado, usarlo directamente para el operador permitido, conservar su fuente oficial y no volver a HTML tras un rechazo de permisos/cuota.

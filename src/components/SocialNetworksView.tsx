@@ -24,6 +24,8 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [candidates, setCandidates] = useState<string[]>([]);
+  const [discovery, setDiscovery] = useState<{configured:boolean;missing:string[];operatorAllowed:boolean}|null>(null);
+  useEffect(()=>{let active=true;socialMetricsService.instagramDiscoveryStatus().then(value=>{if(active)setDiscovery(value);}).catch(()=>{if(active)setDiscovery(null);});return()=>{active=false;};},[]);
   const live = useRef(true), lock = useRef(false), version = useRef(0);
   useEffect(() => { live.current = true; return () => { live.current = false; version.current++; }; }, []);
   useEffect(() => {
@@ -70,7 +72,7 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
       const saved = await socialMetricsService.save(updated);
       if (current()) {
         setAccounts(rows => [...rows.filter(a => a.network !== network), saved]);
-        setMessage('Lectura pública guardada con su fecha real. Solo se grafican métricas verificadas; no se reconstruyen meses anteriores ni totales a partir de muestras.');
+        setMessage(`${result.snapshot.source === 'official-public-api' ? 'Meta · Business Discovery' : 'Lectura pública'}: ${result.snapshot.followers === undefined ? 'seguidores sin dato exacto' : result.snapshot.followers.toLocaleString('es-AR')+' seguidores'}; ${result.snapshot.totalPosts === undefined ? 'publicaciones sin dato exacto' : result.snapshot.totalPosts.toLocaleString('es-AR')+' publicaciones acumuladas'}. Guardado con fecha ${result.snapshot.capturedAt.slice(0,10)}. No se reconstruyen meses anteriores.`);
       }
     } catch (reason) { if (current()) setError(reason instanceof Error ? reason.message : 'No se pudo confirmar la consulta o el guardado.'); }
     finally { lock.current = false; if (live.current) setBusy(false); }
@@ -86,6 +88,7 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
       </div>
       <div className="flex flex-wrap gap-3 items-center"><button onClick={run} disabled={busy || loading || !!loadError || !!periodError || !canEdit} className="rounded-lg bg-emerald-800 text-white px-5 py-3 disabled:opacity-50">{busy ? 'Buscando…' : 'Buscar datos públicos'}</button><span className="text-xs text-slate-500">{loading ? 'Cargando historial…' : 'Los gráficos muestran las mediciones guardadas del período.'}</span></div>
       <details open={!account?.profileUrl} className="text-sm"><summary className="cursor-pointer">Perfil de {names[network]}</summary><label className="block mt-3">Enlace confirmado del cliente<input disabled={busy || !canEdit} type="url" value={profile} onChange={e => setProfile(e.target.value)} className="block border rounded-lg p-3 w-full mt-2" placeholder={`https://www.${network}.com/${network === 'tiktok' ? '@' : ''}perfil/`} /></label>{candidates.map(url => <button key={url} className="block underline mt-3 break-all text-left" onClick={() => { setProfile(url); setCandidates([]); setMessage('Perfil seleccionado. Confirmá que corresponde al cliente y pulsá Buscar datos públicos.'); }}>Usar {url}</button>)}</details>
+      {network==='instagram' && <details className="text-xs text-slate-500"><summary className="cursor-pointer">Consulta oficial de otros negocios · {discovery?.operatorAllowed?'habilitada':discovery?.configured?'operador sin autorización':'pendiente de configurar'}</summary><p className="mt-2">Instagram Business Discovery usa una cuenta propia autorizada de Visibility para consultar seguidores y publicaciones de otras cuentas profesionales. No pide la clave del cliente. Requiere una cuenta profesional propia vinculada a una página de Facebook y los permisos de Meta correspondientes.</p>{discovery&&!discovery.configured&&<p className="mt-2">Configuración pendiente en el servidor: {discovery.missing.join(', ')}. Son credenciales técnicas propias de Visibility, no del cliente.</p>}<a className="underline block mt-2" href="https://github.com/gervasiomeana-arg/visibility-ai/blob/main/docs/instagram-business-discovery.md" target="_blank" rel="noopener noreferrer">Guía de configuración del administrador</a></details>}
       <p className="text-xs text-slate-500">Seguidores: última medición observada de cada mes. Visualizaciones y alcance: solo informes del período exacto. La consulta pública actual no recupera automáticamente el historial ni el alcance privado.</p>
     </section>
     {(loadError || error || periodError) && <p role="alert" className="border border-red-200 bg-red-50 p-4 rounded-xl">{loadError || error || periodError}</p>}

@@ -1,4 +1,4 @@
-import { calendarDay, publicProfileUrl, validatePublicSnapshot, validateSocialMeasurement, type PublicNetwork, type SocialAccount } from './socialMetrics';
+import { calendarDay, publicProfileUrl, publicSourceLabel, validatePublicSnapshot, validateSocialMeasurement, type PublicNetwork, type SocialAccount } from './socialMetrics';
 
 export const monthlyMetrics = { followers: 'Seguidores', views: 'Visualizaciones', reach: 'Alcance' } as const;
 export type MonthlyMetric = keyof typeof monthlyMetrics;
@@ -50,7 +50,7 @@ export function monthlySeries(account: SocialAccount | undefined, network: Publi
           try {
             validatePublicSnapshot(network, s);
             if (isUnverifiedSeed(s.id) || publicProfileUrl(network, s.profileUrl) !== canonical || s.capturedAt.slice(0,10) < window.start || s.capturedAt.slice(0,10) > window.end || s.followers === undefined) continue;
-            candidates.push({ value: s.followers, evidence: s.evidence, capturedAt: s.capturedAt, source: s.source === 'public-web' ? 'Lectura pública' : 'Observación manual' });
+            candidates.push({ value: s.followers, evidence: s.evidence, capturedAt: s.capturedAt, source: publicSourceLabel(s.source) });
           } catch { /* No synthetic history or inferred totals. */ }
         }
       }

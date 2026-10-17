@@ -29,7 +29,7 @@ export interface PublicPost {
   url: string; publishedAt: string; likes?: number; comments?: number; views?: number;
 }
 export interface PublicSnapshot {
-  id: string; profileUrl: string; capturedAt: string; source: 'public-web' | 'manual-public';
+  id: string; profileUrl: string; capturedAt: string; source: 'public-web' | 'manual-public' | 'official-public-api';
   evidence: string; followers?: number; totalPosts?: number; posts: PublicPost[];
   periodStart: string; periodEnd: string;
 }
@@ -49,9 +49,10 @@ export function publicProfileUrl(network: PublicNetwork, value: string): string 
 }
 export function validatePublicSnapshot(network: PublicNetwork, value: PublicSnapshot): PublicSnapshot {
   if (!value || typeof value.id !== 'string' || !value.id || typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) ||
-    !['public-web', 'manual-public'].includes(value.source) || typeof value.evidence !== 'string' || value.evidence.trim().length < 8 || value.evidence.length > 2000 ||
+    !['public-web', 'manual-public', 'official-public-api'].includes(value.source) || typeof value.evidence !== 'string' || value.evidence.trim().length < 8 || value.evidence.length > 2000 ||
     !calendarDay(value.periodStart) || !calendarDay(value.periodEnd) || value.periodStart > value.periodEnd || !Array.isArray(value.posts) || value.posts.length > 100) throw new Error('La observación pública necesita fecha, período y evidencia.');
   if (/^\d{4}-\d{2}-\d{2}$/.test(value.capturedAt) && !calendarDay(value.capturedAt)) throw new Error('Fecha observada inválida.');
+  if (value.source === 'official-public-api' && network !== 'instagram') throw new Error('Esta fuente oficial pública corresponde únicamente a Instagram Business Discovery.');
   publicProfileUrl(network, value.profileUrl);
   const observedDay = value.capturedAt.slice(0, 10);
   if (!calendarDay(observedDay) || observedDay > new Date().toISOString().slice(0, 10) || value.periodEnd > new Date().toISOString().slice(0, 10)) throw new Error('No se guardan observaciones ni períodos futuros.');
@@ -133,3 +134,5 @@ export function validateSocialAccount(account: SocialAccount): SocialAccount {
   }
   return account;
 }
+
+export function publicSourceLabel(source: PublicSnapshot['source']) { return source === 'official-public-api' ? 'Meta · Business Discovery' : source === 'public-web' ? 'Lectura pública' : 'Observación manual'; }
