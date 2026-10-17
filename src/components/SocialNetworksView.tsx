@@ -6,6 +6,7 @@ import { calendarDay, socialNetworks, networkNames, metricDefinitions, socialPro
 import { socialMetricsService } from '../services/socialMetricsService';
 import { SocialMetricBars } from './SocialMetricBars';
 import { measurementTime } from '../../shared/measurementTime';
+import { PublicSocialResearch } from './PublicSocialResearch';
 
 interface Props { business: Business; workspaceId: string; canEdit: boolean; evolution: MonthlyEvolution; setActiveTab: (tab: ActiveTab) => void }
 function SocialNetworksForm({ business, workspaceId, canEdit, evolution, setActiveTab }: Props) {
@@ -50,7 +51,7 @@ function SocialNetworksForm({ business, workspaceId, canEdit, evolution, setActi
     lock.current = true; setBusy(true); setError(''); setMessage('');
     try {
       const profileUrl = socialProfileUrl(network, profile.trim());
-      const next: SocialAccount = { workspaceId, businessId: business.id, network, profileUrl, accountId: accountId.trim(), measurements: selected?.measurements || [], updatedAt: selected?.updatedAt };
+      const next: SocialAccount = { ...selected, workspaceId, businessId: business.id, network, profileUrl, accountId: accountId.trim(), measurements: selected?.measurements || [], updatedAt: selected?.updatedAt };
       let metricToShow: SocialMetric | undefined;
       if (mode !== 'profile') {
         let measurement;
@@ -80,6 +81,13 @@ function SocialNetworksForm({ business, workspaceId, canEdit, evolution, setActi
     <header className="vai-panel p-6 rounded-2xl"><p className="vai-overline">Presencia digital por canal</p><h1 className="font-heading text-3xl font-bold mt-2">Redes · {business.name}</h1><p className="text-sm text-slate-600 mt-2">Registrá perfiles oficiales y mediciones con fuente. Google muestra búsquedas orgánicas de Search Console; no mide Google Maps ni reseñas.</p></header>
     {loading && <p role="status">Cargando los perfiles de este negocio…</p>}
     {loadError && <div role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{loadError}<button type="button" onClick={() => setRevision(value => value + 1)} className="underline ml-3">Reintentar carga</button></div>}
+    <PublicSocialResearch business={business} workspaceId={workspaceId} accounts={accounts} disabled={!canEdit || loading || Boolean(loadError) || busy} start={start} end={end} onSave={async account => {
+      if (lock.current || !live.current) throw new Error('Esperá a que termine el guardado actual.');
+      lock.current = true; setBusy(true);
+      try { const saved = await socialMetricsService.save(account); if (live.current) setAccounts(current => [...current.filter(a => a.network !== saved.network), saved]); }
+      finally { lock.current = false; if (live.current) setBusy(false); }
+    }} />
+    <details className="vai-panel p-5 rounded-2xl space-y-5"><summary className="font-semibold cursor-pointer">Google y registro avanzado de métricas</summary>
     <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">{socialNetworks.map(name => { const account = accounts.find(item => item.network === name); return <div key={name} className="vai-panel p-4 rounded-xl"><h2 className="font-semibold">{networkNames[name]}</h2><p className="text-xs text-slate-500 mt-2">{name === 'google' ? search ? 'Medición importada disponible' : 'Sin medición importada' : account ? `${account.measurements.length} mediciones guardadas` : 'Sin perfil registrado'}</p>{name === 'google' ? <button onClick={() => setActiveTab('keywords')} className="underline text-sm mt-3">Abrir Search Console</button> : account ? <a href={account.profileUrl} target="_blank" rel="noopener noreferrer" className="underline text-sm mt-3 block">Ver perfil</a> : <button type="button" aria-controls="social-profile-editor" onClick={() => openProfileEditor(name)} className="underline text-sm mt-3">Registrar perfil</button>}</div>; })}</div>
     <div className="vai-panel p-4 rounded-xl grid sm:grid-cols-3 gap-3"><label className="text-xs">Métrica<select className="w-full border rounded-lg p-2 mt-1" value={metric} onChange={event => setMetric(event.target.value as SocialMetric)}>{Object.entries(metricDefinitions).map(([key, definition]) => <option key={key} value={key}>{definition.label}</option>)}</select></label><label className="text-xs">Inicio del período<input type="date" className="w-full border rounded-lg p-2 mt-1" value={start} onChange={event => setStart(event.target.value)} /></label><label className="text-xs">Fin del período<input type="date" className="w-full border rounded-lg p-2 mt-1" value={end} onChange={event => setEnd(event.target.value)} /></label></div>
     <SocialMetricBars name={business.name} accounts={[...accounts, ...(google ? [google] : [])]} metric={metric} start={start} end={end} timezone={business.timezone} />
@@ -97,6 +105,7 @@ function SocialNetworksForm({ business, workspaceId, canEdit, evolution, setActi
       {busy && <p role="status">Comprobando y guardando…</p>}{message && <p role="status" className="text-emerald-800">{message}</p>}{error && <p role="alert" className="text-red-800 whitespace-pre-wrap">{error}</p>}
     </section>
     <section className="vai-panel p-6 rounded-2xl"><h2 className="font-heading text-xl font-bold">Últimas mediciones guardadas</h2>{!history.length ? <p className="text-sm mt-3 text-slate-500">Todavía no hay mediciones sociales guardadas para este negocio.</p> : <div className="overflow-x-auto mt-4"><table className="w-full text-xs text-left"><thead><tr><th className="p-2">Red / fecha</th><th className="p-2">Valores</th><th className="p-2">Fuente y evidencia</th></tr></thead><tbody>{history.map(row => <tr key={row.id} className="border-t"><td className="p-2">{networkNames[row.network]}<br />{row.source === 'manual' && /^\d{4}-\d{2}-\d{2}$/.test(row.capturedAt) ? measurementDateLabel(row.capturedAt, business.locale, business.timezone) : measurementTime(row.capturedAt, business.timezone)}{!row.current && <p>Perfil anterior · no se grafica como actual</p>}{row.periodStart && <p>{row.periodStart} a {row.periodEnd}</p>}</td><td className="p-2">{Object.entries(row.metrics).map(([key, value]) => <p key={key}>{metricDefinitions[key as SocialMetric].label}: {value?.toLocaleString('es-AR')}</p>)}</td><td className="p-2 whitespace-pre-wrap">{row.source === 'manual' ? 'Carga manual' : 'API oficial'}<br />{row.evidence}</td></tr>)}</tbody></table></div>}</section>
+    </details>
   </div>;
 }
 export function SocialNetworksView(props: Props) { return <SocialNetworksForm key={`${props.workspaceId}:${props.business.id}:${props.business.url}`} {...props} />; }

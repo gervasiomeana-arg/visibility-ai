@@ -70,3 +70,36 @@ conectar cuentas reales ni verificar la interfaz publicada con el operador.
 El botón Registrar perfil de cada tarjeta desplaza al formulario de la red elegida y
 enfoca su URL, incluso si esa red ya estaba seleccionada. Si falló la carga, el mismo
 formulario explica el bloqueo y permite reintentar; no simula un perfil guardado.
+
+## Investigación pública propia (17/10/2026)
+
+En Redes, «Presencia pública y dos competidores» permite investigar sin contraseñas, tokens sociales, proveedores de datos pagos ni llamadas a Gemini.
+
+1. Elegir Facebook, Instagram o TikTok y el rol (negocio / competidor 1 / competidor 2).
+2. Buscar enlaces de perfiles en el HTML del dominio (href y sameAs JSON-LD). No es una búsqueda global en la red social. Los candidatos se revisan y confirman manualmente para no atribuir datos a homónimos.
+3. Intentar recopilar HTML público sin sesión. Se reutiliza el transporte HTTPS con DNS fijado, protección SSRF, validación de redirecciones, límite de respuesta de 2 MiB y tiempo de espera del auditor.
+4. El lector solo interpreta JSON estructurado asociado al perfil: TikTok userInfo/stats y publicaciones con autor coincidente; estructuras públicas conocidas de Instagram; JSON-LD con URL/autor coincidente. No ejecuta scripts, no interpreta instrucciones de la página y no usa cookies o credenciales sociales.
+5. Si no hay datos identificables o hay bloqueo, se informa «no disponible» y no se guarda una medición vacía. La alternativa es transcribir lo visible con fecha y evidencia.
+6. Revisar valores y publicaciones antes de guardar. Una publicación manual utiliza `URL;AAAA-MM-DD;Me gusta;comentarios;visualizaciones` y los campos no visibles quedan vacíos.
+
+### Qué se mide
+
+- Seguidores observados y publicaciones acumuladas, si están disponibles como enteros exactos.
+- Muestra de publicaciones fechadas dentro del período: Me gusta, comentarios y visualizaciones visibles.
+- Promedio de interacciones: solo publicaciones con Me gusta **y** comentarios disponibles. Se expone n; no se rellenan campos ocultos con cero.
+- Los recuentos de publicaciones son acumulados a la fecha de observación. No se interpretan como interacciones que ocurrieron exclusivamente dentro del período de publicación.
+- La muestra no acredita cobertura completa ni una frecuencia mensual total. No hay alcance, impresiones privadas, ventas, demografía inferida ni calificaciones universales.
+- La evolución de seguidores muestra la última observación guardada de cada mes (sin interpolación). Se requieren dos meses para evaluar un cambio. Un perfil cambiado no hereda cifras del anterior.
+- Recomendaciones deterministas, basadas en observaciones: evolución y publicación con mayor respuesta en la muestra. La comparación de medias exige mismo período, mismo día de observación y al menos tres publicaciones completas por perfil. No atribuye causalidad ni promete resultados.
+
+### Persistencia y operación
+
+Se amplía el JSON existente `business_social_accounts.payload.publicProfiles`: hasta tres roles y 120 observaciones por rol, con hasta 100 publicaciones por observación. No se requiere migración SQL. Se mantienen aislamiento por workspace/negocio, RLS de propietario y control de versión `updated_at`. Los guardados del formulario anterior conservan el nuevo historial.
+
+La consulta se inicia desde el botón: no hay tarea mensual automática ni extracción garantizada. Registrar una observación cada mes crea el historial. Las plataformas pueden cambiar su HTML o bloquear consultas; no se evaden esas restricciones. No se contrataron servicios ni se configuraron claves nuevas.
+
+### Validación
+
+Pruebas de descubrimiento y rechazo de enlaces falsos/publicaciones; identidad del autor; ceros y datos ocultos; redirecciones a login; recuentos inválidos; persistencia serializada; comparación temporal y exclusión de perfiles anteriores; autenticación/validación de rutas. Suite completa: 266 pruebas aprobadas, tipado y build correctos.
+
+Pendiente de validación de campo en despliegue: accesibilidad y cobertura real de cada plataforma. El intento desde el entorno de desarrollo a openvoley.com y neomed.com.uy devolvió EAI_AGAIN (DNS); no produjo mediciones reales.
