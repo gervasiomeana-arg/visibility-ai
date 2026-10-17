@@ -1,3 +1,4 @@
+import { priorityRank } from './auditPriority';
 import type { Opportunity } from '../src/types';
 
 export function opportunityKind(opportunity: Opportunity): 'content' | 'technical' {
@@ -12,7 +13,7 @@ export function opportunityEvidence(opportunities: Opportunity[], businessId: st
   const own = opportunities.filter(item => item.businessId === businessId);
   const backed = own.filter(item => (item.source === 'seo-audit' || item.source === 'search-console') && !!item.evidenceText?.trim());
   // Once a measured source exists, examples do not belong in the client's action list.
-  const visible = backed.length ? backed : own;
+  const visible = [...(backed.length ? backed : own)].sort((a, b) => (a.priority ? priorityRank[a.priority] : 99) - (b.priority ? priorityRank[b.priority] : 99) || (a.priority && b.priority ? a.detectedProblem.localeCompare(b.detectedProblem) : 0));
   const mode = backed.length ? 'PROPUESTAS CON EVIDENCIA'
     : !own.length ? 'SIN DATOS' : own.every(item => item.source === 'demo') ? 'DEMO' : 'POR VALIDAR';
   return { visible, mode };

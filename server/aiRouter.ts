@@ -2,7 +2,7 @@ import { validateResearchInput } from '../shared/competitorResearch';
 import { researchCompetitor } from './competitorResearchService';
 import express from 'express';
 import { validateContentInput, buildContentPrompt, validateContentOutput } from '../shared/contentContext';
-import { GoogleGenAI } from '@google/genai';
+import { generateWithGemini, geminiConfigured, geminiModel, sendAiFailure, AiProviderError } from './geminiService';
 import { requireSupabaseAuth } from './supabaseAuth';
 import {
   createRateLimiter,
@@ -16,13 +16,6 @@ import { suggestBusinessProfile } from './businessProfileService';
 
 const MAX_PROMPT_LENGTH = 4000;
 const MAX_FIELD_LENGTH = 2000;
-
-const apiKey = process.env.GEMINI_API_KEY;
-let aiClient: GoogleGenAI | null = null;
-
-if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
-  aiClient = new GoogleGenAI({ apiKey });
-}
 
 const router = express.Router();
 
@@ -38,34 +31,36 @@ router.post('/business/profile/suggest', requireSupabaseAuth, profileSuggestionL
   let input;
   try { input = validateProfileSuggestionInput(req.body); }
   catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'Datos no válidos.' }); }
-  if (!aiClient) return res.status(503).json({ error: 'La propuesta necesita GEMINI_API_KEY configurada en el servidor.' });
+  if (!geminiConfigured()) return res.status(503).json({ error: 'La propuesta necesita GEMINI_API_KEY configurada en el servidor.' });
   try {
-    const { result, tokens } = await suggestBusinessProfile(input, params => aiClient!.models.generateContent(params));
+    const { result, tokens } = await suggestBusinessProfile(input, params => generateWithGemini(params));
     recordUsageEventSafe(req, { workspaceId: typeof req.body.workspaceId === 'string' ? req.body.workspaceId : undefined, businessId: input.businessId, userId: res.locals.authUser?.id, eventType: 'ai_content', units: tokens, metadata: { operation: 'business_profile_suggestion' } });
     return res.json(result);
   } catch (error) {
     // Provider/network errors may contain private request details; do not forward them.
     const message = error instanceof Error ? error.message : '';
     const reviewable = /^(El HTML inicial|La IA no devolvió)/.test(message);
-    return res.status(reviewable ? 422 : 502).json({ error: reviewable ? message : 'No se pudo leer la web y preparar la propuesta. Revisá la dirección y reintentá; el perfil guardado sigue disponible.' });
+    if (reviewable) return res.status(422).json({ error: message });
+    if (error instanceof AiProviderError) return sendAiFailure(res, error, 'profile_suggestion');
+    return res.status(502).json({ error: 'No se pudo leer la web y preparar la propuesta. Revisá la dirección y reintentá; el perfil guardado sigue disponible.' });
   }
 });
 router.post('/competitors/research', requireSupabaseAuth, competitorResearchLimit, async (req, res) => {
   let input;
   try { input = validateResearchInput(req.body); if (typeof req.body.businessId !== 'string' || !req.body.businessId.trim() || req.body.businessId.length > 120) throw new Error('Seleccioná un negocio para guardar la investigación.'); }
   catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'Datos de investigación no válidos.' }); }
-  if (!aiClient) return res.status(503).json({ error: 'La investigación web necesita GEMINI_API_KEY configurada en el servidor.' });
+  if (!geminiConfigured()) return res.status(503).json({ error: 'La investigación web necesita GEMINI_API_KEY configurada en el servidor.' });
   try {
     const { result } = await researchCompetitor(input, req.body.businessId, async params => {
-      const response = await aiClient!.models.generateContent(params);
+      const response = await generateWithGemini(params);
       recordUsageEventSafe(req, { workspaceId: typeof req.body.workspaceId === 'string' ? req.body.workspaceId : undefined, businessId: req.body.businessId, userId: res.locals.authUser?.id, eventType: 'ai_content', units: Number(response.usageMetadata?.totalTokenCount || 0), metadata: { operation: 'competitor_research' } });
       return response;
     });
     return res.json(result);
   } catch (error: any) {
-    console.error('Competitor research failed:', error?.name || 'Error');
     const sourceError = typeof error?.message === 'string' && error.message.startsWith('La búsqueda no devolvió');
-    return res.status(sourceError ? 422 : 502).json({ error: sourceError ? error.message : 'No se pudo completar la investigación web. Revisá la disponibilidad de Gemini y Google Search en tu proyecto y reintentá.' });
+    if (sourceError) return res.status(422).json({ error: error.message });
+    return sendAiFailure(res, error, 'competitor_research');
   }
 });
 
@@ -85,7 +80,7 @@ router.post(
       return res.status(413).json({ error: 'Prompt is too long' });
     }
 
-    if (!aiClient) {
+    if (!geminiConfigured()) {
       return res.status(503).json({ error: 'El asistente no está configurado. Revisá GEMINI_API_KEY en el servidor.' });
     }
 
@@ -129,8 +124,8 @@ PRINCIPIOS OBLIGATORIOS Y REGLAS DE RESPUESTA:
 
 Responde en español (tono profesional, cercano, empático y sin tecnicismos innecesarios).`;
 
-    const response = await aiClient.models.generateContent({
-      model: 'gemini-3.8-flash',
+    const response = await generateWithGemini({
+      model: geminiModel(),
       contents: [
         ...normalizeAssistantHistory(history).map((turn) => ({
           role: turn.role === 'assistant' ? 'model' : 'user',
@@ -158,15 +153,14 @@ Responde en español (tono profesional, cercano, empático y sin tecnicismos inn
       eventType: 'ai_assistant',
       units: totalTokens,
       metadata: {
-        model: 'gemini-3.8-flash',
+        model: geminiModel(),
       },
     });
 
     if (!response.text?.trim()) return res.status(502).json({ error: 'El asistente no devolvió una respuesta. Intentá nuevamente.' });
     return res.json({ reply: response.text.trim() });
   } catch (error: any) {
-    console.error('Error in /api/assistant/chat:', error?.name || 'Error');
-    return res.status(502).json({ error: 'No se pudo consultar el asistente. Intentá nuevamente más tarde.' });
+    return sendAiFailure(res, error, 'assistant');
   }
 });
 
@@ -184,13 +178,13 @@ router.post(
 
     const validationError = validateContentInput(req.body);
     if (validationError) return res.status(400).json({ error: validationError });
-    if (!aiClient) {
+    if (!geminiConfigured()) {
       return res.status(503).json({ error: 'El generador no está configurado. Revisá GEMINI_API_KEY en el servidor.' });
     }
     const promptText = buildContentPrompt(req.body);
 
-    const response = await aiClient.models.generateContent({
-      model: 'gemini-3.8-flash',
+    const response = await generateWithGemini({
+      model: geminiModel(),
       contents: promptText,
       config: {
         temperature: 0.7,
@@ -211,7 +205,7 @@ router.post(
       eventType: 'ai_content',
       units: totalTokens,
       metadata: {
-        model: 'gemini-3.8-flash',
+        model: geminiModel(),
         contentType:
           typeof contentType === 'string' ? contentType : undefined,
       },
@@ -222,10 +216,7 @@ router.post(
     if (outputError) return res.status(422).json({ error: outputError });
     return res.json({ content: response.text });
   } catch (error: any) {
-    console.error('Error in /api/content/generate:', error);
-    return res.status(500).json({
-      error: 'No se pudo generar el contenido. Intentá nuevamente y revisá la configuración del servicio si persiste.',
-    });
+    return sendAiFailure(res, error, 'content');
   }
 });
 

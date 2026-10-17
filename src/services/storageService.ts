@@ -1,3 +1,4 @@
+import { auditPriority, compareAuditFactors, priorityRank } from '../../shared/auditPriority';
 import { reconcileTaskAuditEvidence } from '../../shared/taskAuditEvidence';
 import type { CompetitorResearchResult } from '../../shared/competitorResearch';
 import { measuredScore } from '../../shared/scoreEvidence';
@@ -146,11 +147,7 @@ export function extractFindingType(task: ActionTask): string {
 }
 
 export function sortTasksByPriority(tasks: ActionTask[]): ActionTask[] {
-  const priorityOrder: Record<string, number> = {
-    URGENTE: 1,
-    IMPORTANTE: 2,
-    RECOMENDADO: 3,
-  };
+  const priorityOrder = priorityRank;
 
   return [...tasks].sort((a, b) => {
     const aDone =
@@ -723,12 +720,7 @@ export const storageService = {
       severity: item.status === 'error' ? 'high' : item.status === 'warning' ? 'medium' : 'ok',
       possibleSolution: item.solution,
       category: categoryFor(item),
-      impactText:
-        item.impact === 'Alto'
-          ? 'Este punto puede afectar de forma importante la visibilidad o la experiencia del sitio.'
-          : item.impact === 'Medio'
-          ? 'Conviene corregirlo para mejorar la calidad técnica y la visibilidad.'
-          : 'Es una mejora de menor impacto, pero suma calidad y consistencia.',
+      impactText: 'La relevancia depende del hallazgo y de la experiencia de uso. Esta medición no cuantifica cambios de posición, consultas ni ventas.',
       source: 'real',
       checkedAt: item.checkedAt,
     }));
@@ -739,7 +731,6 @@ export const storageService = {
     const tasks = items.filter(item => item.source === 'real').map(normalizeH1Item)
       .filter((item) => item.status !== 'ok')
       .map((item) => {
-        const isH1 = item.key === 'h1';
         const whyItMatters = item.whyItMatters || item.simpleExplanation;
         const detectedData = item.detectedData || (item.metricValue ? `Dato medido: ${item.metricValue}` : 'Hallazgo técnico en auditoría');
         const proposedChange = item.proposedChange || item.solution;
@@ -756,13 +747,7 @@ export const storageService = {
           `Plataforma: ${platformNote}`,
         ];
 
-        const priority: PriorityLevel = isH1
-          ? 'IMPORTANTE'
-          : item.status === 'error'
-          ? 'URGENTE'
-          : item.impact === 'Alto'
-          ? 'IMPORTANTE'
-          : 'RECOMENDADO';
+        const priority = auditPriority(item);
 
         const status: TaskStatus = 'pendiente';
         const completionType: TaskCompletionType | null = null;
@@ -1066,6 +1051,7 @@ export const storageService = {
   buildOpportunitiesFromSeoAudit(business: Business, items: SeoAuditItem[]): Opportunity[] {
     return items.map(normalizeH1Item)
       .filter((item) => item.source === 'real' && item.status !== 'ok')
+      .sort(compareAuditFactors)
       .slice(0, 12)
       .map((item) => ({
         id: `seo-${business.id}-${item.key}`,
@@ -1077,7 +1063,8 @@ export const storageService = {
           item.key === 'title' || item.key === 'meta-description' || item.key === 'h1'
             ? `Mejorar la página principal de ${business.name}`
             : `Optimización técnica: ${item.title}`,
-        potentialImpact: item.impact === 'Alto' ? 'Muy Alto' : item.impact === 'Medio' ? 'Alto' : 'Medio',
+        priority: auditPriority(item),
+        potentialImpact: item.impact === 'Alto' ? 'Alto' : 'Medio',
         searchDemand: 'Sin dato de demanda asociado',
         source: 'seo-audit',
         kind: ['title', 'meta-description', 'h1'].includes(item.key) ? 'content' : 'technical',
@@ -1210,7 +1197,15 @@ export const storageService = {
       const stored = localStorage.getItem(scopedKey(STORAGE_KEYS.OPPORTUNITIES));
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed[businessId])) return parsed[businessId].filter((item: Opportunity) => item.businessId === businessId).map((item: Opportunity) => item.source === 'seo-audit' && (item.findingType === 'h1' || item.id.endsWith('-h1')) ? { ...item, commercialAction: h1Guidance(this.getSeoAudit(businessId).find(audit => audit.key === 'h1')?.metricValue).proposedChange } : item);
+        if (Array.isArray(parsed[businessId])) {
+          const audit = this.getSeoAudit(businessId);
+          return parsed[businessId].filter((item: Opportunity) => item.businessId === businessId).map((item: Opportunity) => {
+            const factor = audit.find(factor => factor.source === 'real' && factor.key === item.findingType && factor.checkedAt === item.checkedAt);
+            const updated = item.source === 'seo-audit' && factor ? { ...item, priority: auditPriority(factor) } : item;
+            return updated.source === 'seo-audit' && (updated.findingType === 'h1' || updated.id.endsWith('-h1'))
+              ? { ...updated, commercialAction: h1Guidance(audit.find(factor => factor.key === 'h1')?.metricValue).proposedChange } : updated;
+          });
+        }
       }
     } catch {
       // Fallback
