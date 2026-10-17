@@ -100,3 +100,30 @@ test('rendered public module shows both competitors, real zeros, missing values,
   for (const text of ['Buscar perfiles desde el dominio', 'Competidor 1', 'Competidor 2', 'Competidor medido', 'Segundo competidor', 'No disponible', 'width:0%', 'Se necesitan dos meses', 'Guardar perfiles confirmados', '17 de oct de 2026']) assert.ok(html.includes(text), text);
   assert.doesNotMatch(html, /NaN|Infinity|type="password"/);
 });
+
+test('confirmed presence wins over missing links, absence is not a zero, and another domain never inherits the override', async () => {
+  const { confirmedSocialDiscovery } = await import('../../shared/publicSocialAnalysis');
+  const { latestSocialMetric } = await import('../../shared/socialMetrics');
+  const account = { workspaceId: 'w', businessId: 'hotel', network: 'instagram' as const, profileUrl: 'https://www.instagram.com/nuevohorizontehotel/', accountId: '', measurements: [], publicProfiles: [{ ...own, profileUrl: 'https://www.instagram.com/nuevohorizontehotel/' }] };
+  assert.deepEqual(confirmedSocialDiscovery(account, 'www.nuevohorizontehotel.com.ar', 'https://nuevohorizontehotel.com.ar'), { status: 'confirmed', profileUrl: account.profileUrl });
+  assert.equal(confirmedSocialDiscovery(account, 'https://other.test', 'https://nuevohorizontehotel.com.ar'), null);
+  const absent = { ...account, network: 'facebook' as const, profileUrl: '', publicProfiles: [], presence: { status: 'not-used' as const, confirmedAt: new Date().toISOString(), evidence: 'Usuario confirma explícitamente que el hotel no tiene Facebook.' } };
+  validateSocialAccount(absent);
+  assert.deepEqual(confirmedSocialDiscovery(absent, 'nuevohorizontehotel.com.ar', 'https://www.nuevohorizontehotel.com.ar'), { status: 'not-used' });
+  assert.equal(latestSocialMetric(absent, 'followers', '', ''), null);
+  assert.throws(() => validateSocialAccount({ ...absent, presence: undefined }));
+  assert.throws(() => validateSocialAccount({ ...absent, presence: { ...absent.presence, evidence: '' } }));
+  assert.throws(() => validateSocialAccount({ ...absent, presence: { ...absent.presence, confirmedAt: '2099-01-01' } }));
+  assert.equal(confirmedSocialDiscovery({ ...account, publicProfiles: [{ ...own, confirmed: false }] }, 'nuevohorizontehotel.com.ar', 'nuevohorizontehotel.com.ar'), null);
+});
+test('discovery recognizes explicit social URL literals for JS buttons without executing scripts or inventing accounts', () => {
+  const found = discoverSocialLinks(`<script>window.open("http://www.instagram.com/hotel/"); const example="https:\\/\\/facebook.com\\/hotel/";</script><button data-url="https://www.tiktok.com/@hotel">TikTok</button><p>hotel tiene instagram</p>`, 'https://hotel.test/');
+  assert.deepEqual(found.map(c => c.profileUrl).sort(), ['https://www.facebook.com/hotel/', 'https://www.instagram.com/hotel/', 'https://www.tiktok.com/@hotel/']);
+});
+test('current Instagram structured counters still require the exact username and numeric observations', () => {
+  const profile = 'https://www.instagram.com/nuevohorizontehotel/';
+  const result = parsePublicSocialHtml('instagram', profile, json({ username: 'nuevohorizontehotel', follower_count: 125, media_count: 4 }), snapshot.periodStart, snapshot.periodEnd)!;
+  assert.equal(result.followers, 125); assert.equal(result.totalPosts, 4);
+  assert.equal(parsePublicSocialHtml('instagram', profile, json({ username: 'other', follower_count: 999 }), snapshot.periodStart, snapshot.periodEnd), null);
+  assert.equal(parsePublicSocialHtml('instagram', profile, json({ username: 'nuevohorizontehotel', follower_count: '1.2K' }), snapshot.periodStart, snapshot.periodEnd), null);
+});

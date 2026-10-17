@@ -103,3 +103,11 @@ La consulta se inicia desde el botón: no hay tarea mensual automática ni extra
 Pruebas de descubrimiento y rechazo de enlaces falsos/publicaciones; identidad del autor; ceros y datos ocultos; redirecciones a login; recuentos inválidos; persistencia serializada; comparación temporal y exclusión de perfiles anteriores; autenticación/validación de rutas. Suite completa: 266 pruebas aprobadas, tipado y build correctos.
 
 Pendiente de validación de campo en despliegue: accesibilidad y cobertura real de cada plataforma. El intento desde el entorno de desarrollo a openvoley.com y neomed.com.uy devolvió EAI_AGAIN (DNS); no produjo mediciones reales.
+
+## Corrección de presencia confirmada y búsqueda (17/10/2026)
+
+- Una confirmación del operador tiene prioridad frente a una búsqueda del mismo dominio que no encuentre enlaces. «Buscar perfiles» conserva el perfil confirmado y no vuelve a declararlo ausente por depender de JavaScript. La confirmación no se aplica a otro dominio.
+- Nuevo estado explícito por red: `presence: {status: 'not-used', confirmedAt, evidence}`. «Sin cuenta · confirmado por el usuario» es distinto de «sin confirmar», «no encontrado» y de una medición cero. Las consultas quedan deshabilitadas hasta registrar una cuenta. Los datos históricos se conservan.
+- Se reconocen también URLs sociales literales en atributos y scripts públicos (incluidos escapes JSON), sin ejecutar scripts. Esas referencias siguen siendo candidatos a revisar: pueden ser antiguas o no corresponder al negocio. Solo se normaliza HTTP→HTTPS para dominios sociales conocidos.
+- El lector de Instagram admite recuentos numéricos estructurados `follower_count` y `media_count` asociados al nombre de usuario exacto, además de las estructuras anteriores. No convierte textos redondeados como 1.2K en un recuento exacto.
+- Caso real: el usuario confirmó @nuevohorizontehotel mediante captura. Se guardó en la app publicada y sobrevivió la recarga. La consulta pública de métricas no recuperó cifras verificables; no se guardó una observación numérica ni se generaron barras ficticias. Facebook/TikTok fueron declarados inexistentes por el usuario, no medidos por el auditor. Su nuevo estado requiere publicar esta corrección antes de persistir filas sin URL.

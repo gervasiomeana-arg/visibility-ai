@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { Business } from '../types';
 import { networkNames, publicProfileUrl, validatePublicProfiles, validatePublicSnapshot, type PublicNetwork, type PublicPost, type PublicSnapshot, type PublicSocialProfile, type SocialAccount } from '../../shared/socialMetrics';
-import { latestPublicSnapshot, monthlyPublicFollowers, publicMetricLabels, publicMetricSample, publicRecommendations, publicValue, type PublicMetric } from '../../shared/publicSocialAnalysis';
+import { confirmedSocialDiscovery, latestPublicSnapshot, monthlyPublicFollowers, publicMetricLabels, publicMetricSample, publicRecommendations, publicValue, type PublicMetric } from '../../shared/publicSocialAnalysis';
 import { socialMetricsService } from '../services/socialMetricsService';
 import { measurementTime } from '../../shared/measurementTime';
 import { measurementDateLabel } from '../../shared/reportEvidence';
@@ -15,6 +15,8 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
   const [network, setNetwork] = useState<PublicNetwork>('facebook');
   const account = accounts.find(a => a.network === network);
   const [profiles, setProfiles] = useState(() => initialProfiles(account, business.name));
+  const [editAbsence, setEditAbsence] = useState(false);
+  const excluded = account?.presence?.status === 'not-used' && !editAbsence;
   const [role, setRole] = useState<PublicSocialProfile['role']>('own');
   const [domain, setDomain] = useState(business.url);
   const [from, setFrom] = useState(start), [until, setUntil] = useState(end);
@@ -27,7 +29,7 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
   const [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('');
   const alive = useRef(true), operation = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  useEffect(() => { setProfiles(initialProfiles(account, business.name)); setDraft(null); }, [network, account?.updatedAt]);
+  useEffect(() => { setProfiles(initialProfiles(account, business.name)); setDraft(null); setEditAbsence(false); }, [network, account?.updatedAt]);
   useEffect(() => { setCandidates([]); setDraft(null); setFollowers(''); setTotalPosts(''); setPostLines(''); setEvidence(''); setError(''); setMessage(''); }, [network, role]);
   const selected = profiles.find(p => p.role === role)!;
   function updateProfile(patch: Partial<PublicSocialProfile>) {
@@ -49,7 +51,7 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
     const own = nextProfiles.find(p => p.role === 'own')!;
     let changed = false;
     if (account) { try { changed = publicProfileUrl(network, account.profileUrl) !== own.profileUrl; } catch { changed = true; } }
-    await onSave({ ...account, workspaceId, businessId: business.id, network, profileUrl: own.profileUrl, accountId: changed ? '' : account?.accountId || '', measurements: account?.measurements || [], publicProfiles: nextProfiles });
+    await onSave({ ...account, workspaceId, businessId: business.id, network, presence: undefined, profileUrl: own.profileUrl, accountId: changed ? '' : account?.accountId || '', measurements: account?.measurements || [], publicProfiles: nextProfiles });
     if (alive.current) { setDraft(null); setMessage(snapshot ? 'Observación pública guardada con su fecha y evidencia. Gráficos e historial actualizados.' : 'Perfiles y confirmaciones guardados.'); }
   }
   function manualSnapshot() {
@@ -60,21 +62,31 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
     });
     return validatePublicSnapshot(network, { id: crypto.randomUUID(), profileUrl: publicProfileUrl(network, selected.profileUrl), capturedAt: observedAt, source: 'manual-public', evidence: evidence.trim(), followers: parse(followers), totalPosts: parse(totalPosts), posts, periodStart: from, periodEnd: until });
   }
-  const savedProfiles = (account?.publicProfiles || []).filter(p => p.confirmed);
+  const savedProfiles = excluded ? [] : (account?.publicProfiles || []).filter(p => p.confirmed);
   const rows = savedProfiles.map(p => ({ profile: p, snapshot: latestPublicSnapshot(network, p, from, until, metric) }));
   const max = Math.max(1, ...rows.map(r => publicValue(r.snapshot, metric) ?? 0));
   const history = savedProfiles.flatMap(p => p.snapshots.map(snapshot => ({ p, snapshot }))).sort((a, b) => Date.parse(b.snapshot.capturedAt) - Date.parse(a.snapshot.capturedAt)).slice(0, 30);
-  const recommendations = publicRecommendations(network, savedProfiles, from, until);
+  const recommendations = excluded ? ['El usuario confirmó que el negocio no utiliza esta red. No se buscan perfiles ni se asignan métricas de cero.'] : publicRecommendations(network, savedProfiles, from, until);
   const observedLabel = (s: PublicSnapshot) => /^\d{4}-\d{2}-\d{2}$/.test(s.capturedAt) ? measurementDateLabel(s.capturedAt, business.locale, business.timezone) : measurementTime(s.capturedAt, business.timezone);
   return <section aria-labelledby="public-research-title" className="vai-panel p-5 sm:p-7 rounded-2xl space-y-5">
     <div><p className="vai-overline">Investigación propia · sin claves del cliente</p><h2 id="public-research-title" className="font-heading text-2xl font-bold mt-2">Presencia pública y dos competidores</h2><p className="text-sm text-slate-600 mt-2">Buscá perfiles desde el dominio, confirmá su identidad y recopilá recuentos públicos. Sin proveedores pagos ni inicio de sesión en las redes.</p></div>
     <div className="flex flex-wrap gap-2" role="group" aria-label="Red de investigación pública">{(['facebook', 'instagram', 'tiktok'] as const).map(n => <button type="button" disabled={busy} aria-pressed={network === n} key={n} onClick={() => setNetwork(n)} className={`px-4 py-2 rounded-lg border ${network === n ? 'bg-slate-900 text-white' : 'bg-white'}`}>{networkNames[n]}</button>)}</div>
-    <fieldset disabled={disabled || busy} className="space-y-4 disabled:opacity-60">
+    <div className="border rounded-xl p-4 space-y-2"><p className="text-sm font-semibold">Estado del negocio en {networkNames[network]}: {account?.presence?.status === 'not-used' ? 'Sin cuenta · confirmado por el usuario' : account?.publicProfiles?.some(p => p.role === 'own' && p.confirmed) ? 'Perfil confirmado' : 'Sin confirmar'}</p>
+      {account?.presence && <p className="text-xs text-slate-500">{account.presence.confirmedAt} · {account.presence.evidence}</p>}
+      {excluded ? <button type="button" disabled={disabled || busy} className="underline text-sm" onClick={() => setEditAbsence(true)}>Registrar una cuenta en esta red</button> : <button type="button" disabled={disabled || busy} className="underline text-sm" onClick={() => void run(async () => {
+        await onSave({ ...account, workspaceId, businessId: business.id, network, profileUrl: account?.profileUrl || '', accountId: account?.accountId || '', measurements: account?.measurements || [], presence: { status: 'not-used', confirmedAt: new Date().toISOString(), evidence: 'Confirmación explícita del operador: el negocio no tiene cuenta en esta red.' } });
+        if (alive.current) setMessage('Estado sin cuenta guardado. No se buscarán perfiles supuestos ni se mostrará un cero como medición.');
+      })}>Confirmar que el negocio no tiene cuenta en esta red</button>}
+    </div>
+    <fieldset disabled={disabled || busy || excluded} className="space-y-4 disabled:opacity-60">
       <div className="grid sm:grid-cols-3 gap-3"><label className="text-sm">Perfil a investigar<select className="border p-2 rounded-lg w-full mt-1" value={role} onChange={e => { setRole(e.target.value as typeof role); setDomain(e.target.value === 'own' ? business.url : ''); }}>{roles.map(r => <option key={r} value={r}>{roleNames[r]}</option>)}</select></label><label className="text-sm sm:col-span-2">Dominio del {role === 'own' ? 'negocio' : 'competidor'}<input className="border p-2 rounded-lg w-full mt-1" value={domain} onChange={e => { setDomain(e.target.value); setCandidates([]); }} placeholder="https://empresa.com" /></label></div>
       <button type="button" className="vai-button vai-button-secondary" onClick={() => void run(async () => {
-        setCandidates([]); const result = await socialMetricsService.discover(domain); if (!alive.current) return;
+        setCandidates([]);
+        const known = role === 'own' ? confirmedSocialDiscovery(account, domain, business.url) : null;
+        if (known) { setMessage(known.status === 'not-used' ? 'El usuario confirmó que el negocio no tiene cuenta en esta red.' : `Perfil confirmado conservado: ${known.profileUrl}. Que no aparezca en el HTML inicial no elimina esta confirmación.`); return; }
+        const result = await socialMetricsService.discover(domain); if (!alive.current) return;
         setCandidates(result.candidates.filter(c => c.network === network)); setCandidateRole(role);
-        setMessage(result.candidates.some(c => c.network === network) ? 'Encontramos enlaces en el sitio. Elegí uno y confirmá su identidad; no se asignó automáticamente.' : `No se encontraron enlaces de ${networkNames[network]} en el HTML del sitio. Podés pegar la URL del perfil confirmado.`);
+        setMessage(result.candidates.some(c => c.network === network) ? 'Encontramos enlaces en el sitio. Elegí uno y confirmá su identidad; no se asignó automáticamente. Un enlace puede ser antiguo o no pertenecer al negocio.' : `No se encontraron enlaces de ${networkNames[network]} en el HTML del sitio. Podés pegar la URL del perfil confirmado.`);
       })}>Buscar perfiles desde el dominio</button>
       {!!candidates.length && <div className="rounded-xl bg-slate-50 p-3 space-y-2"><p className="text-xs">Candidatos para {roleNames[candidateRole]} · fuente: enlace en el sitio consultado</p>{candidates.map(c => <div key={c.profileUrl} className="flex flex-wrap items-center gap-3 text-sm"><a className="underline break-all" href={c.profileUrl} target="_blank" rel="noopener noreferrer">{c.profileUrl}</a><button className="underline font-semibold" type="button" onClick={() => updateProfile({ profileUrl: c.profileUrl })}>Usar este perfil</button></div>)}</div>}
       <div className="grid sm:grid-cols-3 gap-3"><label className="text-sm">Nombre<input maxLength={160} className="border p-2 rounded-lg w-full mt-1" value={selected.name} onChange={e => updateProfile({ name: e.target.value })} /></label><label className="text-sm sm:col-span-2">URL pública del perfil<input type="url" className="border p-2 rounded-lg w-full mt-1" value={selected.profileUrl} onChange={e => updateProfile({ profileUrl: e.target.value })} placeholder={`https://www.${network}.com/${network === 'tiktok' ? '@' : ''}empresa/`} /></label></div>
@@ -97,7 +109,7 @@ export function PublicSocialResearch({ business, workspaceId, accounts, disabled
     </fieldset>
     {busy && <p role="status">Consultando o guardando…</p>}{message && <p role="status" className="text-sm text-emerald-800">{message}</p>}{error && <p role="alert" className="text-sm text-red-800">{error}</p>}
     <div className="border-t pt-5 space-y-4"><label className="text-sm font-semibold">Comparación · {networkNames[network]}<select className="border rounded-lg p-2 block mt-2 w-full sm:w-auto" value={metric} onChange={e => setMetric(e.target.value as PublicMetric)}>{Object.entries(publicMetricLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label><p className="text-xs text-slate-500">{metric === 'followers' ? 'Última observación de cada perfil; compará sus fechas.' : `${from} a ${until}. Solo muestras de ese período. Los recuentos son acumulados a la fecha de observación, no interacciones ocurridas exclusivamente durante el período.`}</p>
-      {!rows.length && <p className="text-sm text-slate-500">Guardá perfiles y observaciones para ver barras reales.</p>}
+      {!rows.length && <p className="text-sm text-slate-500">{excluded ? 'Sin cuenta en esta red, según confirmación del usuario. No se representa como cero.' : 'Guardá perfiles y observaciones para ver barras reales.'}</p>}
       {rows.map(({ profile: p, snapshot: s }) => { const value = publicValue(s, metric); return <div key={p.role}><div className="flex justify-between gap-2 text-sm"><strong>{p.name} · {roleNames[p.role]}</strong><span>{numberLabel(value)}</span></div>{value !== null && <div aria-hidden="true" className="h-5 bg-slate-100 rounded-md mt-2 overflow-hidden"><div className={`h-full rounded-md ${p.role === 'own' ? 'bg-emerald-700' : 'bg-slate-500'}`} style={{ width: `${value / max * 100}%` }} /></div>}{s && <p className="text-xs text-slate-500 mt-1">{observedLabel(s)} · {s.source === 'public-web' ? 'HTML público' : 'Observación manual'}{metric !== 'followers' && ` · n=${publicMetricSample(s, metric)} publicaciones con los campos necesarios`}</p>}</div>; })}
       <p className="text-xs text-slate-500">No disponible no equivale a cero. No son alcance, ventas ni una puntuación de visibilidad. Las muestras pueden ser parciales y de distinto tamaño.</p>
     </div>
