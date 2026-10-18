@@ -20,6 +20,10 @@ export function analyzePublicProfile(network: PublicNetwork, profile: PublicSoci
   const growth = first && last && first.capturedAt.slice(0,10) !== last.capturedAt.slice(0,10) ? last.followers!-first.followers! : null;
   const days = (Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000+1;
   const topPosts = [...complete].sort((a,b) => (b.likes!+b.comments!)-(a.likes!+a.comments!) || a.url.localeCompare(b.url)).slice(0,5);
+  const periodCovered = !!latest && latest.periodStart <= start && latest.periodEnd >= end;
+  const availableComplete = !!latest && periodCovered && latest.coverage?.status === 'complete-available';
+  const coverageReasons = { exhausted:'Recorrido agotado y cantidad de publicaciones conciliada con la API.', 'page-limit':'Se alcanzó el límite de cinco páginas por consulta.', 'time-limit':'Se alcanzó el límite de tiempo.', 'provider-error':'El proveedor interrumpió el recorrido; se conservó lo verificado.', 'invalid-media':'Hubo publicaciones que no pudieron validarse.', 'missing-media':'La respuesta no incluyó una lista de publicaciones verificable.', 'invalid-cursor':'La paginación no entregó un cursor válido o repitió uno.', 'count-mismatch':'La cantidad recuperada no coincide con el total de la cuenta, o el total cambió durante la consulta.' };
+  const coverageNote = latest ? (!periodCovered ? 'La captura se obtuvo para otra ventana de publicación; no acredita cobertura del período elegido.' : latest.coverage ? coverageReasons[latest.coverage.reason] : 'La captura no registra un recorrido completo; se trata como muestra parcial.') : 'Todavía no hay una captura verificable dentro del período.';
   const recommendations: string[] = [];
   if (!latest) recommendations.push('Consultá este perfil dentro del período para obtener una primera medición verificable.');
   else {
@@ -29,7 +33,7 @@ export function analyzePublicProfile(network: PublicNetwork, profile: PublicSoci
     if (complete.length && complete.length < posts.length) recommendations.push(`Solo ${complete.length} de ${posts.length} publicaciones tienen ambos recuentos. La media excluye las incompletas; no representa toda la cuenta.`);
     if (growth === null) recommendations.push('Registrá otra medición en una fecha posterior para calcular crecimiento real de seguidores.');
   }
-  return { latest, posts, sampledPosts: posts.length, measuredPosts: complete.length, averageInteractions: average, engagementRate: rate,
+  return { latest, posts, availableComplete, coverageNote, sampledPosts: posts.length, measuredPosts: complete.length, averageInteractions: average, engagementRate: rate,
     observedPostsPerWeek: posts.length ? posts.length/days*7 : null, growth, growthStart: growth !== null ? first!.capturedAt : undefined,
     growthEnd: growth !== null ? last!.capturedAt : undefined, topPosts, recommendations };
 }

@@ -25,3 +25,10 @@ test('wrong identity, seeded records, unconfirmed, out-of-window, invalid and du
 test('publication window is independent of account stock and observation time',()=>{
  const a=analyzePublicProfile('instagram',profile([snapshot()]),'2026-01-11','2026-01-31');assert.equal(a.sampledPosts,2);assert.equal(a.measuredPosts,1);assert.equal(a.averageInteractions,0);assert.equal(a.engagementRate,0);
 });
+test('complete API coverage is restricted to the collected publication window and remains separate from complete interactions',()=>{
+ const s=snapshot({source:'official-public-api',totalPosts:3,coverage:{status:'complete-available',reason:'exhausted',pages:1,examined:3,rejected:0}});
+ const a=analyze(profile([s]));assert.equal(a.availableComplete,true);assert.equal(a.measuredPosts,2);assert.equal(a.sampledPosts,3);
+ assert.equal(analyze(profile([snapshot()])).availableComplete,false);
+ assert.equal(analyzePublicProfile('instagram',profile([{...s,periodStart:'2026-01-10'}]),'2026-01-01','2026-01-31').availableComplete,false);
+ assert.equal(analyze(profile([{...s,coverage:{...s.coverage!,examined:2}}])).latest,undefined);
+});
