@@ -309,6 +309,7 @@ export default function App() {
             ctr: Number(state.searchConsole.ctr || 0),
             position: Number(state.searchConsole.position || 0),
             loadedAt: state.searchConsole.created_at,
+            rowCount: Array.isArray(state.searchConsole.payload?.keywords) ? state.searchConsole.payload.keywords.length : undefined,
           });
           storageService.updateBusinessScores(
             activeBusiness.id,

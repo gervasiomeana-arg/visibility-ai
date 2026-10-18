@@ -2,6 +2,7 @@ import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
 import { beginOAuthNavigation } from '../../shared/oauthNavigation';
 import { validateSearchQueryResult } from '../../shared/searchAnalytics';
+import { searchConsoleWindow } from '../../shared/searchConsolePeriod';
 
 export interface SearchConsoleSite {
   siteUrl: string;
@@ -92,12 +93,7 @@ export const searchConsoleService = {
     days = 28,
     context?: { workspaceId?: string; businessId?: string }
   ): Promise<{ rows: SearchConsoleQueryRow[]; startDate: string; endDate: string }> {
-    const end = new Date();
-    end.setDate(end.getDate() - 2);
-    const start = new Date(end);
-    start.setDate(start.getDate() - (days - 1));
-
-    const format = (date: Date) => date.toISOString().slice(0, 10);
+    const {startDate,endDate} = searchConsoleWindow(days);
 
     const data = await apiFetchJson<unknown>('/api/search-console/query', {
       method: 'POST',
@@ -106,14 +102,14 @@ export const searchConsoleService = {
       }),
       body: JSON.stringify({
         siteUrl,
-        startDate: format(start),
-        endDate: format(end),
+        startDate,
+        endDate,
         rowLimit: 100,
         workspaceId: context?.workspaceId,
         businessId: context?.businessId,
       }),
       signal: AbortSignal.timeout(60000),
     });
-    return validateSearchQueryResult(data, { siteUrl, startDate: format(start), endDate: format(end) });
+    return validateSearchQueryResult(data, { siteUrl, startDate, endDate });
   },
 };
