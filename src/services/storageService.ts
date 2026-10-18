@@ -937,6 +937,7 @@ export const storageService = {
       ctr: number;
       position: number;
       loadedAt: string;
+      rowCount?: number;
     }
   ): boolean {
     try {

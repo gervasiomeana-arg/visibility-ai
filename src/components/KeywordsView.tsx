@@ -28,6 +28,7 @@ import { storageService } from '../services/storageService';
 import { workspaceService } from '../services/workspaceService';
 import { authService } from '../services/authService';
 import { credentialState, propertyMatchesBusiness } from '../../shared/searchConsoleDiagnostics';
+import { restoreSearchConsoleSummary, searchConsolePeriods, type SearchConsolePeriod, type SearchConsoleResultSummary } from '../../shared/searchConsolePeriod';
 
 import { keywordRequestScope, measuredKeywords, mergeMeasuredKeywords } from '../../shared/keywordWorkflow';
 
@@ -65,11 +66,10 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
   const connecting = useRef(false);
   const [gscSites, setGscSites] = useState<SearchConsoleSite[]>([]);
   const [selectedSite, setSelectedSite] = useState('');
+  const [queryDays, setQueryDays] = useState<SearchConsolePeriod>(28);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [copiedRedirectUri, setCopiedRedirectUri] = useState(false);
-  const [gscResult, setGscResult] = useState<{
-    siteUrl: string; startDate: string; endDate: string; rowCount: number;
-  } | null>(null);
+  const [gscResult, setGscResult] = useState<SearchConsoleResultSummary | null>(null);
   const queryVersion = useRef(0);
   const scope = keywordRequestScope(business, storageService.getScope());
   const liveScope = useRef(scope);
@@ -94,6 +94,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     setGscNotice('');
     setGscSites([]);
     setSelectedSite('');
+    setQueryDays(28);
     return () => { queryVersion.current += 1; manualRequest.current += 1; };
   }, [scope]);
 
@@ -139,6 +140,12 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     return () => { statusVersion.current += 1; };
   }, [refreshSearchConsole]);
 
+  useEffect(() => {
+    if(gscLoading)return;
+    const saved=restoreSearchConsoleSummary(storageService.getSearchConsoleMeta(business.id),business.url,selectedSite);
+    setGscResult(current=>current && !current.restored && current.siteUrl===selectedSite ? current : saved);
+  },[scope,selectedSite,initialKeywords,gscLoading]);
+
   const handleConnectSearchConsole = async () => {
     if (connecting.current || gscLoading || gscChecking) return;
     setGscError('');
@@ -175,7 +182,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
     try {
       const result = await searchConsoleService.query(
         selectedSite,
-        28,
+        queryDays,
         {
           workspaceId: business.workspaceId,
           businessId: business.id,
@@ -220,6 +227,7 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
         ctr,
         position,
         loadedAt,
+        rowCount: realKeywords.length,
       });
 
       const historySaved = storageService.saveSearchConsoleHistoryPoint(business.id, {
@@ -432,16 +440,23 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
                   </option>
                 ))}
               </select>
+              <select aria-label="Período de Search Console" value={queryDays} disabled={gscLoading||gscChecking}
+                onChange={e=>setQueryDays(Number(e.target.value) as SearchConsolePeriod)}
+                className="px-3 py-2 rounded-xl ring-1 ring-slate-200 bg-white text-slate-800">
+                {searchConsolePeriods.map(days=><option key={days} value={days}>{days===365?'Últimos 365 días':`Últimos ${days} días`}</option>)}
+              </select>
               <button
                 type="button"
                 onClick={handleLoadSearchConsole}
                 disabled={!selectedSite || gscLoading || gscChecking || !propertyMatchesBusiness(selectedSite, business.url)}
                 className="px-4 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white font-bold transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985] cursor-pointer"
               >
-                {gscLoading ? 'Cargando...' : 'Cargar últimos 28 días'}
+                {gscLoading ? 'Cargando...' : `Cargar últimos ${queryDays} días`}
               </button>
             </div>
           )}
+
+          <p className="text-xs text-slate-500">Importa hasta 100 consultas que Google devuelve para el período, excluyendo los dos días más recientes. No representa todas las búsquedas ni las visitas totales. El período del último resultado guardado se muestra por separado.</p>
 
           {selectedSite && !propertyMatchesBusiness(selectedSite, business.url) && (
             <p role="alert" className="text-amber-800">Esta propiedad no corresponde a la URL de {business.name} ({business.url}). Elegí una propiedad que incluya esa URL para guardar los datos en este negocio.</p>
@@ -456,13 +471,12 @@ export const KeywordsView: React.FC<KeywordsViewProps> = ({
           {gscResult && (
             <div role="status" className="rounded-xl bg-blue-50 p-3 text-blue-900">
               <p className="font-semibold">
-                {gscResult.rowCount === 0
-                  ? 'Consulta completada: sin datos disponibles para este período.'
-                  : `Consulta completada: ${gscResult.rowCount} ${gscResult.rowCount === 1 ? 'consulta recibida' : 'consultas recibidas'}.`}
+                {gscResult.restored ? 'Última consulta guardada: ' : 'Consulta completada: '}
+                {gscResult.rowCount === 0 ? 'Google no devolvió consultas para este período.' : `${gscResult.rowCount} ${gscResult.rowCount === 1 ? 'consulta recibida' : 'consultas recibidas'}.`}
               </p>
               <p className="mt-1">{gscResult.siteUrl} · {gscResult.startDate} a {gscResult.endDate}</p>
               {gscResult.rowCount === 0 && (
-                <p className="mt-1">La conexión sigue activa. Revisá el mismo período en Search Console; si Google indica que está procesando datos, volvé a consultar cuando estén disponibles.</p>
+                <p className="mt-1">No equivale a cero visitas. Revisá el mismo período en Search Console o consultá 90 o 365 días para buscar datos anteriores.</p>
               )}
             </div>
           )}
