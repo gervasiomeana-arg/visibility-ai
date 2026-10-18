@@ -145,3 +145,8 @@ test('stored audit counts preserve worsening and subsequent recovery across relo
     if(original)Object.defineProperty(globalThis,'localStorage',original);else delete(globalThis as any).localStorage;
   }
 });
+
+ test('a verified social source makes a partial real report without promoting demo metrics or priorities',()=>{
+ const e=reportEvidence('voley',{...empty,source:'demo'},[issue('voley','demo','high','Demo issue')],'https://openvoley.com/',true);
+ assert.equal(e.mode,'PARCIAL REAL');assert.equal(e.useDemoMetrics,false);assert.deepEqual(e.usableIssues,[]);assert.deepEqual(e.priorities,[]);
+ });

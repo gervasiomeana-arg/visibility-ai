@@ -1,3 +1,5 @@
+import { socialReportRows } from '../../shared/socialReport';
+import type { SocialAccount } from '../../shared/socialMetrics';
 import { technicalScoreChange } from '../../shared/scoreEvidence';
 import { reportPerformance } from '../../shared/reportPerformance';
 import { measurementTime } from '../../shared/measurementTime';
@@ -23,6 +25,19 @@ interface MonthlyReportViewProps {
 const emptyTasks: ActionTask[] = [];
 
 export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = emptyTasks, auditMeta, workspace, clientReportStore, onOpenClients }) => {
+  const socialScope = workspace?.id && business.workspaceId === workspace.id ? `${workspace.id}:${business.id}` : '';
+  const [social, setSocial] = useState<{scope:string; loading:boolean; error:string; accounts:SocialAccount[]}>({scope:'',loading:true,error:'',accounts:[]});
+  const [socialReload, setSocialReload] = useState(0);
+  useEffect(() => {
+    let active=true;
+    setSocial({scope:socialScope,loading:!!socialScope,error:'',accounts:[]});
+    if (socialScope && workspace) import('../services/socialMetricsService').then(({socialMetricsService}) => socialMetricsService.list(workspace.id,business.id))
+      .then(accounts => {if(active)setSocial({scope:socialScope,loading:false,error:'',accounts});})
+      .catch(() => {if(active)setSocial({scope:socialScope,loading:false,error:'No se pudieron cargar las mediciones de Redes. Reintentá antes de descargar o guardar el informe.',accounts:[]});});
+    return () => {active=false;};
+  },[socialScope,socialReload]);
+  const socialReady = !socialScope || (social.scope === socialScope && !social.loading && !social.error);
+  const socialRows = socialReady && socialScope ? socialReportRows(social.accounts,workspace!.id,business.id) : [];
   const articleRef = useRef<HTMLElement>(null);
   const exporting = useRef(false);
   const [pdfBusy,setPdfBusy] = useState(false);
@@ -32,10 +47,10 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
   const reportVersion = useRef(0);
   useEffect(() => { alive.current=true; return () => {alive.current=false;}; },[]);
   useEffect(() => () => { if(download)URL.revokeObjectURL(download.url); },[download]);
-  useEffect(() => {reportVersion.current++;setDownload(null);setPdfError('');},[business,evolution,issues,tasks,auditMeta]);
+  useEffect(() => {reportVersion.current++;setDownload(null);setPdfError('');},[business,evolution,issues,tasks,auditMeta,social]);
   const prepareForClient = useCallback(async () => {
     const article = articleRef.current;
-    if (!article) throw new Error('El informe todavía no está disponible.');
+    if (!article || !socialReady) throw new Error('Esperá a que se carguen las fuentes del informe o reintentá Redes.');
     const version = reportVersion.current;
     const name = reportPdfName(business.name,new Intl.DateTimeFormat('en-CA',{timeZone:business.timezone || 'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
     const blocks = reportPdfBlocks(article);
@@ -43,9 +58,9 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     const blob = await prepareReportPdf(blocks);
     if (!alive.current || articleRef.current !== article || version !== reportVersion.current) throw new Error('El informe cambió durante la preparación. Revisalo antes de guardar.');
     return {file:new File([blob], name, {type:'application/pdf'}),contentSha256};
-  }, [business,evolution,issues,tasks,auditMeta]);
+  }, [business,evolution,issues,tasks,auditMeta,social,socialReady]);
   async function exportPdf() {
-    if(exporting.current || !articleRef.current)return;
+    if(exporting.current || !articleRef.current || !socialReady)return;
     const article = articleRef.current;
     const blocks=reportPdfBlocks(article);
     const version=reportVersion.current;
@@ -60,7 +75,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
     finally {exporting.current=false;if(alive.current)setPdfBusy(false);}
   }
   const dateLabel = (value?: string) => measurementDateLabel(value, business.locale || 'es-AR', business.timezone || 'America/Argentina/Buenos_Aires');
-  const evidence = reportEvidence(business.id, evolution, issues, business.url);
+  const evidence = reportEvidence(business.id, evolution, issues, business.url, socialRows.some(row => row.followers !== null));
   const { mode, priorities, useDemoMetrics } = evidence;
   const isReal = mode === 'PARCIAL REAL';
   const technical = evolution.source === 'real' ? measuredSeries(evolution.months, evolution.visibility) : [];
@@ -97,11 +112,12 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
         <h1 className="text-2xl sm:text-3xl font-bold text-slate-950 font-heading">Informe de visibilidad</h1>
         <p className="text-sm text-slate-600 mt-2">Revisá las fuentes y prioridades antes de entregar este informe. Las fechas indican el alcance disponible, que puede no coincidir con un mes calendario.</p>
       </div>
-      <div className="flex flex-wrap gap-2"><button disabled={pdfBusy} onClick={() => void exportPdf()} className="vai-button vai-button-primary shrink-0"><Download className="w-4 h-4" />{pdfBusy?'Preparando PDF…':'Descargar PDF'}</button><button onClick={() => window.print()} className="vai-button vai-button-secondary shrink-0"><Printer className="w-4 h-4" />Imprimir</button></div>
+      <div className="flex flex-wrap gap-2"><button disabled={pdfBusy || !socialReady} onClick={() => void exportPdf()} className="vai-button vai-button-primary shrink-0"><Download className="w-4 h-4" />{pdfBusy?'Preparando PDF…':'Descargar PDF'}</button><button disabled={!socialReady} onClick={() => window.print()} className="vai-button vai-button-secondary shrink-0"><Printer className="w-4 h-4" />Imprimir</button></div>
     </div>
     {pdfError && <p role="alert" className="no-print rounded-xl bg-red-50 text-red-800 p-4">{pdfError}</p>}
     {download && <p role="status" className="no-print rounded-xl bg-emerald-50 p-4 text-sm">PDF preparado. Si la descarga no comenzó, <a href={download.url} download={download.name} className="underline font-semibold">descargá el PDF preparado</a>. Si AI Studio bloquea la descarga, abrí Visibility publicada y repetí este paso.</p>}
-    {isReal && clientReportStore && workspace?.role === 'owner' && business.workspaceId === workspace.id && <SaveReportToClient key={`${workspace.id}:${business.id}`} workspace={workspace} business={business} prepare={prepareForClient} store={clientReportStore} onOpenClients={onOpenClients} />}
+    {socialScope && !socialReady && <div role={social.error ? 'alert' : 'status'} className="no-print rounded-xl bg-amber-50 text-amber-900 p-4 text-sm">{social.error || 'Cargando mediciones guardadas de Redes…'}{social.error && <button onClick={() => setSocialReload(n => n+1)} className="ml-3 underline font-semibold">Reintentar carga de Redes</button>}</div>}
+    {socialReady && isReal && clientReportStore && workspace?.role === 'owner' && business.workspaceId === workspace.id && <SaveReportToClient key={`${workspace.id}:${business.id}`} workspace={workspace} business={business} prepare={prepareForClient} store={clientReportStore} onOpenClients={onOpenClients} />}
     <article ref={articleRef} className="vai-report-document bg-white rounded-2xl p-5 sm:p-10 border border-slate-200 shadow-sm max-w-4xl mx-auto space-y-8 print:border-none print:shadow-none print:p-0">
       <header className="pb-6 border-b border-slate-200 space-y-2">
         <p className="text-xs font-bold tracking-widest text-indigo-600">VISIBILITY · {mode}</p>
@@ -148,6 +164,20 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
           <p className="text-[10px] font-semibold text-indigo-600">{metric.source}</p><p className="text-xs text-slate-500 mt-1">{metric.note}</p>
         </div>)}</div>
       </section>
+      {socialScope && <section className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-900">Redes · últimas observaciones guardadas</h3>
+        <p className="text-xs text-slate-600">Son recuentos observados en la fecha indicada, no seguidores ganados en el mes. Una captura guardada no confirma que la autorización siga activa ni constituye una consulta nueva.</p>
+        {!socialReady && <p>{social.error || 'Carga de Redes pendiente. No entregar este documento hasta completar la revisión.'}</p>}
+        {socialRows.map(row => <div key={row.network} data-pdf-keep={`social-${row.network}`} className="rounded-xl border border-slate-200 p-4 space-y-1 text-xs">
+          <strong>{({instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok'})[row.network]}</strong>
+          {row.notUsed ? <p>Red declarada como no utilizada en la ficha del negocio. No equivale a cero seguidores.</p> : <>
+            <p className="break-all">Perfil: {row.profileUrl || 'Sin perfil confirmado disponible'}.</p>
+            <p>Seguidores observados: {row.followers === null ? 'Sin datos verificados' : row.followers.toLocaleString('es-AR')}.</p>
+            {row.capturedAt && <><p>Observado: {measurementTime(row.capturedAt,business.timezone)}.</p><p>Fuente: {row.source}. {row.evidence}</p></>}
+          </>}
+        </div>)}
+        <p className="text-xs text-slate-500">Este resumen no incorpora informes de alcance ni visualizaciones para un período de entrega definido. No se calculan a partir de seguidores o muestras de publicaciones. Consultá en Redes los informes disponibles con su período y fuente.</p>
+      </section>}
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Tres prioridades para la próxima revisión</h3>
         {priorities.length ? <ol className="space-y-3">{priorities.map((issue, index) => <li key={issue.id} data-pdf-keep={`priority-${issue.id}`} className="rounded-xl border border-slate-200 p-4 text-sm">

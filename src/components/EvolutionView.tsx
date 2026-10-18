@@ -176,7 +176,7 @@ export const EvolutionView: React.FC<EvolutionViewProps> = ({
   const unchanged = hasComparison && lastValue === firstValue;
 
   const comparisonLabel = !hasComparison
-    ? effectiveSelectedMetric === 'visibility' ? 'Sin comparación: las fuentes del índice faltan o cambiaron' : isSearchMetric ? 'Sin dos períodos comparables de igual duración y sin solapamiento' : 'Todavía no hay dos mediciones para comparar'
+    ? points.length < 2 ? 'Todavía no hay dos mediciones para comparar' : effectiveSelectedMetric === 'visibility' ? 'Sin comparación: las fuentes del índice faltan o cambiaron' : isSearchMetric ? 'Sin dos períodos comparables de igual duración y sin solapamiento' : 'Todavía no hay dos mediciones para comparar'
     : unchanged
     ? 'Sin cambio respecto del inicio'
     : effectiveSelectedMetric === 'fixedProblems'
