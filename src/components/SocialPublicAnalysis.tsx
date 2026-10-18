@@ -1,0 +1,26 @@
+import React from 'react';
+import { analyzePublicProfile } from '../../shared/socialPublicAnalysis';
+import { publicSourceLabel, type PublicNetwork, type PublicSocialProfile, type SocialAccount } from '../../shared/socialMetrics';
+
+const number = (n: number | null | undefined, digits = 1) => n === null || n === undefined ? 'Sin dato' : n.toLocaleString('es-AR',{maximumFractionDigits:digits});
+export function SocialPublicAnalysis({ account, network, start, end }: { account?: SocialAccount; network: PublicNetwork; start: string; end: string }) {
+  const profiles = account?.publicProfiles?.filter(p => p.confirmed && (p.role !== 'own' || p.profileUrl === account.profileUrl)) || [];
+  const rows = profiles.map(profile => ({ profile, analysis: analyzePublicProfile(network,profile,start,end) }));
+  const own = rows.find(r=>r.profile.role==='own');
+  if (!own) return null;
+  const a = own.analysis;
+  return <section className="vai-panel rounded-2xl p-5 space-y-5">
+    <header><h3 className="font-heading text-lg font-bold">Actividad e interacción pública</h3><p className="text-xs text-slate-500 mt-2">Publicaciones fechadas entre {start} y {end}. Muestra parcial de una sola consulta; los recuentos acumulan interacciones hasta la fecha de observación, no solo durante el período.</p></header>
+    <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {[['Publicaciones recuperadas',a.latest ? number(a.sampledPosts,0) : 'Sin dato'],['Frecuencia observada / semana',number(a.observedPostsPerWeek)],['Me gusta + comentarios / publicación',number(a.averageInteractions)],['Engagement por seguidores',a.engagementRate === null ? 'Sin dato' : number(a.engagementRate,2)+' %']].map(([title,value])=><div key={title} className="border rounded-xl p-4"><p className="text-xs text-slate-500">{title}</p><p className="text-xl font-bold mt-2">{value}</p></div>)}
+    </div>
+    <p className="text-xs text-slate-500">Cobertura: {a.measuredPosts}/{a.sampledPosts} publicaciones con Me gusta y comentarios completos. Frecuencia = publicaciones recuperadas ÷ días × 7 (mínimo observado, no frecuencia total). Engagement = media de (Me gusta + comentarios) ÷ seguidores observados × 100; no mide alcance ni ventas. Cero seguidores no permite calcular esa tasa.</p>
+    <p className="text-sm">Cambio observado de seguidores: <strong>{number(a.growth,0)}</strong>{a.growthStart && <> · {a.growthStart.slice(0,10)} → {a.growthEnd!.slice(0,10)}</>}. Requiere dos fechas distintas dentro del período.</p>
+    {a.latest && <p className="text-xs text-slate-500">Fuente: {publicSourceLabel(a.latest.source)} · {a.latest.capturedAt}. {a.latest.evidence}</p>}
+    <details><summary className="cursor-pointer font-medium">Publicaciones con más interacción de la muestra</summary>{!a.topPosts.length ? <p className="text-sm mt-3">No hay publicaciones con ambos recuentos verificables para ordenarlas.</p> : <div className="overflow-x-auto"><table className="w-full text-sm text-left mt-3"><thead><tr><th>Publicación</th><th>Me gusta</th><th>Comentarios</th><th>Vistas públicas acumuladas</th></tr></thead><tbody>{a.topPosts.map(p=><tr key={p.url} className="border-t"><td className="py-3"><a className="underline" href={p.url} target="_blank" rel="noopener noreferrer">Ver publicación · {p.publishedAt}</a></td><td>{number(p.likes,0)}</td><td>{number(p.comments,0)}</td><td>{number(p.views,0)}</td></tr>)}</tbody></table></div>}</details>
+    {rows.length>1 && <div><h4 className="font-semibold">Comparación con hasta dos competidores</h4><p className="text-xs text-slate-500 mt-2">Misma red y ventana de publicación. Las muestras y antigüedad pueden diferir; no es un ranking de calidad ni permite comparar alcance.</p><div className="overflow-x-auto"><table className="w-full text-sm text-left mt-3"><thead><tr><th>Perfil</th><th>Seguidores observados</th><th>Muestra</th><th>Interacción media</th><th>Engagement</th><th>Observación</th></tr></thead><tbody>{rows.map(({profile,analysis:b})=><tr key={profile.role} className="border-t"><td className="py-3"><a className="underline" href={profile.profileUrl} target="_blank" rel="noopener noreferrer">{profile.role==='own'?'Tu negocio':profile.name}</a></td><td>{number(b.latest?.followers,0)}</td><td>{b.measuredPosts}/{b.sampledPosts}</td><td>{number(b.averageInteractions)}</td><td>{b.engagementRate===null?'Sin dato':number(b.engagementRate,2)+' %'}</td><td>{b.latest ? <>{publicSourceLabel(b.latest.source)} · {b.latest.capturedAt.slice(0,10)}</> : 'Sin medición en el período'}</td></tr>)}</tbody></table></div></div>}
+    <div><h4 className="font-semibold">Próximas acciones sugeridas</h4><ul className="list-disc pl-5 text-sm space-y-2 mt-3">{a.recommendations.map(t=><li key={t}>{t}</li>)}</ul></div>
+  </section>;
+}
+
+export type CompetitorRole = Extract<PublicSocialProfile['role'], 'competitor-1'|'competitor-2'>;

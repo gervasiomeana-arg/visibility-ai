@@ -18,7 +18,7 @@ test('public discovery queries via own account for a different target; no target
  let calls=0;
  const snapshot=await request(async(target,init)=>{
   calls++;const endpoint=new URL(String(target));assert.equal(endpoint.origin,'https://graph.facebook.com');assert.equal(endpoint.pathname,'/v25.0/123456789');
-  assert.equal(endpoint.searchParams.get('fields'),'business_discovery.username(fixture_business){id,username,followers_count,media_count}');
+  assert.equal(endpoint.searchParams.get('fields'),'business_discovery.username(fixture_business){id,username,followers_count,media_count,media.limit(50){id,permalink,timestamp,like_count,comments_count}}');
   assert.equal(endpoint.searchParams.has('access_token'),false);assert.equal(new Headers(init?.headers).get('authorization'),'Bearer fixture-private-token');assert.equal(new Headers(init?.headers).has('cookie'),false);
   assert.equal(init?.redirect,'error');assert.ok(init?.signal instanceof AbortSignal);
   return new Response(JSON.stringify(payload()));
@@ -30,6 +30,19 @@ test('missing configuration and another operator stop before any provider reques
  let calls=0;const fetcher:typeof fetch=async()=>{calls++;return new Response('{}');};
  await assert.rejects(request(fetcher,{META_DISCOVERY_ACCESS_TOKEN:''}),e=>e instanceof InstagramDiscoveryError&&e.code==='not-configured');
  await assert.rejects(discoverInstagramBusiness(url,'2026-01-01','2026-10-17',other,fetcher,env),e=>e instanceof InstagramDiscoveryError&&e.code==='operator-not-authorized');assert.equal(calls,0);
+});
+test('bounded public media preserves hidden counts, filters dates and rejects foreign links and duplicates',async()=>{
+ const media=[
+  {permalink:'https://www.instagram.com/p/fixture_a/?tracking=yes',timestamp:'2026-10-10T12:00:00Z',like_count:0,comments_count:2},
+  {permalink:'https://www.instagram.com/p/fixture_b/',timestamp:'2026-10-11T12:00:00Z',comments_count:3},
+  {permalink:'https://www.instagram.com/p/fixture_a/',timestamp:'2026-10-10T12:00:00Z',like_count:999},
+  {permalink:'https://evil.test/p/a/',timestamp:'2026-10-10T12:00:00Z',like_count:10},
+  {permalink:'https://www.instagram.com/p/old/',timestamp:'2025-01-10T12:00:00Z',like_count:10},
+  {permalink:'https://www.instagram.com/p/future/',timestamp:'2099-01-10T12:00:00Z',like_count:10},
+  {permalink:'https://www.instagram.com/p/invalid/',timestamp:'invalid',like_count:10}
+ ];
+ const data={...payload(),business_discovery:{...payload().business_discovery,media:{data:media,paging:{next:'https://evil.test/?access_token=secret'}}}};
+ let calls=0;const s=await request(async()=>{calls++;return new Response(JSON.stringify(data));});assert.equal(calls,1);assert.equal(s.posts.length,2);assert.equal(s.posts[0].likes,0);assert.equal(s.posts[1].likes,undefined);assert.equal(s.posts[1].comments,3);assert.match(s.evidence,/cobertura parcial/);assert.doesNotMatch(JSON.stringify(s),/tracking|secret|evil/);
 });
 test('response must identify both own querying account and requested target',async()=>{
  for(const data of [{...payload(),id:'wrong-own'},{...payload(),business_discovery:{...payload().business_discovery,username:'someone_else'}},{...payload(),business_discovery:{...payload().business_discovery,id:undefined}}])await assert.rejects(request(async()=>new Response(JSON.stringify(data))),e=>e instanceof InstagramDiscoveryError&&e.code==='identity-mismatch');
