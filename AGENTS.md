@@ -12,3 +12,4 @@
 
 - Instagram: Business Discovery consulta cuentas profesionales de terceros mediante la cuenta propia autorizada de Visibility. No confundir esta autorización técnica propia con pedir la contraseña o token del cliente. Nunca prometer cobertura de cuentas personales ni Insights privados.
 - Si Business Discovery está configurado, usarlo directamente para el operador permitido, conservar su fuente oficial y no volver a HTML tras un rechazo de permisos/cuota.
+- La ampliación solicitada de análisis público permite dos competidores en un bloque opcional plegado. Mostrar denominadores, fechas y fuentes; las medias de interacción solo usan publicaciones con Me gusta y comentarios completos. Nunca sumar capturas repetidas ni confundir recuentos acumulados por publicación con métricas del período.

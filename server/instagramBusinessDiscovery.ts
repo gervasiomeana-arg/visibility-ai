@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { publicProfileUrl, validatePublicSnapshot, type PublicSnapshot } from '../shared/socialMetrics';
+import { calendarDay, publicProfileUrl, validatePublicSnapshot, type PublicPost, type PublicSnapshot } from '../shared/socialMetrics';
 
 const messages = {
   'not-configured': 'Falta configurar la cuenta propia de Visibility para Instagram Business Discovery. No se necesita la clave del cliente.',
@@ -36,7 +36,7 @@ export async function discoverInstagramBusiness(profile:string,start:string,end:
   const profileUrl=publicProfileUrl('instagram',profile),username=new URL(profileUrl).pathname.split('/').filter(Boolean)[0];
   if(!/^[a-z0-9_.]{1,30}$/i.test(username))throw new InstagramDiscoveryError('profile-unavailable');
   const endpoint=new URL(`https://graph.facebook.com/${config.version}/${config.ownIgUserId}`);
-  endpoint.searchParams.set('fields',`business_discovery.username(${username}){id,username,followers_count,media_count}`);
+  endpoint.searchParams.set('fields',`business_discovery.username(${username}){id,username,followers_count,media_count,media.limit(50){id,permalink,timestamp,like_count,comments_count}}`);
   let response:Response,data:any;
   try {
     response=await fetcher(endpoint.href,{headers:{authorization:`Bearer ${config.accessToken}`,accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(20000)});
@@ -53,5 +53,20 @@ export async function discoverInstagramBusiness(profile:string,start:string,end:
   if(data.id!==config.ownIgUserId||typeof target.username!=='string'||target.username.toLowerCase()!==username||!/^\d+$/.test(target.id||''))throw new InstagramDiscoveryError('identity-mismatch');
   const valid=(value:unknown)=>typeof value==='number'&&Number.isSafeInteger(value)&&value>=0;
   if(!valid(target.followers_count)||!valid(target.media_count))throw new InstagramDiscoveryError('invalid-response');
-  return validatePublicSnapshot('instagram',{id:crypto.randomUUID(),profileUrl,capturedAt:new Date().toISOString(),source:'official-public-api',evidence:`Meta Graph ${config.version} · Instagram Business Discovery · @${username} · seguidores y publicaciones acumuladas de la cuenta profesional consultada; autorización de la cuenta propia de Visibility, no del cliente.`,followers:target.followers_count,totalPosts:target.media_count,posts:[],periodStart:start,periodEnd:end});
+  const capturedAt=new Date().toISOString(), posts:PublicPost[]=[],seen=new Set<string>();
+  // One bounded page. Never follow provider paging URLs (which can contain tokens),
+  // claim exhaustive coverage, or turn hidden counts into zero.
+  for(const media of Array.isArray(target.media?.data)?target.media.data.slice(0,50):[]){
+    if(typeof media.timestamp!=='string'||!Number.isFinite(Date.parse(media.timestamp)))continue;
+    const day=new Date(media.timestamp).toISOString().slice(0,10);
+    if(!calendarDay(day)||day<start||day>end||day>capturedAt.slice(0,10))continue;
+    try{
+      const link=new URL(media.permalink);
+      if(link.protocol!=='https:'||link.hostname.replace(/^www\./,'')!=='instagram.com'||link.username||link.password||link.port||!/^\/(p|reel)\/[A-Za-z0-9_-]+\/?$/.test(link.pathname))continue;
+      const url=`https://www.instagram.com${link.pathname.replace(/\/$/,'')}/`;
+      if(seen.has(url))continue;seen.add(url);
+      posts.push({url,publishedAt:day,...(valid(media.like_count)?{likes:media.like_count}:{}),...(valid(media.comments_count)?{comments:media.comments_count}:{})});
+    }catch{/* A malformed post does not invalidate verified account counters. */}
+  }
+  return validatePublicSnapshot('instagram',{id:crypto.randomUUID(),profileUrl,capturedAt,source:'official-public-api',evidence:`Meta Graph ${config.version} · Instagram Business Discovery · @${username} · contadores de cuenta y muestra de hasta 50 publicaciones recientes, filtrada por fecha; cobertura parcial, sin Insights privados. Autorización propia de Visibility.`,followers:target.followers_count,totalPosts:target.media_count,posts,periodStart:start,periodEnd:end});
 }

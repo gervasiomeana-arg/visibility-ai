@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { ActiveTab, Business, MonthlyEvolution } from '../types';
 import { MonthlyChart } from './SocialMonthlyChart';
+import { SocialPublicAnalysis } from './SocialPublicAnalysis';
+import { SocialCompetitors } from './SocialCompetitors';
 import { socialMetricsService } from '../services/socialMetricsService';
 import { publicProfileUrl, type PublicNetwork, type SocialAccount } from '../../shared/socialMetrics';
 import { hasUnverifiedSeeds, monthlyMetrics, monthlySeries } from '../../shared/socialMonthly';
@@ -21,6 +23,8 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
   const [loadError, setLoadError] = useState('');
   const [profile, setProfile] = useState('');
   const [busy, setBusy] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const locked = busy || comparing;
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [candidates, setCandidates] = useState<string[]>([]);
@@ -42,7 +46,7 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
   try { series = (Object.keys(monthlyMetrics) as (keyof typeof monthlyMetrics)[]).map(metric => monthlySeries(account, network, metric, start, end)); }
   catch (reason) { periodError = reason instanceof Error ? reason.message : 'Período inválido.'; }
   async function run() {
-    if (lock.current || !canEdit || loading || loadError || periodError) return;
+    if (lock.current || comparing || !canEdit || loading || loadError || periodError) return;
     lock.current = true; setBusy(true); setError(''); setMessage('');
     const request = ++version.current;
     const current = () => live.current && request === version.current;
@@ -81,13 +85,13 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
     <header><h2 className="font-heading text-2xl font-bold">Redes</h2><p className="text-sm text-slate-500 mt-2">Elegí un cliente, una red y el período que querés revisar.</p></header>
     <section className="vai-panel rounded-2xl p-5 space-y-4">
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <label className="text-sm font-medium">Cliente<select disabled={busy} className="block border rounded-lg p-3 w-full mt-2" value={business.id} onChange={e => onSelectBusiness?.(e.target.value)}>{allBusinesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-        <label className="text-sm font-medium">Red<select disabled={busy} className="block border rounded-lg p-3 w-full mt-2" value={network} onChange={e => setNetwork(e.target.value as PublicNetwork)}>{Object.entries(names).map(([key,name]) => <option key={key} value={key}>{name}</option>)}</select></label>
-        <label className="text-sm font-medium">Desde<input disabled={busy} type="date" value={start} max={end || today} className="block border rounded-lg p-3 w-full mt-2" onChange={e => { setStart(e.target.value); setMessage(''); }} /></label>
-        <label className="text-sm font-medium">Hasta<input disabled={busy} type="date" value={end} min={start} max={today} className="block border rounded-lg p-3 w-full mt-2" onChange={e => { setEnd(e.target.value); setMessage(''); }} /></label>
+        <label className="text-sm font-medium">Cliente<select disabled={locked} className="block border rounded-lg p-3 w-full mt-2" value={business.id} onChange={e => onSelectBusiness?.(e.target.value)}>{allBusinesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+        <label className="text-sm font-medium">Red<select disabled={locked} className="block border rounded-lg p-3 w-full mt-2" value={network} onChange={e => setNetwork(e.target.value as PublicNetwork)}>{Object.entries(names).map(([key,name]) => <option key={key} value={key}>{name}</option>)}</select></label>
+        <label className="text-sm font-medium">Desde<input disabled={locked} type="date" value={start} max={end || today} className="block border rounded-lg p-3 w-full mt-2" onChange={e => { setStart(e.target.value); setMessage(''); }} /></label>
+        <label className="text-sm font-medium">Hasta<input disabled={locked} type="date" value={end} min={start} max={today} className="block border rounded-lg p-3 w-full mt-2" onChange={e => { setEnd(e.target.value); setMessage(''); }} /></label>
       </div>
-      <div className="flex flex-wrap gap-3 items-center"><button onClick={run} disabled={busy || loading || !!loadError || !!periodError || !canEdit} className="rounded-lg bg-emerald-800 text-white px-5 py-3 disabled:opacity-50">{busy ? 'Buscando…' : 'Buscar datos públicos'}</button><span className="text-xs text-slate-500">{loading ? 'Cargando historial…' : 'Los gráficos muestran las mediciones guardadas del período.'}</span></div>
-      <details open={!account?.profileUrl} className="text-sm"><summary className="cursor-pointer">Perfil de {names[network]}</summary><label className="block mt-3">Enlace confirmado del cliente<input disabled={busy || !canEdit} type="url" value={profile} onChange={e => setProfile(e.target.value)} className="block border rounded-lg p-3 w-full mt-2" placeholder={`https://www.${network}.com/${network === 'tiktok' ? '@' : ''}perfil/`} /></label>{candidates.map(url => <button key={url} className="block underline mt-3 break-all text-left" onClick={() => { setProfile(url); setCandidates([]); setMessage('Perfil seleccionado. Confirmá que corresponde al cliente y pulsá Buscar datos públicos.'); }}>Usar {url}</button>)}</details>
+      <div className="flex flex-wrap gap-3 items-center"><button onClick={run} disabled={locked || loading || !!loadError || !!periodError || !canEdit} className="rounded-lg bg-emerald-800 text-white px-5 py-3 disabled:opacity-50">{busy ? 'Buscando…' : 'Buscar datos públicos'}</button><span className="text-xs text-slate-500">{loading ? 'Cargando historial…' : 'Los gráficos muestran las mediciones guardadas del período.'}</span></div>
+      <details open={!account?.profileUrl} className="text-sm"><summary className="cursor-pointer">Perfil de {names[network]}</summary><label className="block mt-3">Enlace confirmado del cliente<input disabled={locked || !canEdit} type="url" value={profile} onChange={e => setProfile(e.target.value)} className="block border rounded-lg p-3 w-full mt-2" placeholder={`https://www.${network}.com/${network === 'tiktok' ? '@' : ''}perfil/`} /></label>{candidates.map(url => <button key={url} className="block underline mt-3 break-all text-left" onClick={() => { setProfile(url); setCandidates([]); setMessage('Perfil seleccionado. Confirmá que corresponde al cliente y pulsá Buscar datos públicos.'); }}>Usar {url}</button>)}</details>
       {network==='instagram' && <details className="text-xs text-slate-500"><summary className="cursor-pointer">Consulta oficial de otros negocios · {discovery?.operatorAllowed?'habilitada':discovery?.configured?'operador sin autorización':'pendiente de configurar'}</summary><p className="mt-2">Instagram Business Discovery usa una cuenta propia autorizada de Visibility para consultar seguidores y publicaciones de otras cuentas profesionales. No pide la clave del cliente. Requiere una cuenta profesional propia vinculada a una página de Facebook y los permisos de Meta correspondientes.</p>{discovery&&!discovery.configured&&<p className="mt-2">Configuración pendiente en el servidor: {discovery.missing.join(', ')}. Son credenciales técnicas propias de Visibility, no del cliente.</p>}<a className="underline block mt-2" href="https://github.com/gervasiomeana-arg/visibility-ai/blob/main/docs/instagram-business-discovery.md" target="_blank" rel="noopener noreferrer">Guía de configuración del administrador</a></details>}
       <p className="text-xs text-slate-500">Seguidores: última medición observada de cada mes. Visualizaciones y alcance: solo informes del período exacto. La consulta pública actual no recupera automáticamente el historial ni el alcance privado.</p>
     </section>
@@ -98,6 +102,8 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
       {!series.some(points => points.some(p => p.value !== null)) && <p className="text-sm text-slate-600">Sin datos verificados para {names[network]} en este período.</p>}
       {account?.presence?.status === 'not-used' && <p className="text-sm">Sin cuenta · confirmado por el operador. No equivale a cero seguidores.</p>}
       <div className="grid xl:grid-cols-3 gap-5">{(Object.entries(monthlyMetrics)).map(([metric,title],i) => <MonthlyChart key={metric} title={title} points={series[i]} />)}</div>
+      <SocialPublicAnalysis account={account} network={network} start={start} end={end}/>
+      {account?.profileUrl && account.presence?.status !== 'not-used' && <SocialCompetitors key={`${network}:${account.profileUrl}`} account={account} network={network} start={start} end={end} disabled={locked || !canEdit} onBusy={setComparing} onSaved={saved=>setAccounts(rows=>[...rows.filter(a=>a.network!==network),saved])}/>}
     </>}
   </div>;
 }
