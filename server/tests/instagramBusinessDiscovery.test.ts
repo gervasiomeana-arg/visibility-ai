@@ -18,7 +18,7 @@ test('public discovery queries via own account for a different target; no target
  let calls=0;
  const snapshot=await request(async(target,init)=>{
   calls++;const endpoint=new URL(String(target));assert.equal(endpoint.origin,'https://graph.facebook.com');assert.equal(endpoint.pathname,'/v25.0/123456789');
-  assert.equal(endpoint.searchParams.get('fields'),'business_discovery.username(fixture_business){id,username,followers_count,media_count,media.limit(50){id,permalink,timestamp,like_count,comments_count}}');
+  assert.equal(endpoint.searchParams.get('fields'),'business_discovery.username(fixture_business){id,username,followers_count,media_count,media.limit(100){id,permalink,timestamp,like_count,comments_count}}');
   assert.equal(endpoint.searchParams.has('access_token'),false);assert.equal(new Headers(init?.headers).get('authorization'),'Bearer fixture-private-token');assert.equal(new Headers(init?.headers).has('cookie'),false);
   assert.equal(init?.redirect,'error');assert.ok(init?.signal instanceof AbortSignal);
   return new Response(JSON.stringify(payload()));
@@ -46,6 +46,39 @@ test('bounded public media preserves hidden counts, filters dates and rejects fo
 });
 test('response must identify both own querying account and requested target',async()=>{
  for(const data of [{...payload(),id:'wrong-own'},{...payload(),business_discovery:{...payload().business_discovery,username:'someone_else'}},{...payload(),business_discovery:{...payload().business_discovery,id:undefined}}])await assert.rejects(request(async()=>new Response(JSON.stringify(data))),e=>e instanceof InstagramDiscoveryError&&e.code==='identity-mismatch');
+});
+const fixtureMedia=(i:number)=>({id:String(i),permalink:`https://www.instagram.com/p/fixture_${i}/`,timestamp:'2026-10-10T12:00:00Z',like_count:i,comments_count:0});
+test('paginates on fixed origin and reconciles complete available coverage; old posts do not stop scanning',async()=>{
+ let calls=0;
+ const s=await request(async(url)=>{
+  const endpoint=new URL(String(url));assert.equal(endpoint.origin,'https://graph.facebook.com');assert.equal(endpoint.searchParams.has('access_token'),false);calls++;
+  const media=calls===1?{data:Array.from({length:100},(_,i)=>({...fixtureMedia(i),...(i===0?{timestamp:'2025-01-10T12:00:00Z'}:{})})),paging:{next:'https://evil.test/?access_token=never-follow',cursors:{after:'SAFE_CURSOR_1=='}}}:{data:[fixtureMedia(100)]};
+  if(calls===2)assert.match(endpoint.searchParams.get('fields')!,/media.limit\(100\).after\(SAFE_CURSOR_1==\)/);
+  return new Response(JSON.stringify({...payload(),business_discovery:{...payload().business_discovery,media_count:101,media}}));
+ });
+ assert.equal(calls,2);assert.equal(s.posts.length,100);assert.equal(s.coverage?.status,'complete-available');assert.equal(s.coverage?.examined,101);assert.equal(s.coverage?.reason,'exhausted');assert.doesNotMatch(JSON.stringify(s),/SAFE_CURSOR|never-follow|evil/);
+});
+test('five-page cap remains partial even when counters are available and retains at most 500 posts',async()=>{
+ let calls=0;const s=await request(async()=>{
+  const offset=calls++*100;
+  return new Response(JSON.stringify({...payload(),business_discovery:{...payload().business_discovery,media_count:600,media:{data:Array.from({length:100},(_,i)=>fixtureMedia(offset+i)),paging:{next:'https://never-follow.test/',cursors:{after:`CURSOR_${calls}`}}}}}));
+ });assert.equal(calls,5);assert.equal(s.posts.length,500);assert.equal(s.coverage?.reason,'page-limit');assert.equal(s.coverage?.status,'partial');
+});
+test('terminal responses with inconsistent totals or missing media never claim full coverage',async()=>{
+ const s=await request(async()=>new Response(JSON.stringify({...payload(),business_discovery:{...payload().business_discovery,media_count:5,media:{data:[fixtureMedia(1)]}}})));assert.equal(s.coverage?.reason,'count-mismatch');assert.equal(s.coverage?.status,'partial');
+ const missing=await request(async()=>new Response(JSON.stringify(payload())));assert.equal(missing.coverage?.reason,'missing-media');
+});
+test('invalid and repeating cursors stop without following provider URLs; midstream failures preserve verified sample',async()=>{
+ for(const cursor of ['bad){secret}','REPEATED']){
+  let calls=0;const s=await request(async()=>{calls++;return new Response(JSON.stringify({...payload(),business_discovery:{...payload().business_discovery,media:{data:[fixtureMedia(calls)],paging:{next:'https://evil.test/private',cursors:{after:cursor}}}}}));});
+  assert.equal(s.coverage?.reason,'invalid-cursor');assert.equal(calls,cursor==='REPEATED'?2:1);assert.doesNotMatch(JSON.stringify(s),/secret|evil|REPEATED/);
+ }
+ let calls=0;const s=await request(async()=>{calls++;return calls===1?new Response(JSON.stringify({...payload(),business_discovery:{...payload().business_discovery,media:{data:[fixtureMedia(1)],paging:{next:'https://not-fetched.test',cursors:{after:'SAFE'}}}}})):new Response(JSON.stringify({error:{code:4,message:'secret-provider-detail'}}),{status:429});});
+ assert.equal(calls,2);assert.equal(s.posts.length,1);assert.equal(s.coverage?.reason,'provider-error');assert.equal(s.coverage?.status,'partial');assert.doesNotMatch(JSON.stringify(s),/secret-provider-detail/);
+});
+test('total time budget stops further paging without a retry',async()=>{
+ const original=Date.now;let clock=0,calls=0;Date.now=()=>clock;
+ try{const s=await request(async()=>{calls++;clock=26000;return new Response(JSON.stringify({...payload(),business_discovery:{...payload().business_discovery,media:{data:[fixtureMedia(1)],paging:{next:'https://not-fetched.test',cursors:{after:'SAFE'}}}}}));});assert.equal(calls,1);assert.equal(s.coverage?.reason,'time-limit');}finally{Date.now=original;}
 });
 test('missing, approximate or negative provider counters do not become observations',async()=>{
  for(const patch of [{followers_count:undefined},{followers_count:'1.2K'},{followers_count:-1},{media_count:null},{media_count:9007199254740992}])await assert.rejects(request(async()=>new Response(JSON.stringify({...payload(),business_discovery:{...payload().business_discovery,...patch}}))),e=>e instanceof InstagramDiscoveryError&&e.code==='invalid-response');

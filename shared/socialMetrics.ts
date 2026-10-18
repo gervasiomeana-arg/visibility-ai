@@ -32,6 +32,7 @@ export interface PublicSnapshot {
   id: string; profileUrl: string; capturedAt: string; source: 'public-web' | 'manual-public' | 'official-public-api';
   evidence: string; followers?: number; totalPosts?: number; posts: PublicPost[];
   periodStart: string; periodEnd: string;
+  coverage?: { status: 'partial' | 'complete-available'; reason: 'exhausted' | 'page-limit' | 'time-limit' | 'provider-error' | 'invalid-media' | 'missing-media' | 'invalid-cursor' | 'count-mismatch'; pages: number; examined: number; rejected: number };
 }
 export interface PublicSocialProfile {
   role: 'own' | 'competitor-1' | 'competitor-2'; name: string; profileUrl: string;
@@ -50,7 +51,12 @@ export function publicProfileUrl(network: PublicNetwork, value: string): string 
 export function validatePublicSnapshot(network: PublicNetwork, value: PublicSnapshot): PublicSnapshot {
   if (!value || typeof value.id !== 'string' || !value.id || typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) ||
     !['public-web', 'manual-public', 'official-public-api'].includes(value.source) || typeof value.evidence !== 'string' || value.evidence.trim().length < 8 || value.evidence.length > 2000 ||
-    !calendarDay(value.periodStart) || !calendarDay(value.periodEnd) || value.periodStart > value.periodEnd || !Array.isArray(value.posts) || value.posts.length > 100) throw new Error('La observación pública necesita fecha, período y evidencia.');
+    !calendarDay(value.periodStart) || !calendarDay(value.periodEnd) || value.periodStart > value.periodEnd || !Array.isArray(value.posts) || value.posts.length > 500) throw new Error('La observación pública necesita fecha, período y evidencia.');
+  if(value.coverage){
+    const c=value.coverage;
+    if(value.source!=='official-public-api'||network!=='instagram'||!['partial','complete-available'].includes(c.status)||!['exhausted','page-limit','time-limit','provider-error','invalid-media','missing-media','invalid-cursor','count-mismatch'].includes(c.reason)||![c.pages,c.examined,c.rejected].every(n=>Number.isSafeInteger(n)&&n>=0)||c.pages<1||c.pages>5||c.examined>500||c.rejected>c.examined||value.posts.length>c.examined||
+      (c.status==='complete-available'&&(c.reason!=='exhausted'||c.rejected!==0||value.totalPosts!==c.examined)))throw new Error('La cobertura de publicaciones no tiene respaldo verificable.');
+  }
   if (/^\d{4}-\d{2}-\d{2}$/.test(value.capturedAt) && !calendarDay(value.capturedAt)) throw new Error('Fecha observada inválida.');
   if (value.source === 'official-public-api' && network !== 'instagram') throw new Error('Esta fuente oficial pública corresponde únicamente a Instagram Business Discovery.');
   publicProfileUrl(network, value.profileUrl);
