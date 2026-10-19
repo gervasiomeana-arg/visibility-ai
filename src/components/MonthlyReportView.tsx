@@ -165,8 +165,8 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
         </div>)}</div>
       </section>
       {socialScope && <section className="space-y-3">
-        <h3 className="text-sm font-bold text-slate-900">Redes · últimas observaciones guardadas</h3>
-        <p className="text-xs text-slate-600">Son recuentos observados en la fecha indicada, no seguidores ganados en el mes. Una captura guardada no confirma que la autorización siga activa ni constituye una consulta nueva.</p>
+        <h3 data-pdf-keep={socialRows.length ? `social-${socialRows[0].network}` : undefined} className="text-sm font-bold text-slate-900">Redes · últimas observaciones guardadas</h3>
+        <p data-pdf-keep={socialRows.length ? `social-${socialRows[0].network}` : undefined} className="text-xs text-slate-600">Son recuentos observados en la fecha indicada, no seguidores ganados en el mes. Una captura guardada no confirma que la autorización siga activa ni constituye una consulta nueva.</p>
         {!socialReady && <p>{social.error || 'Carga de Redes pendiente. No entregar este documento hasta completar la revisión.'}</p>}
         {socialRows.map(row => <div key={row.network} data-pdf-keep={`social-${row.network}`} className="rounded-xl border border-slate-200 p-4 space-y-1 text-xs">
           <strong>{({instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok'})[row.network]}</strong>

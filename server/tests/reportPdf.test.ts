@@ -34,6 +34,30 @@ test('export refuses an unavailable report and safely names a selected business 
 });
 
 const hasPdfText = !spawnSync('pdftotext', ['-v']).error;
+test('social heading and introduction stay with the first network when the section reaches a page boundary', {skip: !hasPdfText}, () => {
+  const blocks: ReportPdfBlock[] = [{kind:'title',text:'Prueba de Redes'}];
+  for(let i=0;i<28;i++) blocks.push({kind:'small',text:`Línea previa de prueba ${i+1}.`});
+  const group='social-instagram';
+  blocks.push(
+    {kind:'heading',text:'Redes · últimas observaciones guardadas',keepTogether:group},
+    {kind:'small',text:'Son recuentos observados en la fecha indicada, no seguidores ganados en el mes. Una captura guardada no confirma que la autorización siga activa ni constituye una consulta nueva.',keepTogether:group},
+    {kind:'strong',text:'Instagram',keepTogether:group},
+    {kind:'small',text:'Perfil: https://www.instagram.com/fixture/.',keepTogether:group},
+    {kind:'small',text:'Seguidores observados: 145. Dato de fixture, nunca medición de cliente.',keepTogether:group},
+    {kind:'small',text:'Observado: 18/10/2026, 16:27 ART.',keepTogether:group},
+    {kind:'small',text:'Fuente: prueba local de paginación. No es una consulta real.',keepTogether:group},
+    {kind:'strong',text:'Facebook',keepTogether:'social-facebook'},
+    {kind:'small',text:'Sin datos verificados.',keepTogether:'social-facebook'},
+  );
+  const dir=mkdtempSync(join(tmpdir(),'visibility-social-pagination-'));
+  try {
+    const path=join(dir,'report.pdf');writeFileSync(path,Buffer.from(createReportPdf(blocks,fonts)));
+    const pages=execFileSync('pdftotext',['-layout',path,'-'],{encoding:'utf8'}).split('\f').filter(page=>page.trim());
+    assert.equal(pages.length,2);
+    assert.doesNotMatch(pages[0],/Redes · últimas|Instagram/);
+    for(const value of ['Redes · últimas','Son recuentos','Instagram','Seguidores observados: 145','16:27','Fuente: prueba','Facebook','Sin datos verificados']) assert.ok(pages[1].includes(value),value);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
 test('a complete priority moves to the next page rather than separating its proposal from the finding', { skip: !hasPdfText }, () => {
   const blocks: ReportPdfBlock[] = [{ kind: 'title', text: 'Prueba de paginación' }];
   for (let i = 0; i < 30; i++) blocks.push({ kind: 'body', text: `Línea de relleno de prueba ${i + 1}.` });
