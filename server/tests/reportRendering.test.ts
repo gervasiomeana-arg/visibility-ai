@@ -21,11 +21,14 @@ test('client report preserves empty measured search scope without inventing CTR,
   assert.ok(!html.includes('NaN'));
 });
 
-test('direct client saving is offered only for an owner and the selected real business workspace', () => {
+test('direct client saving waits for scoped social sources and never opens for another role or workspace', () => {
   const ownBusiness = {...business,workspaceId:'workspace'};
   const workspace = {id:'workspace',role:'owner'} as Workspace;
   const clientReportStore = {list:async () => [],saveReport:async () => { throw Error('SSR must not write'); }};
-  assert.match(render({business:ownBusiness,workspace,clientReportStore}),/Guardar en Clientes/);
+  const pending = render({business:ownBusiness,workspace,clientReportStore});
+  assert.match(pending,/Cargando mediciones guardadas de Redes/);
+  assert.doesNotMatch(pending,/Guardar en Clientes/);
+  assert.match(pending,/disabled/);
   assert.doesNotMatch(render({business:ownBusiness,workspace:{...workspace,role:'viewer'},clientReportStore}),/Guardar en Clientes/);
   assert.doesNotMatch(render({business:ownBusiness,workspace:{...workspace,id:'foreign'},clientReportStore}),/Guardar en Clientes/);
   assert.doesNotMatch(render({business:ownBusiness,workspace,clientReportStore,evolution:{...evolution,source:'demo',searchPeriods:[],searchClicks:[],searchImpressions:[]}}),/Guardar en Clientes/);

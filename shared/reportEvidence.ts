@@ -38,14 +38,14 @@ export function measuredSeries(labels: string[], values: number[], positiveOnly 
   });
 }
 
-export function reportEvidence(businessId: string, evolution: MonthlyEvolution, issues: ExecutiveIssue[], businessUrl?: string) {
+export function reportEvidence(businessId: string, evolution: MonthlyEvolution, issues: ExecutiveIssue[], businessUrl?: string, hasSocialMeasurements = false) {
   const ownIssues = issues.filter(issue => issue.businessId === businessId);
   const realIssues = ownIssues.filter(issue => issue.source === 'real');
   const hasMeasurements = evolution.source === 'real' && (
     measuredSeries(evolution.months, evolution.visibility).length > 0 ||
     (businessUrl ? !!reportSearchEvidence(evolution,businessUrl).latest : measuredSeries(evolution.searchMonths || [], evolution.searchImpressions || []).length > 0)
   );
-  const mode = hasMeasurements || realIssues.length > 0 ? 'PARCIAL REAL'
+  const mode = hasMeasurements || realIssues.length > 0 || hasSocialMeasurements ? 'PARCIAL REAL'
     : evolution.source === 'demo' ? 'DEMO' : 'SIN DATOS';
   const usableIssues = mode === 'DEMO' ? ownIssues.filter(issue => issue.source === 'demo') : realIssues;
   const priorities = usableIssues.filter(issue => issue.severity !== 'ok')
