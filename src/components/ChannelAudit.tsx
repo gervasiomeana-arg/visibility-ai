@@ -1,0 +1,81 @@
+import {MonthlyChart} from './SocialMonthlyChart';
+import {monthlySeries,monthlyMetrics} from '../../shared/socialMonthly';
+import {auditSocialAccount} from '../../shared/auditSocialHistory';
+import type {SocialAccount} from '../../shared/socialMetrics';
+import React,{useEffect,useRef,useState} from 'react';
+import type {Business} from '../types';
+import type {ClientAccount} from '../../shared/clientLedger';
+import {auditChannelNames,validateAuditRun,type AuditChannel,type AuditRun} from '../../shared/auditRun';
+import {calendarDay,type PublicNetwork} from '../../shared/socialMetrics';
+import {presencePlatforms,presenceQueryUrl,searchPlatforms,validatePresenceObservation,type PresencePlatform} from '../../shared/presenceAnalysis';
+import {seoAuditService} from '../services/seoAuditService';
+import {socialMetricsService} from '../services/socialMetricsService';
+import {presenceService} from '../services/presenceService';
+import {searchConsoleService,type SearchConsoleSite} from '../services/searchConsoleService';
+import {propertyMatchesBusiness} from '../../shared/searchConsoleDiagnostics';
+import {integrationStatus,type IntegrationStatus} from '../services/integrationStatusService';
+import {AuditRunReport} from './AuditRunReport';
+interface Props{channel:Exclude<AuditChannel,'combined'>;business:Business;client:ClientAccount;workspaceId:string;history:AuditRun[];onSaved:(r:AuditRun)=>void;onClientUpdated:(c:ClientAccount)=>void;}
+export function ChannelAudit(props:Props){return <ChannelForm key={`${props.workspaceId}:${props.client.id}:${props.business.id}:${props.channel}`} {...props}/>;}
+function ChannelForm({channel,business,client,workspaceId,history,onSaved,onClientUpdated}:Props){
+ const today=new Date().toISOString().slice(0,10),month=today.slice(0,7)+'-01';
+ const [start,setStart]=useState(month),[end,setEnd]=useState(today),[network,setNetwork]=useState<PublicNetwork>('instagram'),[profile,setProfile]=useState(client.brief?.profiles?.instagram||''),[candidates,setCandidates]=useState<string[]>([]);
+ const [platform,setPlatform]=useState<PresencePlatform>(channel==='ai'?'gemini':'google'),[mode,setMode]=useState<'gsc'|'manual'>('gsc'),[query,setQuery]=useState(`¿Qué información pública verificable existe sobre ${business.name}${business.url?` (${business.url})`:''}?`),[market,setMarket]=useState([business.city,business.country||client.country].filter(Boolean).join(', ')),[language,setLanguage]=useState('Español'),[excerpt,setExcerpt]=useState(''),[evidence,setEvidence]=useState(''),[found,setFound]=useState<'found'|'not-observed'>('found'),[position,setPosition]=useState('');
+ const [sites,setSites]=useState<SearchConsoleSite[]>([]),[site,setSite]=useState(''),[connected,setConnected]=useState<boolean|null>(null),[integrations,setIntegrations]=useState<IntegrationStatus|null>(null);
+ const [legacy,setLegacy]=useState<SocialAccount[]>([]),[legacyError,setLegacyError]=useState('');
+ useEffect(()=>{let current=true;if(channel==='networks')socialMetricsService.list(workspaceId,business.id).then(rows=>{if(current)setLegacy(rows);}).catch(()=>{if(current)setLegacyError('No se pudieron verificar las mediciones anteriores de Redes; el gráfico puede estar incompleto.');});return()=>{current=false;};},[channel,workspaceId,business.id]);
+ const [run,setRun]=useState<AuditRun|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');const alive=useRef(true),lock=useRef(false);
+ useEffect(()=>{alive.current=true;integrationStatus().then(v=>{if(alive.current)setIntegrations(v);}).catch(()=>{});return()=>{alive.current=false;};},[]);
+ useEffect(()=>{let active=true;if(channel==='search')searchConsoleService.status().then(async status=>{if(!active)return;setConnected(status.connected);if(status.connected){const all=(await searchConsoleService.sites()).filter(s=>propertyMatchesBusiness(s.siteUrl,business.url));if(active){setSites(all);setSite(all[0]?.siteUrl||'');}}}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[channel,business.url]);
+ const knownProfile=client.brief?.profiles?.[network]||history.find(r=>r.data.kind==='networks'&&r.data.network===network)?.data;
+ const archivedProfile=typeof knownProfile==='string'?knownProfile:knownProfile?.kind==='networks'?knownProfile.snapshot.profileUrl:legacy.find(a=>a.network===network)?.profileUrl||'';
+ useEffect(()=>{setProfile(archivedProfile);setCandidates([]);},[network]);
+ useEffect(()=>{setProfile(previous=>previous||archivedProfile);},[archivedProfile]);
+ useEffect(()=>{setExcerpt('');setEvidence('');setPosition('');},[platform,query,market,language]);
+ // Never relabel an existing result with new query conditions.
+ useEffect(()=>{setRun(null);setError('');setNotice('');},[start,end,network,profile,platform,mode,query,market,language,site,excerpt,evidence,found,position]);
+ async function execute(){if(lock.current)return;lock.current=true;setBusy(true);setError('');setNotice('');
+ try{
+  if(!calendarDay(start)||!calendarDay(end)||start>end||end>today)throw new Error('Elegí un período válido, sin fechas futuras.');
+  let data:AuditRun['data'],observedAt:string;
+  if(channel==='web'){
+   if(!business.url)throw new Error('Completá la página web del negocio en su ficha.');
+   const result=await seoAuditService.audit(business.url,{workspaceId,businessId:business.id});data={kind:'web',result};observedAt=result.fetchedAt;
+  }else if(channel==='networks'){
+   if(!profile.trim()){
+    if(!business.url)throw new Error('Indicá el enlace del perfil en la ficha o en esta pantalla.');
+    const found=await socialMetricsService.discover(business.url);if(alive.current){setCandidates(found.candidates.filter(c=>c.network===network).map(c=>c.profileUrl));setNotice('Elegí un perfil encontrado en la web y confirmá que pertenece al cliente. Si no aparece, indicá su enlace.');}return;
+   }
+   const result=await socialMetricsService.collectPublic(network,profile.trim(),start,end);if(result.status!=='measured'||!result.snapshot)throw new Error(result.message);data={kind:'networks',network,snapshot:result.snapshot};observedAt=result.snapshot.capturedAt;
+  }else if(channel==='search'&&mode==='gsc'){
+   if(!connected)throw new Error('Conectá Google Search Console para consultar métricas oficiales, o elegí comprobación pública manual.');if(!site||!propertyMatchesBusiness(site,business.url))throw new Error('No hay una propiedad autorizada correspondiente a la web del cliente.');
+   const result=await searchConsoleService.queryWindow(site,start,end,{workspaceId,businessId:business.id});data={kind:'search',siteUrl:site,result};observedAt=new Date().toISOString();
+  }else{
+   let observation;
+   if(channel==='ai'&&platform==='gemini')observation=await presenceService.research({workspaceId,businessId:business.id,name:business.name,website:business.url,market,query,language,device:'desktop'});
+   else observation=validatePresenceObservation({id:crypto.randomUUID(),workspaceId,businessId:business.id,platform,query:query.trim(),market,language,device:'desktop',observedAt:new Date().toISOString(),method:'manual',result:found,evidenceUrl:evidence,excerpt,recommendation:'',...(channel==='search'&&found==='found'&&position?{position:Number(position)}:{})});
+   data={kind:'presence',observation};observedAt=observation.observedAt;
+  }
+  const draft=validateAuditRun({id:crypto.randomUUID(),workspaceId,businessId:business.id,clientId:client.id,businessName:business.name,channel,observedAt,periodStart:channel==='web'?observedAt.slice(0,10):start,periodEnd:channel==='web'?observedAt.slice(0,10):end,data});
+  if(alive.current)setRun(draft);
+ }catch(e){if(alive.current)setError(e instanceof Error?e.message:'No se pudo completar la auditoría.');}finally{lock.current=false;if(alive.current)setBusy(false);}
+ }
+ let charts:React.ReactNode=null;
+ if(channel==='networks'&&calendarDay(start)&&calendarDay(end)&&start<=end&&end<=today){
+  try{const account=auditSocialAccount([...(run?[run]:[]),...history],legacy,{workspaceId,businessId:business.id,clientId:client.id,network,profileUrl:profile});charts=<div className="grid xl:grid-cols-3 gap-4">{Object.entries(monthlyMetrics).map(([metric,title])=><MonthlyChart key={metric} title={network==='youtube'&&metric==='followers'?'Suscriptores reportados':title} points={monthlySeries(account,network,metric as keyof typeof monthlyMetrics,start,end)}/>)}</div>;}catch{/* Invalid periods never become bars. */}
+ }
+ const manual=(channel==='search'&&mode==='manual')||(channel==='ai'&&platform!=='gemini');
+ return <div className="space-y-6"><header className="no-print"><p className="vai-overline">Auditoría del cliente</p><h1 className="text-3xl font-bold font-heading">{auditChannelNames[channel]}</h1><p className="text-sm text-slate-500 mt-2">Elegí las condiciones, consultá la fuente y revisá el informe antes de guardarlo.</p></header>
+ <fieldset disabled={busy} className="no-print vai-panel rounded-2xl p-5 space-y-4">
+ {channel==='web'?<label className="block text-sm">Fecha de consulta (UTC)<input type="date" readOnly value={today} className="vai-input block mt-2"/><span className="block text-xs text-slate-500 mt-2">La web se mide ahora; para una fecha anterior consultá Historial.</span></label>:<div className="grid sm:grid-cols-2 gap-4"><label>Desde (UTC)<input type="date" className="vai-input block w-full mt-2" value={start} max={end} onChange={e=>setStart(e.target.value)}/></label><label>Hasta (UTC)<input type="date" className="vai-input block w-full mt-2" value={end} min={start} max={today} onChange={e=>setEnd(e.target.value)}/></label></div>}
+ {channel==='networks'&&<><div className="grid sm:grid-cols-2 gap-4"><label>Red<select className="vai-input block w-full mt-2" value={network} onChange={e=>setNetwork(e.target.value as PublicNetwork)}>{Object.entries({instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok',youtube:'YouTube'}).map(([key,name])=><option key={key} value={key}>{name}</option>)}</select></label><label>Perfil confirmado<input type="url" className="vai-input block w-full mt-2" value={profile} onChange={e=>setProfile(e.target.value)} placeholder="Enlace del perfil del cliente"/></label></div>{candidates.map(url=><button key={url} onClick={()=>setProfile(url)} className="block underline break-all text-left">Usar {url}</button>)}<p className="text-xs text-slate-500">La consulta pública recupera datos observables ahora; no reconstruye seguidores históricos ni alcance privado. {network==='youtube'?(integrations?.youtube.configured?'YouTube: clave presente, permisos y cuota se comprueban al consultar.':'YouTube: configuración sin confirmar o pendiente de YOUTUBE_API_KEY.'):''}</p></>}
+ {channel==='search'&&<><label className="block">Fuente<select className="vai-input block w-full mt-2" value={mode} onChange={e=>setMode(e.target.value as typeof mode)}><option value="gsc">Google Search Console · métricas oficiales</option><option value="manual">Buscadores · comprobación pública manual</option></select></label>{mode==='gsc'&&<>{connected===false&&<button onClick={()=>void searchConsoleService.connect('/').catch(e=>setError(e.message))} className="vai-button vai-button-secondary">Conectar Google Search Console</button>}<label className="block">Propiedad autorizada<select className="vai-input block w-full mt-2" value={site} onChange={e=>setSite(e.target.value)}><option value="">{connected===null?'Comprobando conexión…':'Elegí una propiedad del negocio'}</option>{sites.map(s=><option key={s.siteUrl} value={s.siteUrl}>{s.siteUrl}</option>)}</select></label><p className="text-xs text-slate-500">Datos finalizados disponibles para el período; consultas recientes o anónimas pueden no aparecer. No equivale a todo el tráfico del sitio.</p></>}</>}
+ {(channel==='ai'||manual)&&<><label className="block">Plataforma<select className="vai-input block w-full mt-2" value={platform} onChange={e=>setPlatform(e.target.value as PresencePlatform)}>{Object.entries(presencePlatforms).filter(([key])=>channel==='search'?searchPlatforms.includes(key as PresencePlatform):!searchPlatforms.includes(key as PresencePlatform)).map(([key,name])=><option key={key} value={key}>{name}</option>)}</select></label><label className="block">Consulta exacta<input maxLength={500} value={query} onChange={e=>setQuery(e.target.value)} className="vai-input block w-full mt-2"/></label><div className="grid sm:grid-cols-2 gap-4"><label>País / ciudad<input maxLength={120} value={market} onChange={e=>setMarket(e.target.value)} className="vai-input block w-full mt-2"/></label><label>Idioma<input maxLength={60} value={language} onChange={e=>setLanguage(e.target.value)} className="vai-input block w-full mt-2"/></label></div><p className="text-xs text-slate-500">La respuesta se observa ahora, no en cada mes del período solicitado. Mercado e idioma describen la consulta; no configuran una ubicación del navegador. {platform==='gemini'?`Gemini API con Google Search · modelo ${integrations?.gemini.model||'por confirmar'}. Incluye contexto de la marca y no representa a otros asistentes.`:'Comprobación manual: Visibility no consulta automáticamente esta plataforma.'}</p></>}
+ {manual&&<><a className="inline-block underline" href={presenceQueryUrl(platform,query)} target="_blank" rel="noopener noreferrer">1. Abrir plataforma y comprobar la consulta</a><label className="block">Resultado observado<select value={found} onChange={e=>setFound(e.target.value as typeof found)} className="vai-input block w-full mt-2"><option value="found">Presencia observada</option><option value="not-observed">No observada en esta consulta</option></select></label>{channel==='search'&&found==='found'&&<label className="block">Posición orgánica observada (opcional)<input type="number" min={1} max={100} value={position} onChange={e=>setPosition(e.target.value)} className="vai-input block mt-2"/></label>}<p className="text-xs text-slate-500">Cambiar plataforma, consulta, mercado o idioma reinicia la evidencia para que no se atribuya a otra comprobación.</p><label className="block">URL de evidencia<input type="url" value={evidence} onChange={e=>setEvidence(e.target.value)} maxLength={2048} className="vai-input block w-full mt-2"/></label><label className="block">Resultado real observado<textarea value={excerpt} onChange={e=>setExcerpt(e.target.value)} maxLength={12000} rows={4} className="vai-input block w-full mt-2"/></label></>}
+ <button onClick={()=>void execute()} className="vai-button vai-button-primary">{busy?'Consultando fuente…':manual?'Preparar informe con evidencia':'Realizar auditoría'}</button><p className="text-xs text-slate-500">El resultado no se guarda en historial hasta que lo confirmes y se descarta al cambiar de solapa o cliente. Si falta información se indica; no se completa con estimaciones.</p>
+ </fieldset>{error&&<p role="alert" className="no-print bg-red-50 text-red-800 p-4 rounded-xl">{error}</p>}{notice&&<p role="status" className="no-print p-4 bg-slate-50 rounded-xl">{notice}</p>}
+ {run&&!run.savedAt&&<p className="no-print text-sm text-amber-800">Resultado recibido para revisión; todavía no está guardado en el historial.</p>}
+ {legacyError&&<p role="alert" className="no-print bg-amber-50 p-4 rounded-xl text-sm">{legacyError}</p>}{charts}
+ {run&&<AuditRunReport key={run.id} run={run} business={business} client={client} onSaved={r=>{setRun(r);onSaved(r);}} onClientUpdated={onClientUpdated}/>}
+ </div>;
+}

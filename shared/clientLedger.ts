@@ -1,3 +1,4 @@
+import {publicProfileUrl,type PublicNetwork} from './socialMetrics';
 export interface ClientInvoice { id: string; period: string; dueOn: string; amountCents: number; currency: string; createdAt: string }
 export interface ClientPayment { id: string; invoiceId: string; amountCents: number; paidAt: string; method: string; recordedAt: string }
 export interface ClientDeliveryCorrection { previousSentAt: string; previousRecordedAt?: string; previousChannel?: 'WhatsApp' | 'Correo' | 'Otro'; correctedAt: string; reason: string }
@@ -7,6 +8,7 @@ export interface ClientAccount {
   email: string; whatsapp: string; businessIds: string[]; monthlyFeeCents: number; currency: string; dueDay: number;
   invoices: ClientInvoice[]; payments: ClientPayment[]; reports: ClientReport[]; updatedAt?: string;
   paypalPaymentUrl?: string;
+  brief?: { contactName?:string; username?:string; siteName?:string; website?:string; city?:string; siteCountry?:string; planName?:string; needs?:string; requiredInformation?:string; frequency?:string; notes?:string; profiles?:Partial<Record<'instagram'|'facebook'|'tiktok'|'youtube',string>> };
 }
 export function paypalLink(value?: string): string {
   if (!value?.trim()) return '';
@@ -87,6 +89,11 @@ export function correctClientReportDelivery(client: ClientAccount, reportId: str
 }
 export function validateClient(client: ClientAccount, workspaceId: string, businessIds: string[]) {
   paypalLink(client.paypalPaymentUrl);
+  if(client.brief){
+    for(const [key,value] of Object.entries(client.brief))if(key!=='profiles'&&(typeof value!=='string'||value.length>(['needs','requiredInformation','notes'].includes(key)?4000:2000)))throw new Error('Revisá los datos y extensión de la ficha.');
+    if(client.brief.website){const u=new URL(client.brief.website);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||!u.hostname.includes('.'))throw new Error('La página debe ser una dirección web pública sin credenciales.');}
+    for(const [network,url] of Object.entries(client.brief.profiles||{}))if(url)publicProfileUrl(network as PublicNetwork,url);
+  }
   if (!workspaceId || client.workspaceId !== workspaceId) throw new Error('El cliente no pertenece a este espacio de trabajo.');
   if (!client.name.trim() || client.name.length > 160 || !client.country.trim()) throw new Error('Completá el nombre y país del cliente.');
   if (!['Empresa','Agencia','Persona'].includes(client.kind) || !validCurrency(client.currency)) throw new Error('Tipo de cliente o moneda inválidos.');
