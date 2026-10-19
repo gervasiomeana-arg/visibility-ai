@@ -27,3 +27,8 @@ export function presenceQueryUrl(platform:PresencePlatform,query:string) {
 export function scopedPresence(rows:PresenceObservation[],workspaceId:string,businessId:string) {
   return rows.filter(r=>{try {validatePresenceObservation(r);return r.workspaceId===workspaceId&&r.businessId===businessId;}catch{return false;}}).sort((a,b)=>Date.parse(b.observedAt)-Date.parse(a.observedAt));
 }
+
+/** Changing any research condition invalidates the pending response, never relabels its evidence. */
+export function samePresenceContext(value:PresenceObservation,context:{workspaceId:string;businessId:string;query:string;market:string;language:string;device:string;platform?:PresencePlatform}) {
+ return value.workspaceId===context.workspaceId && value.businessId===context.businessId && value.query===context.query.trim() && value.market===context.market.trim() && value.language.trim()===context.language.trim() && value.device===context.device && (!context.platform || value.platform===context.platform);
+}

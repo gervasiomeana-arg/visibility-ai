@@ -1,9 +1,10 @@
+import { geminiQuotaDiagnostic, geminiQuotaMessage, type GeminiQuotaDiagnostic } from '../shared/geminiQuota';
 import { GoogleGenAI, ThinkingLevel, type GenerateContentParameters } from '@google/genai';
 import type { Response } from 'express';
 
 type FailureKind = 'configuration' | 'credentials' | 'quota' | 'model' | 'request' | 'timeout' | 'unavailable';
 export class AiProviderError extends Error {
-  constructor(public kind: FailureKind, public providerStatus?: number) {
+  constructor(public kind: FailureKind, public providerStatus?: number, public quota?: GeminiQuotaDiagnostic) {
     super(kind); this.name = 'AiProviderError';
   }
 }
@@ -21,7 +22,7 @@ export function classifyAiFailure(error: unknown): AiProviderError {
   if (error instanceof AiProviderError) return error;
   const status = providerStatus(error);
   if (status === 401 || status === 403) return new AiProviderError('credentials', status);
-  if (status === 429) return new AiProviderError('quota', status);
+  if (status === 429) return new AiProviderError('quota', status, geminiQuotaDiagnostic(error));
   if (status === 404) return new AiProviderError('model', status);
   if (status === 400 || status === 422) return new AiProviderError('request', status);
   if (status === 408 || status === 504 || ['TimeoutError', 'AbortError'].includes((error as any)?.name)) return new AiProviderError('timeout', status);
@@ -71,12 +72,13 @@ export function sendAiFailure(res: Response, error: unknown, operation: string) 
   const messages: Record<FailureKind, string> = {
     configuration: 'La IA no está configurada. Revisá GEMINI_API_KEY en el servidor y volvé a publicar.',
     credentials: 'Gemini rechazó la credencial o sus permisos. Revisá la clave y las restricciones del proyecto en Google AI Studio.',
-    quota: 'Gemini informó un límite o cuota agotada. Revisá la cuota y facturación del proyecto; no se generó un resultado nuevo.',
+    quota: geminiQuotaMessage(failure.quota || {window:'unknown',service:'unknown'}),
     model: 'Gemini no encontró el modelo configurado. Revisá GEMINI_MODEL y el acceso del proyecto a ese modelo.',
     request: 'Gemini rechazó los parámetros de la solicitud. Revisá la compatibilidad del modelo y, para investigación, Google Search.',
     timeout: 'Gemini superó el tiempo de espera. No se confirmó un resultado nuevo; podés reintentar en unos momentos.',
     unavailable: 'Gemini no está disponible o no se pudo contactar. Reintentá más tarde; el resultado anterior se conserva.',
   };
-  console.error(JSON.stringify({ type: 'ai_failure', requestId: res.locals.requestId, operation, kind: failure.kind, providerStatus: failure.providerStatus }));
-  return res.status(failure.kind === 'request' ? 502 : 503).json({ error: messages[failure.kind], code: `ai_${failure.kind}` });
+  console.error(JSON.stringify({ type: 'ai_failure', requestId: res.locals.requestId, operation, kind: failure.kind, providerStatus: failure.providerStatus, ...(failure.quota ? {quota:failure.quota} : {}) }));
+  if(failure.quota?.retryAfterSeconds)res.setHeader('Retry-After',String(failure.quota.retryAfterSeconds));
+  return res.status(failure.kind === 'request' ? 502 : 503).json({ error: messages[failure.kind], code: `ai_${failure.kind}`, ...(failure.quota ? {quota:failure.quota,retryAfterSeconds:failure.quota.retryAfterSeconds} : {}) });
 }
