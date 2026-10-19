@@ -8,7 +8,7 @@ import { ClientReportDelivery } from './ClientReportDelivery';
 const currencies = ['ARS','USD','EUR','UYU','BRL','CLP','COP','MXN','GBP','CAD','AUD','PEN'];
 const localTime = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
 const message = (error: unknown) => error instanceof Error ? error.message : 'No se pudo completar la operación.';
-export function ClientsView({ workspace, businesses, selectedClientId, onSelectClient, onClientsChange, onCreateBusiness, onOpenAudit }: { workspace: Workspace | null; businesses: Business[]; selectedClientId?:string; onSelectClient?:(id:string)=>void; onClientsChange?:(clients:ClientAccount[])=>void; onCreateBusiness?:(client:ClientAccount,changedFields?:string[])=>Promise<string>; onOpenAudit?:()=>void }) {
+export function ClientsView({ workspace, businesses, selectedClientId, onSelectClient, onClientsChange, onCreateBusiness, onOpenAudit, onInteractionLockChange }: { workspace: Workspace | null; businesses: Business[]; selectedClientId?:string; onSelectClient?:(id:string)=>void; onClientsChange?:(clients:ClientAccount[])=>void; onCreateBusiness?:(client:ClientAccount,changedFields?:string[])=>Promise<string>; onOpenAudit?:()=>void; onInteractionLockChange?:(locked:boolean)=>void }) {
   const [clients,setClients] = useState<ClientAccount[]>([]);
   const [selected,setSelected] = useState('');
   const [draft,setDraft] = useState<ClientAccount | null>(null);
@@ -43,6 +43,10 @@ export function ClientsView({ workspace, businesses, selectedClientId, onSelectC
   const money = (cents: number, currency: string) => new Intl.NumberFormat('es-AR',{ style:'currency',currency }).format(cents/100);
   const dateTime = (value: string) => clientDateTime(value,timeZone);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; },[]);
+  useEffect(() => {
+    onInteractionLockChange?.(busy || loading);
+    return () => onInteractionLockChange?.(false);
+  },[busy,loading,onInteractionLockChange]);
   async function reload() {
     if (!workspace?.id || !owner) { setLoading(false); return; }
     setLoading(true); setError(''); setReportFeedback(null);
