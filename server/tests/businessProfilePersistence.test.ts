@@ -14,7 +14,7 @@ test('Uruguay is selectable and profiles preserve its locale and timezone', () =
 test('profile persistence maps confirmed fields and applies both business and workspace filters', async () => {
   await persistBusinessProfile('agency', business, async (fields, workspace, id) => {
     assert.equal(workspace, 'agency');assert.equal(id, 'neomed');
-    assert.equal(fields.country_code, 'UY');assert.equal(fields.description, business.description);
+    assert.equal(fields.url,business.url);assert.equal(fields.country_code, 'UY');assert.equal(fields.description, business.description);
     assert.equal(fields.locale, 'es-UY');assert.equal(fields.timezone, 'America/Montevideo');
     assert.equal('scores' in fields, false);assert.equal('workspace_id' in fields, false);
     return { error: null, data: { id } };

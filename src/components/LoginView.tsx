@@ -8,7 +8,7 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
-  const [mode, setMode] = useState<'login' | 'signup' | 'forgot'>('login');
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,12 +26,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
       if (mode === 'login') {
         await authService.signIn(email.trim(), password);
         onAuthenticated();
-      } else if (mode === 'signup') {
-        const user = await authService.signUp(email.trim(), password);
-        if (user) {
-          setMessage('Cuenta creada. Si tu proyecto exige confirmación por email, revisá tu correo antes de ingresar.');
-          setMode('login');
-        }
       } else {
         await authService.requestPasswordReset(email.trim());
         setMessage('Te enviamos un enlace para crear una nueva contraseña. Revisá tu correo.');
@@ -81,33 +75,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
           </div>
         </div>
 
-        {mode !== 'forgot' && (
-        <div className="grid grid-cols-2 gap-1.5 mt-7 p-1.5 bg-slate-100/80 rounded-2xl">
-          <button
-            type="button"
-            onClick={() => setMode('login')}
-            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] ${mode === 'login' ? 'bg-white text-slate-950 shadow-[0_8px_20px_rgba(15,23,42,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            Ingresar
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('signup')}
-            className={`px-3 py-2.5 rounded-xl text-xs font-bold transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] ${mode === 'signup' ? 'bg-white text-slate-950 shadow-[0_8px_20px_rgba(15,23,42,0.06)]' : 'text-slate-500 hover:text-slate-800'}`}
-          >
-            Crear cuenta
-          </button>
-        </div>
-        )}
-
-        {mode === 'forgot' && (
-          <div className="mt-7 rounded-2xl bg-slate-50/70 ring-1 ring-slate-200/70 p-4">
-            <p className="text-xs font-semibold text-slate-900">Recuperar acceso</p>
-            <p className="mt-1 text-[11px] text-slate-500 leading-5">
-              Ingresá el email de tu cuenta y te enviaremos un enlace seguro para definir una nueva contraseña.
-            </p>
-          </div>
-        )}
+        <p className="mt-6 text-sm text-slate-500">Acceso privado del administrador. Los clientes reciben sus informes y no necesitan una cuenta.</p>
 
         <form onSubmit={submit} className="mt-5 space-y-4">
           <div>
@@ -174,13 +142,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated }) => {
             disabled={loading}
             className="group w-full py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:bg-slate-300 text-white text-xs font-bold uppercase tracking-[0.12em] flex items-center justify-center gap-2 transition-[background-color,color,transform] duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.985]"
           >
-            {mode === 'login' ? <LogIn className="w-4 h-4" /> : mode === 'signup' ? <UserPlus className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
+            {mode === 'login' ? <LogIn className="w-4 h-4" /> : <KeyRound className="w-4 h-4" />}
             {loading
               ? 'Procesando...'
               : mode === 'login'
               ? 'Ingresar'
-              : mode === 'signup'
-              ? 'Crear cuenta'
               : 'Enviar enlace'}
           </button>
         </form>

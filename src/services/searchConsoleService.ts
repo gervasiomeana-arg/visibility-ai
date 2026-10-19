@@ -94,7 +94,9 @@ export const searchConsoleService = {
     context?: { workspaceId?: string; businessId?: string }
   ): Promise<{ rows: SearchConsoleQueryRow[]; startDate: string; endDate: string }> {
     const {startDate,endDate} = searchConsoleWindow(days);
-
+    return this.queryWindow(siteUrl,startDate,endDate,context);
+  },
+  async queryWindow(siteUrl:string,startDate:string,endDate:string,context?:{workspaceId?:string;businessId?:string}):Promise<{rows:SearchConsoleQueryRow[];startDate:string;endDate:string}> {
     const data = await apiFetchJson<unknown>('/api/search-console/query', {
       method: 'POST',
       headers: await authHeaders({

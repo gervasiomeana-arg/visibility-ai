@@ -1,3 +1,6 @@
+import {PrivateWorkspace} from './components/PrivateWorkspace';
+import {simplePrivateTabs} from '../shared/privateWorkflow';
+import type {ClientAccount} from '../shared/clientLedger';
 import { PresenceAnalysisView } from './components/PresenceAnalysisView';
 import { getMarket } from './config/markets';
 /**
@@ -83,6 +86,7 @@ export default function App() {
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [legacyMigrationSkipped, setLegacyMigrationSkipped] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
+  const [privateClientSelection,setPrivateClientSelection]=useState({workspaceId:'',clientId:''});
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing');
   const [businesses, setBusinesses] = useState<Business[]>(() => storageService.getBusinesses());
   const [activeBusinessId, setActiveBusinessId] = useState<string>(() => storageService.getActiveBusinessId());
@@ -384,6 +388,7 @@ export default function App() {
 
   const handleStartAnalysis = (url: string, name?: string, category?: string, city?: string) => {
     if (!canEditWorkspace) return;
+    if(activeWorkspace?.role==='owner'){setActiveTab('seo');return;}
     setAnalyzingUrl(url);
     setActiveTab('analyzing');
   };
@@ -565,6 +570,26 @@ export default function App() {
     setActiveTab('dashboard');
   };
 
+  const createClientBusiness = async (client:ClientAccount,changedFields:string[]=[]):Promise<string> => {
+    if(!activeWorkspace||activeWorkspace.role!=='owner')throw new Error('La ficha requiere un espacio propio.');
+    const linked=businesses.find(b=>client.businessIds.length===1&&client.businessIds[0]===b.id&&b.workspaceId===activeWorkspace.id);
+    if(linked){
+      if(!changedFields.length)return linked.id;
+      const fresh=(await workspaceService.listBusinesses(activeWorkspace.id)).find(b=>b.id===linked.id);
+      if(!fresh)throw new Error('No se pudo comprobar el negocio actual antes de editarlo.');
+      const changes={...(changedFields.includes('siteName')?{name:client.brief?.siteName?.trim()||fresh.name}:{}),...(changedFields.includes('website')?{url:client.brief?.website?.trim()||''}:{}),...(changedFields.includes('city')?{city:client.brief?.city||''}:{}),...(changedFields.includes('siteCountry')?{country:client.brief?.siteCountry||''}:{})};
+      await workspaceService.saveBusinessProfile(activeWorkspace.id,{...fresh,...changes});
+      const cached=storageService.updateBusinessProfile(linked.id,changes);if(!cached)throw new Error('El negocio se actualizó en Supabase, pero falló la caché local. Recargá antes de completar la ficha.');
+      setBusinesses(storageService.getBusinesses());return linked.id;
+    }
+    const url=client.brief?.website?.trim()||'';
+    const existing=url?businesses.find(b=>b.workspaceId===activeWorkspace.id&&b.url.replace(/\/$/,'')===url.replace(/\/$/,'')):undefined;
+    if(existing)return existing.id;
+    const draft={workspaceId:activeWorkspace.id,name:client.brief?.siteName?.trim()||client.name,url,category:'Pendiente de confirmar',city:client.brief?.city||'',country:client.brief?.siteCountry||'',countryCode:activeWorkspace.countryCode,currency:activeWorkspace.currency,locale:activeWorkspace.locale,timezone:activeWorkspace.timezone,subscriptionPlan:activeWorkspace.planId};
+    const id=await workspaceService.createBusiness(activeWorkspace.id,draft);
+    const created=storageService.addBusiness(draft,id);setBusinesses(storageService.getBusinesses());handleSelectBusiness(created.id);return created.id;
+  };
+
   const handleAddNewBusiness = async (biz: {
     name: string;
     url: string;
@@ -737,11 +762,14 @@ export default function App() {
     );
   }
 
+  if(activeWorkspace?.role==='owner'&&simplePrivateTabs.has(activeTab))return <><PrivateWorkspace workspace={activeWorkspace} selectedClientId={privateClientSelection.workspaceId===activeWorkspace.id?privateClientSelection.clientId:''} onClientSelection={id=>setPrivateClientSelection({workspaceId:activeWorkspace.id,clientId:id})} businesses={businesses} business={activeBusiness} tab={activeTab} setTab={setActiveTab} onSelectBusiness={handleSelectBusiness} onCreateBusiness={createClientBusiness} onAssistant={()=>{setAssistantInitialPrompt('');setAssistantOpen(true);}} onSignOut={async()=>{await authService.signOut();setAuthenticated(false);setWorkspaces([]);setActiveWorkspace(null);}}/><AiAssistantModal key={`${activeBusiness.workspaceId||''}:${activeBusiness.id}`} business={activeBusiness} isOpen={assistantOpen} onClose={()=>setAssistantOpen(false)} initialPrompt={assistantInitialPrompt}/></>;
+
   return (
     <div className="vai-app min-h-screen flex flex-col">
       {/* Navbar (displayed on all screens; has link to landing) */}
       <Navbar
         activeTab={activeTab}
+        privateOnly={activeWorkspace?.role==='owner'}
         setActiveTab={setActiveTab}
         activeBusiness={activeBusiness}
         businesses={businesses}

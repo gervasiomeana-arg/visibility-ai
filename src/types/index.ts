@@ -295,4 +295,7 @@ export type ActiveTab =
   | 'evolution'
   | 'monthly-report'
   | 'clients'
+  | 'search-audit'
+  | 'ai-audit'
+  | 'audit-history'
   | 'admin';
