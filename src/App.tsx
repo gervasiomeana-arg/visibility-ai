@@ -1,3 +1,4 @@
+import { PresenceAnalysisView } from './components/PresenceAnalysisView';
 import { getMarket } from './config/markets';
 /**
  * @license
@@ -897,6 +898,8 @@ export default function App() {
                 onOpenAssistantWithPrompt={handleOpenAssistantWithPrompt}
               />
             )}
+
+            {activeTab === 'presence-analysis' && activeWorkspace && <PresenceAnalysisView business={activeBusiness} workspaceId={activeWorkspace.id} canEdit={activeWorkspace.role === 'owner'}/> }
 
             {activeTab === 'social-networks' && activeWorkspace && (
               <SocialNetworksView

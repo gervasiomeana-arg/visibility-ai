@@ -285,6 +285,7 @@ export type ActiveTab =
   | 'executive-summary'
   | 'seo'
   | 'social-networks'
+  | 'presence-analysis'
   | 'keywords'
   | 'competitors'
   | 'opportunities'

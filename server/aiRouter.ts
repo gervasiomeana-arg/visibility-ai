@@ -1,3 +1,4 @@
+import { researchPresence } from './presenceResearch';
 import { validateResearchInput } from '../shared/competitorResearch';
 import { researchCompetitor } from './competitorResearchService';
 import express from 'express';
@@ -43,6 +44,13 @@ router.post('/business/profile/suggest', requireSupabaseAuth, profileSuggestionL
     if (reviewable) return res.status(422).json({ error: message });
     if (error instanceof AiProviderError) return sendAiFailure(res, error, 'profile_suggestion');
     return res.status(502).json({ error: 'No se pudo leer la web y preparar la propuesta. Revisá la dirección y reintentá; el perfil guardado sigue disponible.' });
+  }
+});
+router.post('/presence/research', requireSupabaseAuth, competitorResearchLimit, async (req,res) => {
+  try { return res.json(await researchPresence(req.body)); }
+  catch(error) {
+    if(error instanceof AiProviderError) return sendAiFailure(res,error,'presence_research');
+    return res.status(422).json({error:'No se obtuvo una investigación con fuentes verificables. Revisá cliente, consulta, mercado y configuración de Gemini. No se guardaron resultados.'});
   }
 });
 router.post('/competitors/research', requireSupabaseAuth, competitorResearchLimit, async (req, res) => {

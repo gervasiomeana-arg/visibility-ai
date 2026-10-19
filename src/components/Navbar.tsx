@@ -23,6 +23,7 @@ const navItems: { id: ActiveTab; label: string; hint: string }[] = [
   { id: 'seo', label: 'Auditoría', hint: 'Revisá las mediciones técnicas y sus límites.' },
   { id: 'keywords', label: 'Búsquedas', hint: 'Consultá Search Console si tenés acceso; este paso puede quedar pendiente.' },
   { id: 'social-networks', label: 'Redes', hint: 'Registrá perfiles y revisá métricas por canal, con sus fuentes y períodos.' },
+  { id: 'presence-analysis', label: 'Buscadores e IA', hint: 'Comprobá consultas por mercado y guardá evidencia de buscadores y asistentes.' },
   { id: 'competitors', label: 'Competidores', hint: 'Investigá referencias del mercado cuando sean necesarias.' },
   { id: 'executive-summary', label: 'Resumen', hint: 'Revisá qué muestran las fuentes disponibles.' },
   { id: 'opportunities', label: 'Oportunidades', hint: 'Evaluá propuestas respaldadas por las mediciones.' },
