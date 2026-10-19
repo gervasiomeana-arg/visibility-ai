@@ -22,6 +22,15 @@ test('expanded client brief is optional for legacy accounts and preserves paymen
  assert.throws(()=>validateClient({...next,brief:{website:'javascript:alert(1)'}},'w',['b']));
  assert.throws(()=>validateClient({...next,brief:{profiles:{instagram:'https://evil.example/fixture'}}},'w',['b']));
 });
+test('editing an older client without a business or optional location keeps the brief saveable',()=>{
+ const client:ClientAccount={id:'c',workspaceId:'w',name:'Legacy fixture',kind:'Agencia',country:'UY',email:'',whatsapp:'',businessIds:[],monthlyFeeCents:100,currency:'USD',dueDay:10,invoices:[],payments:[],reports:[]};
+ // Edit form seeds these properties from an optional linked business.
+ const edited={...client,brief:{siteName:undefined,website:undefined,city:undefined,siteCountry:undefined,planName:'Mensual'}};
+ assert.doesNotThrow(()=>validateClient(edited,'w',[]));
+ assert.doesNotThrow(()=>validateClient(JSON.parse(JSON.stringify(edited)),'w',[]));
+ assert.throws(()=>validateClient({...edited,brief:{planName:123 as any}},'w',[]));
+ assert.throws(()=>validateClient({...edited,brief:{notes:'x'.repeat(4001)}},'w',[]));
+});
 test('audits preserve measured zero and evidence, never turn current public snapshots into historical reach',()=>{
  const r=run();validateAuditRun(r);const text=auditRunBlocks(r).map(b=>b.text).join('\n');assert.match(text,/Seguidores observados: 0/);assert.match(text,/sin datos verificados/i);assert.match(text,/Test fixture only/);
  assert.throws(()=>validateAuditRun({...r,channel:'ai'}));assert.throws(()=>validateAuditRun({...r,periodStart:'2999-01-01',periodEnd:'2999-01-02'}));
