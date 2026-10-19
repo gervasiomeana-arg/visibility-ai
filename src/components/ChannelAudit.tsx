@@ -5,7 +5,7 @@ import type {SocialAccount} from '../../shared/socialMetrics';
 import React,{useEffect,useRef,useState} from 'react';
 import type {Business} from '../types';
 import type {ClientAccount} from '../../shared/clientLedger';
-import {auditChannelNames,validateAuditRun,type AuditChannel,type AuditRun} from '../../shared/auditRun';
+import {auditChannelNames,validateAuditRun,type MeasurementChannel,type AuditRun} from '../../shared/auditRun';
 import {calendarDay,type PublicNetwork} from '../../shared/socialMetrics';
 import {presencePlatforms,presenceQueryUrl,searchPlatforms,validatePresenceObservation,type PresencePlatform} from '../../shared/presenceAnalysis';
 import {seoAuditService} from '../services/seoAuditService';
@@ -15,7 +15,7 @@ import {searchConsoleService,type SearchConsoleSite} from '../services/searchCon
 import {propertyMatchesBusiness} from '../../shared/searchConsoleDiagnostics';
 import {integrationStatus,type IntegrationStatus} from '../services/integrationStatusService';
 import {AuditRunReport} from './AuditRunReport';
-interface Props{channel:Exclude<AuditChannel,'combined'>;business:Business;client:ClientAccount;workspaceId:string;history:AuditRun[];onSaved:(r:AuditRun)=>void;onClientUpdated:(c:ClientAccount)=>void;}
+interface Props{channel:MeasurementChannel;business:Business;client:ClientAccount;workspaceId:string;history:AuditRun[];onSaved:(r:AuditRun)=>void;onClientUpdated:(c:ClientAccount)=>void;}
 export function ChannelAudit(props:Props){return <ChannelForm key={`${props.workspaceId}:${props.client.id}:${props.business.id}:${props.channel}`} {...props}/>;}
 function ChannelForm({channel,business,client,workspaceId,history,onSaved,onClientUpdated}:Props){
  const today=new Date().toISOString().slice(0,10),month=today.slice(0,7)+'-01';
