@@ -31,3 +31,7 @@ Estas correcciones necesitan actualizar y publicar desde AI Studio después de i
 El navegador del entorno rechazó la observación porque su estado de credenciales no podía reanudarse de forma segura, incluso después de reiniciar el runtime. No se reutilizaron contraseñas ni tokens y no se sustituyeron estas pruebas por lecturas privilegiadas de datos de clientes. No se enviaron mensajes ni se registraron pagos o entregas de prueba en producción.
 
 Conclusión: la publicación está accesible y la suite técnica pasa. No se declara aprobado el recorrido funcional completo con sesión hasta realizar las comprobaciones pendientes.
+
+## Control adicional de navegación durante operaciones
+
+El selector global de cliente ahora se bloquea mientras Clientes carga, guarda o descarga un PDF. Los botones de la lista ya estaban bloqueados; el selector global había quedado fuera de esa protección. Así se evita cambiar de ficha durante una operación y que una respuesta tardía vuelva a seleccionar el cliente anterior. La protección se libera al finalizar o abandonar la vista. Esta comprobación se hizo sobre el código, con validación de tipos y pruebas de navegación; no sustituye la prueba autenticada pendiente.
