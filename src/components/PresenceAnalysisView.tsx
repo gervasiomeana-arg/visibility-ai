@@ -1,0 +1,44 @@
+import React,{useEffect,useRef,useState} from 'react';
+import type {Business} from '../types';
+import {presencePlatforms,presenceQueryUrl,searchPlatforms,scopedPresence,type PresenceObservation,type PresencePlatform} from '../../shared/presenceAnalysis';
+import {PresenceEvidence} from './PresenceEvidence';
+import {presenceService} from '../services/presenceService';
+interface Props{business:Business;workspaceId:string;canEdit:boolean;}
+function PresenceForm({business,workspaceId,canEdit}:Props){
+ const [rows,setRows]=useState<PresenceObservation[]>([]),[loading,setLoading]=useState(true),[error,setError]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[reload,setReload]=useState(0);
+ const [platform,setPlatform]=useState<PresencePlatform>('google'),[query,setQuery]=useState(''),[market,setMarket]=useState(business.city||''),[language,setLanguage]=useState('Español'),[device,setDevice]=useState<'desktop'|'mobile'>('desktop');
+ const [result,setResult]=useState<'found'|'not-observed'>('found'),[position,setPosition]=useState(''),[excerpt,setExcerpt]=useState(''),[evidenceUrl,setEvidenceUrl]=useState(''),[recommendation,setRecommendation]=useState('');
+ const [observedAt,setObservedAt]=useState(new Date().toISOString().slice(0,16));
+ const [draft,setDraft]=useState<PresenceObservation|null>(null);
+ const alive=useRef(true),lock=useRef(false);
+ useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+ useEffect(()=>{let active=true;setLoading(true);setError('');presenceService.list(workspaceId,business.id).then(r=>{if(active)setRows(r);}).catch(e=>{if(active)setError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[workspaceId,business.id,reload]);
+ async function run(action:()=>Promise<void>){if(lock.current||!canEdit)return;lock.current=true;setBusy(true);setError('');setMessage('');try{await action();}catch(e){if(alive.current)setError(e instanceof Error?e.message:'No se confirmó la operación.');}finally{lock.current=false;if(alive.current)setBusy(false);}}
+ const context={workspaceId,businessId:business.id,name:business.name,website:business.url,market,language,device,query};
+ async function save(value:PresenceObservation){const saved=await presenceService.save(value);if(alive.current){setRows(r=>scopedPresence([saved,...r],workspaceId,business.id));setMessage('Observación guardada en este cliente. Ya puede incluirse en el informe.');}}
+ return <div className="space-y-6"><header><h2 className="text-2xl font-heading font-bold">Buscadores e IA</h2><p className="text-sm text-slate-600 mt-2">{business.name} · Evidencias de cómo aparece el negocio para consultas concretas. No existe una posición única en toda la red.</p></header>
+ <section className="vai-panel rounded-2xl p-5 space-y-4"><div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+ <label>Plataforma<select disabled={busy} value={platform} onChange={e=>{setPlatform(e.target.value as PresencePlatform);setDraft(null);setPosition('');setEvidenceUrl('');}} className="block border rounded-lg p-3 w-full mt-2">{Object.entries(presencePlatforms).map(([key,name])=><option key={key} value={key}>{name}</option>)}</select></label>
+ <label>País / ciudad<input disabled={busy} value={market} onChange={e=>setMarket(e.target.value)} maxLength={120} className="block border rounded-lg p-3 w-full mt-2"/></label>
+ <label>Idioma<input disabled={busy} value={language} maxLength={60} onChange={e=>setLanguage(e.target.value)} className="block border rounded-lg p-3 w-full mt-2"/></label>
+ <label>Dispositivo<select disabled={busy} value={device} onChange={e=>setDevice(e.target.value as 'desktop'|'mobile')} className="block border rounded-lg p-3 w-full mt-2"><option value="desktop">Escritorio</option><option value="mobile">Móvil</option></select></label></div>
+ <label className="block">Consulta exacta<input disabled={busy} value={query} maxLength={500} onChange={e=>{setQuery(e.target.value);setDraft(null);}} placeholder="Ej.: herramientas de estadísticas de vóley para entrenadores" className="block border rounded-lg p-3 w-full mt-2"/></label>
+ {query.trim().length>=3&&<a className="inline-block underline" target="_blank" rel="noopener noreferrer" href={presenceQueryUrl(platform,query)}>Abrir {presencePlatforms[platform]} para comprobar la consulta</a>}
+ <p className="text-xs text-slate-500">País, idioma y dispositivo describen la comprobación; no cambian la ubicación de tu navegador ni garantizan respuestas idénticas. Al abrir Claude o Gemini, copiá la consulta. Compará consultas y condiciones iguales entre fechas.</p>
+ {platform==='gemini'&&<div><button disabled={busy||loading||!canEdit||query.trim().length<3||market.trim().length<2} onClick={()=>void run(async()=>{const value=await presenceService.research(context);if(alive.current)setDraft(value);})} className="bg-emerald-800 text-white rounded-lg px-5 py-3 disabled:opacity-50">{busy?'Consultando…':'Consultar Gemini con fuentes'}</button><p className="text-xs mt-2">Usa la API de Gemini y Google Search configuradas en Visibility; puede consumir cuota del proyecto. Incluye el negocio como contexto. No mide posiciones de Google ni respuestas de ChatGPT o Claude.</p></div>}
+ <details><summary className="cursor-pointer font-semibold">Registrar una comprobación manual real</summary><div className="space-y-3 mt-4">
+ <p className="text-xs text-slate-500">Pegá el resultado que realmente observaste. En IA indicá si la marca fue mencionada o citada y si la consulta incluía su nombre. En buscadores registrá solo la posición orgánica comprobada, excluyendo anuncios. «No observada» se limita a esa consulta, fecha y muestra.</p>
+ <label className="block">Resultado<select disabled={busy} className="block border rounded-lg p-3 w-full" value={result} onChange={e=>setResult(e.target.value as typeof result)}><option value="found">Presencia observada</option><option value="not-observed">No observada en esta consulta</option></select></label>
+ <label className="block">Fecha y hora observadas (UTC)<input disabled={busy} type="datetime-local" value={observedAt} onChange={e=>setObservedAt(e.target.value)} className="block border rounded-lg p-3"/></label>
+ {searchPlatforms.includes(platform)&&result==='found'&&<label className="block">Posición orgánica (opcional)<input disabled={busy} type="number" min={1} max={100} value={position} onChange={e=>setPosition(e.target.value)} className="block border rounded-lg p-3"/></label>}
+ <label className="block">URL de referencia / respuesta compartida<input disabled={busy} type="url" value={evidenceUrl} onChange={e=>setEvidenceUrl(e.target.value)} placeholder={presenceQueryUrl(platform,query)} maxLength={2048} className="block border rounded-lg p-3 w-full"/></label>
+ <label className="block">Evidencia observada<textarea disabled={busy} value={excerpt} onChange={e=>setExcerpt(e.target.value)} maxLength={12000} rows={5} className="block border rounded-lg p-3 w-full"/></label>
+ <label className="block">Recomendación propuesta (opcional)<textarea disabled={busy} value={recommendation} onChange={e=>setRecommendation(e.target.value)} maxLength={2000} className="block border rounded-lg p-3 w-full"/></label>
+ <button disabled={busy||loading||!canEdit} className="bg-emerald-800 text-white rounded-lg px-5 py-3 disabled:opacity-50" onClick={()=>void run(async()=>{await save({id:crypto.randomUUID(),workspaceId,businessId:business.id,platform,query:query.trim(),market,language,device,observedAt:new Date(observedAt+'Z').toISOString(),method:'manual',result,evidenceUrl,excerpt,recommendation,...(searchPlatforms.includes(platform)&&result==='found'&&position?{position:Number(position)}:{})});if(alive.current)setExcerpt('');})}>Guardar comprobación</button>
+ </div></details></section>
+ {error&&<p role="alert" className="rounded-xl bg-red-50 p-4">{error}<button className="underline ml-3" onClick={()=>setReload(n=>n+1)}>Reintentar carga</button></p>}{message&&<p role="status">{message}</p>}
+ {draft&&<section className="border border-emerald-300 rounded-xl p-5"><h3 className="font-semibold mb-3">Respuesta recibida · revisar antes de guardar</h3><PresenceEvidence rows={[draft]}/><button disabled={busy||!canEdit} onClick={()=>void run(async()=>{await save(draft);if(alive.current)setDraft(null);})} className="bg-emerald-800 text-white rounded-lg px-5 py-3 mt-4 disabled:opacity-50">Guardar respuesta con fuentes</button></section>}
+ <section><h3 className="text-lg font-bold mb-4">Historial del cliente · últimas 120 observaciones</h3>{loading?<p>Cargando evidencias…</p>:!rows.length?<p>Sin observaciones guardadas. La ausencia de registros no equivale a ausencia del negocio en estas plataformas.</p>:<PresenceEvidence rows={rows}/>}</section>
+ </div>;
+}
+export function PresenceAnalysisView(props:Props){return <PresenceForm key={`${props.workspaceId}:${props.business.id}`} {...props}/>;}

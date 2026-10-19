@@ -8,7 +8,7 @@ const account = (snapshots: PublicSnapshot[]): SocialAccount => ({workspaceId:'w
 const rows = (a: SocialAccount[]) => socialReportRows(a,'w','b','2026-02-01');
 test('report retains latest known follower stock with source and date, without inventing reach or views',()=>{
  const r=rows([account([snap(),snap({id:'later',capturedAt:'2026-02-01T10:00:00Z',followers:120})])]);
- assert.equal(r.length,3);assert.equal(r[0].followers,120);assert.equal(r[0].capturedAt,'2026-02-01T10:00:00Z');assert.equal(r[0].source,'Lectura pública');assert.equal(r[1].followers,null);assert.equal('reach' in r[0],false);assert.equal('views' in r[0],false);
+ assert.equal(r.length,4);assert.equal(r[0].followers,120);assert.equal(r[0].capturedAt,'2026-02-01T10:00:00Z');assert.equal(r[0].source,'Lectura pública');assert.equal(r[1].followers,null);assert.equal('reach' in r[0],false);assert.equal('views' in r[0],false);
 });
 test('report excludes another business, workspace, competitor, seed, wrong profile, future and unconfirmed records',()=>{
  const a=account([snap()]);

@@ -1,13 +1,13 @@
-export const socialNetworks = ['facebook', 'instagram', 'tiktok', 'google'] as const;
+export const socialNetworks = ['facebook', 'instagram', 'tiktok', 'youtube', 'google'] as const;
 export type SocialNetwork = typeof socialNetworks[number];
-export const networkNames: Record<SocialNetwork, string> = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', google: 'Google · Search Console' };
+export const networkNames: Record<SocialNetwork, string> = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', google: 'Google · Search Console' };
 export const metricDefinitions = {
-  followers: { label: 'Seguidores', period: false, networks: ['facebook', 'instagram', 'tiktok'] },
-  posts: { label: 'Publicaciones / videos acumulados', period: false, networks: ['instagram', 'tiktok'] },
+  followers: { label: 'Seguidores', period: false, networks: ['facebook', 'instagram', 'tiktok', 'youtube'] },
+  posts: { label: 'Publicaciones / videos acumulados', period: false, networks: ['instagram', 'tiktok', 'youtube'] },
   likes: { label: 'Me gusta acumulados de videos', period: false, networks: ['tiktok'] },
-  views: { label: 'Visualizaciones del período', period: true, networks: ['facebook', 'instagram', 'tiktok'] },
+  views: { label: 'Visualizaciones del período', period: true, networks: ['facebook', 'instagram', 'tiktok', 'youtube'] },
   reach: { label: 'Alcance del período', period: true, networks: ['facebook', 'instagram'] },
-  interactions: { label: 'Interacciones del período', period: true, networks: ['facebook', 'instagram', 'tiktok'] },
+  interactions: { label: 'Interacciones del período', period: true, networks: ['facebook', 'instagram', 'tiktok', 'youtube'] },
   clicks: { label: 'Clics de consultas recuperadas', period: true, networks: ['google'] },
   impressions: { label: 'Impresiones de consultas recuperadas', period: true, networks: ['google'] },
 } as const;
@@ -29,7 +29,7 @@ export interface PublicPost {
   url: string; publishedAt: string; likes?: number; comments?: number; views?: number;
 }
 export interface PublicSnapshot {
-  id: string; profileUrl: string; capturedAt: string; source: 'public-web' | 'manual-public' | 'official-public-api';
+  id: string; profileUrl: string; capturedAt: string; source: 'public-web' | 'manual-public' | 'official-public-api' | 'youtube-data-api';
   evidence: string; followers?: number; totalPosts?: number; posts: PublicPost[];
   periodStart: string; periodEnd: string;
   coverage?: { status: 'partial' | 'complete-available'; reason: 'exhausted' | 'page-limit' | 'time-limit' | 'provider-error' | 'invalid-media' | 'missing-media' | 'invalid-cursor' | 'count-mismatch'; pages: number; examined: number; rejected: number };
@@ -43,6 +43,11 @@ export function publicProfileUrl(network: PublicNetwork, value: string): string 
   const url = new URL(socialProfileUrl(network, value));
   if (url.port) throw new Error('El perfil no debe incluir un puerto.');
   const parts = url.pathname.split('/').filter(Boolean);
+  if (network === 'youtube') {
+    if (parts.length === 1 && /^@[A-Za-z0-9_.%~-]+$/.test(parts[0])) return `https://www.youtube.com/${parts[0].toLowerCase()}/`;
+    if (parts.length === 2 && ((parts[0] === 'channel' && /^UC[A-Za-z0-9_-]{22}$/.test(parts[1])) || (parts[0] === 'user' && /^[A-Za-z0-9_.-]+$/.test(parts[1])))) return `https://www.youtube.com/${parts.join('/')}/`;
+    throw new Error('Usá el enlace del canal de YouTube: /@identificador, /channel/UC… o /user/nombre.');
+  }
   const reserved = /^(p|reel|reels|stories|explore|accounts|login|share|sharer|watch|video|videos|search|hashtag|intent|help|privacy|legal|plugins|dialog)$/i;
   if (network === 'facebook' && parts[0] === 'profile.php' && /^\d+$/.test(url.searchParams.get('id') || '')) return `https://www.facebook.com/profile.php?id=${url.searchParams.get('id')}`;
   if (parts.length !== 1 || reserved.test(parts[0]) || !/^[A-Za-z0-9_.@-]+$/.test(parts[0]) || (network === 'tiktok' && !/^@[A-Za-z0-9_.]+$/.test(parts[0]))) throw new Error('Usá la dirección del perfil, no una publicación ni un enlace para compartir.');
@@ -50,7 +55,7 @@ export function publicProfileUrl(network: PublicNetwork, value: string): string 
 }
 export function validatePublicSnapshot(network: PublicNetwork, value: PublicSnapshot): PublicSnapshot {
   if (!value || typeof value.id !== 'string' || !value.id || typeof value.capturedAt !== 'string' || !Number.isFinite(Date.parse(value.capturedAt)) ||
-    !['public-web', 'manual-public', 'official-public-api'].includes(value.source) || typeof value.evidence !== 'string' || value.evidence.trim().length < 8 || value.evidence.length > 2000 ||
+    !['public-web', 'manual-public', 'official-public-api', 'youtube-data-api'].includes(value.source) || typeof value.evidence !== 'string' || value.evidence.trim().length < 8 || value.evidence.length > 2000 ||
     !calendarDay(value.periodStart) || !calendarDay(value.periodEnd) || value.periodStart > value.periodEnd || !Array.isArray(value.posts) || value.posts.length > 500) throw new Error('La observación pública necesita fecha, período y evidencia.');
   if(value.coverage){
     const c=value.coverage;
@@ -59,6 +64,7 @@ export function validatePublicSnapshot(network: PublicNetwork, value: PublicSnap
   }
   if (/^\d{4}-\d{2}-\d{2}$/.test(value.capturedAt) && !calendarDay(value.capturedAt)) throw new Error('Fecha observada inválida.');
   if (value.source === 'official-public-api' && network !== 'instagram') throw new Error('Esta fuente oficial pública corresponde únicamente a Instagram Business Discovery.');
+  if (value.source === 'youtube-data-api' && network !== 'youtube') throw new Error('La fuente YouTube Data API solo corresponde a YouTube.');
   publicProfileUrl(network, value.profileUrl);
   const observedDay = value.capturedAt.slice(0, 10);
   if (!calendarDay(observedDay) || observedDay > new Date().toISOString().slice(0, 10) || value.periodEnd > new Date().toISOString().slice(0, 10)) throw new Error('No se guardan observaciones ni períodos futuros.');
@@ -95,7 +101,7 @@ export function socialProfileUrl(network: SocialNetwork, value: string): string 
   try { url = new URL(value); } catch { throw new Error('Ingresá la URL HTTPS completa del perfil.'); }
   if (url.protocol !== 'https:' || url.username || url.password || value.length > 2048) throw new Error('El perfil debe ser una URL HTTPS sin credenciales.');
   const host = url.hostname.toLowerCase().replace(/^www\./, '');
-  const allowed: Record<SocialNetwork, string[]> = { facebook: ['facebook.com', 'm.facebook.com'], instagram: ['instagram.com'], tiktok: ['tiktok.com'], google: [] };
+  const allowed: Record<SocialNetwork, string[]> = { facebook: ['facebook.com', 'm.facebook.com'], instagram: ['instagram.com'], tiktok: ['tiktok.com'], youtube: ['youtube.com'], google: [] };
   if (network !== 'google' && (!allowed[network]?.includes(host) || url.pathname === '/')) throw new Error(`Ingresá un perfil de ${networkNames[network]}.`);
   if (network === 'google' && !host.includes('.')) throw new Error('Ingresá el sitio del negocio.');
   url.hash = ''; return url.href;
@@ -141,4 +147,4 @@ export function validateSocialAccount(account: SocialAccount): SocialAccount {
   return account;
 }
 
-export function publicSourceLabel(source: PublicSnapshot['source']) { return source === 'official-public-api' ? 'Meta · Business Discovery' : source === 'public-web' ? 'Lectura pública' : 'Observación manual'; }
+export function publicSourceLabel(source: PublicSnapshot['source']) { return source === 'youtube-data-api' ? 'YouTube Data API · suscriptores redondeados por YouTube' : source === 'official-public-api' ? 'Meta · Business Discovery' : source === 'public-web' ? 'Lectura pública' : 'Observación manual'; }

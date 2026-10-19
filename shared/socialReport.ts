@@ -4,7 +4,7 @@ import { calendarDay, publicProfileUrl, type SocialAccount, type PublicNetwork }
 /** Latest saved follower stock, never a monthly total or an assertion of live access. */
 export function socialReportRows(accounts: SocialAccount[], workspaceId: string, businessId: string, today = new Date().toISOString().slice(0,10)) {
   if (!calendarDay(today)) throw new Error('Fecha de informe inválida.');
-  return (['instagram','facebook','tiktok'] as PublicNetwork[]).map(network => {
+  return (['instagram','facebook','tiktok','youtube'] as PublicNetwork[]).map(network => {
     const account = accounts.find(a => a.workspaceId === workspaceId && a.businessId === businessId && a.network === network);
     const empty = { network, profileUrl: '', followers: null as number | null, capturedAt: '', source: '', evidence: '', notUsed: account?.presence?.status === 'not-used' };
     if (!account || empty.notUsed) return empty;

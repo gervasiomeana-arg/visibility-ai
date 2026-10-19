@@ -4,7 +4,7 @@ import { MonthlyChart } from './SocialMonthlyChart';
 import { SocialPublicAnalysis } from './SocialPublicAnalysis';
 import { SocialCompetitors } from './SocialCompetitors';
 import { socialMetricsService } from '../services/socialMetricsService';
-import { publicProfileUrl, type PublicNetwork, type SocialAccount } from '../../shared/socialMetrics';
+import { publicSourceLabel, publicProfileUrl, type PublicNetwork, type SocialAccount } from '../../shared/socialMetrics';
 import { hasUnverifiedSeeds, monthlyMetrics, monthlySeries } from '../../shared/socialMonthly';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   evolution: MonthlyEvolution; setActiveTab: (tab: ActiveTab) => void;
   onSelectBusiness?: (businessId: string) => void;
 }
-const names = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' };
+const names = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', youtube: 'YouTube' };
 function SocialNetworksForm({ business, allBusinesses = [business], workspaceId, canEdit, onSelectBusiness }: Props) {
   const today = new Date().toISOString().slice(0, 10);
   const [network, setNetwork] = useState<PublicNetwork>('instagram');
@@ -76,7 +76,7 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
       const saved = await socialMetricsService.save(updated);
       if (current()) {
         setAccounts(rows => [...rows.filter(a => a.network !== network), saved]);
-        setMessage(`${result.snapshot.source === 'official-public-api' ? 'Meta · Business Discovery' : 'Lectura pública'}: ${result.snapshot.followers === undefined ? 'seguidores sin dato exacto' : result.snapshot.followers.toLocaleString('es-AR')+' seguidores'}; ${result.snapshot.totalPosts === undefined ? 'publicaciones sin dato exacto' : result.snapshot.totalPosts.toLocaleString('es-AR')+' publicaciones acumuladas'}. Guardado con fecha ${result.snapshot.capturedAt.slice(0,10)}. No se reconstruyen meses anteriores.`);
+        setMessage(`${publicSourceLabel(result.snapshot.source)}: ${result.snapshot.followers === undefined ? 'seguidores sin dato exacto' : result.snapshot.followers.toLocaleString('es-AR')+(network === 'youtube' ? ' suscriptores reportados' : ' seguidores')}; ${result.snapshot.totalPosts === undefined ? 'publicaciones sin dato exacto' : result.snapshot.totalPosts.toLocaleString('es-AR')+' publicaciones acumuladas'}. Guardado con fecha ${result.snapshot.capturedAt.slice(0,10)}. No se reconstruyen meses anteriores.`);
       }
     } catch (reason) { if (current()) setError(reason instanceof Error ? reason.message : 'No se pudo confirmar la consulta o el guardado.'); }
     finally { lock.current = false; if (live.current) setBusy(false); }
@@ -91,8 +91,9 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
         <label className="text-sm font-medium">Hasta<input disabled={locked} type="date" value={end} min={start} max={today} className="block border rounded-lg p-3 w-full mt-2" onChange={e => { setEnd(e.target.value); setMessage(''); }} /></label>
       </div>
       <div className="flex flex-wrap gap-3 items-center"><button onClick={run} disabled={locked || loading || !!loadError || !!periodError || !canEdit} className="rounded-lg bg-emerald-800 text-white px-5 py-3 disabled:opacity-50">{busy ? 'Buscando…' : 'Buscar datos públicos'}</button><span className="text-xs text-slate-500">{loading ? 'Cargando historial…' : 'Los gráficos muestran las mediciones guardadas del período.'}</span></div>
-      <details open={!account?.profileUrl} className="text-sm"><summary className="cursor-pointer">Perfil de {names[network]}</summary><label className="block mt-3">Enlace confirmado del cliente<input disabled={locked || !canEdit} type="url" value={profile} onChange={e => setProfile(e.target.value)} className="block border rounded-lg p-3 w-full mt-2" placeholder={`https://www.${network}.com/${network === 'tiktok' ? '@' : ''}perfil/`} /></label>{candidates.map(url => <button key={url} className="block underline mt-3 break-all text-left" onClick={() => { setProfile(url); setCandidates([]); setMessage('Perfil seleccionado. Confirmá que corresponde al cliente y pulsá Buscar datos públicos.'); }}>Usar {url}</button>)}</details>
+      <details open={!account?.profileUrl} className="text-sm"><summary className="cursor-pointer">Perfil de {names[network]}</summary><label className="block mt-3">Enlace confirmado del cliente<input disabled={locked || !canEdit} type="url" value={profile} onChange={e => setProfile(e.target.value)} className="block border rounded-lg p-3 w-full mt-2" placeholder={`https://www.${network}.com/${network === 'tiktok' || network === 'youtube' ? '@' : ''}perfil/`} /></label>{candidates.map(url => <button key={url} className="block underline mt-3 break-all text-left" onClick={() => { setProfile(url); setCandidates([]); setMessage('Perfil seleccionado. Confirmá que corresponde al cliente y pulsá Buscar datos públicos.'); }}>Usar {url}</button>)}</details>
       {network==='instagram' && <details className="text-xs text-slate-500"><summary className="cursor-pointer">Consulta oficial de otros negocios · {discovery?.operatorAllowed?'habilitada':discovery?.configured?'operador sin autorización':'pendiente de configurar'}</summary><p className="mt-2">Instagram Business Discovery usa una cuenta propia autorizada de Visibility para consultar seguidores y publicaciones de otras cuentas profesionales. No pide la clave del cliente. Requiere una cuenta profesional propia vinculada a una página de Facebook y los permisos de Meta correspondientes.</p>{discovery&&!discovery.configured&&<p className="mt-2">Configuración pendiente en el servidor: {discovery.missing.join(', ')}. Son credenciales técnicas propias de Visibility, no del cliente.</p>}<a className="underline block mt-2" href="https://github.com/gervasiomeana-arg/visibility-ai/blob/main/docs/instagram-business-discovery.md" target="_blank" rel="noopener noreferrer">Guía de configuración del administrador</a></details>}
+      {network === 'youtube' && <p className="text-xs text-slate-500">YouTube Data API requiere YOUTUBE_API_KEY propia en el servidor y la API habilitada en Google Cloud. No pide acceso del cliente. YouTube redondea los suscriptores a tres cifras significativas y puede ocultarlos. Esta consulta recupera suscriptores actuales y videos públicos acumulados; no recupera alcance, visualizaciones mensuales ni suscriptores de meses pasados.</p>}
       <p className="text-xs text-slate-500">Seguidores: última medición observada de cada mes. Visualizaciones y alcance: solo informes del período exacto. La consulta pública actual no recupera automáticamente el historial ni el alcance privado.</p>
     </section>
     {(loadError || error || periodError) && <p role="alert" className="border border-red-200 bg-red-50 p-4 rounded-xl">{loadError || error || periodError}</p>}
@@ -101,8 +102,9 @@ function SocialNetworksForm({ business, allBusinesses = [business], workspaceId,
     {!loading && !loadError && !periodError && <>
       {!series.some(points => points.some(p => p.value !== null)) && <p className="text-sm text-slate-600">Sin datos verificados para {names[network]} en este período.</p>}
       {account?.presence?.status === 'not-used' && <p className="text-sm">Sin cuenta · confirmado por el operador. No equivale a cero seguidores.</p>}
-      <div className="grid xl:grid-cols-3 gap-5">{(Object.entries(monthlyMetrics)).map(([metric,title],i) => <MonthlyChart key={metric} title={title} points={series[i]} />)}</div>
-      <SocialPublicAnalysis account={account} network={network} start={start} end={end}/>
+      <div className="grid xl:grid-cols-3 gap-5">{(Object.entries(monthlyMetrics)).map(([metric,title],i) => <MonthlyChart key={metric} title={network === 'youtube' && metric === 'followers' ? 'Suscriptores reportados' : title} points={series[i]} />)}</div>
+      {network !== 'youtube' && <SocialPublicAnalysis account={account} network={network} start={start} end={end}/>}
+      {network === 'youtube' && <p className="text-xs text-slate-500">La consulta actual no recupera publicaciones individuales. No mide interacción ni frecuencia del canal.</p>}
       {account?.profileUrl && account.presence?.status !== 'not-used' && <SocialCompetitors key={`${network}:${account.profileUrl}`} account={account} network={network} start={start} end={end} disabled={locked || !canEdit} onBusy={setComparing} onSaved={saved=>setAccounts(rows=>[...rows.filter(a=>a.network!==network),saved])}/>}
     </>}
   </div>;

@@ -13,10 +13,10 @@ export function discoverSocialLinks(html: string, base: string): PublicCandidate
   const links = [...html.matchAll(/\bhref\s*=\s*["']([^"']+)["']/gi)].map(m => decode(m[1]));
   // Static URL literals used by buttons/configuration are candidates too; scripts are never executed.
   const literals = decode(html).replace(/\\u002f/gi, '/').replace(/\\\//g, '/');
-  links.push(...[...literals.matchAll(/["'](https?:\/\/(?:www\.)?(?:instagram\.com|facebook\.com|tiktok\.com)\/[^\s"'<>\\]*)["']/gi)].map(m => m[1]));
+  links.push(...[...literals.matchAll(/["'](https?:\/\/(?:www\.)?(?:instagram\.com|facebook\.com|tiktok\.com|youtube\.com)\/[^\s"'<>\\]*)["']/gi)].map(m => m[1]));
   for (const node of jsonNodes(html)) if (node['@type'] === 'Organization' || node['@type'] === 'LocalBusiness' || node['@type'] === 'Person') links.push(...(Array.isArray(node.sameAs) ? node.sameAs : typeof node.sameAs === 'string' ? [node.sameAs] : []).filter((s: unknown) => typeof s === 'string'));
-  for (const link of links) for (const network of ['facebook', 'instagram', 'tiktok'] as const) {
-    try { const target = new URL(link, base); if (target.protocol === 'http:' && /^(www\.)?(instagram|facebook|tiktok)\.com$/i.test(target.hostname)) target.protocol = 'https:'; const profileUrl = publicProfileUrl(network, target.href); result.set(profileUrl, { network, profileUrl, foundOn: base }); } catch { /* not a supported profile */ }
+  for (const link of links) for (const network of ['facebook', 'instagram', 'tiktok', 'youtube'] as const) {
+    try { const target = new URL(link, base); if (target.protocol === 'http:' && /^(www\.)?(instagram|facebook|tiktok|youtube)\.com$/i.test(target.hostname)) target.protocol = 'https:'; const profileUrl = publicProfileUrl(network, target.href); result.set(profileUrl, { network, profileUrl, foundOn: base }); } catch { /* not a supported profile */ }
   }
   return [...result.values()].slice(0, 30);
 }
@@ -93,7 +93,7 @@ export async function discoverPublicProfiles(domain: string, reader: PageReader 
   return { candidates: discoverSocialLinks(page.html, page.finalUrl), checkedAt: page.fetchedAt, finalUrl: page.finalUrl, note: 'Enlaces encontrados en el HTML del sitio. Confirmá que cada perfil pertenece al negocio; no se asignan por similitud de nombre.' };
 }
 export function publicResearchInput(body: any) {
-  if (!body || !['facebook', 'instagram', 'tiktok'].includes(body.network) || typeof body.profileUrl !== 'string' || !calendarDay(body.start) || !calendarDay(body.end) || body.start > body.end || body.end > new Date().toISOString().slice(0, 10)) throw new Error('Indicá un perfil y un período válido que no termine en el futuro.');
+  if (!body || !['facebook', 'instagram', 'tiktok', 'youtube'].includes(body.network) || typeof body.profileUrl !== 'string' || !calendarDay(body.start) || !calendarDay(body.end) || body.start > body.end || body.end > new Date().toISOString().slice(0, 10)) throw new Error('Indicá un perfil y un período válido que no termine en el futuro.');
   return { network: body.network as PublicNetwork, profileUrl: publicProfileUrl(body.network, body.profileUrl), start: body.start as string, end: body.end as string };
 }
 export async function collectPublicProfile(input: ReturnType<typeof publicResearchInput>, reader: PageReader = fetchPublicProfileHtml) {

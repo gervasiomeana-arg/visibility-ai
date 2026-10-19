@@ -1,3 +1,5 @@
+import { PresenceEvidence } from './PresenceEvidence';
+import type { PresenceObservation } from '../../shared/presenceAnalysis';
 import { socialReportRows } from '../../shared/socialReport';
 import type { SocialAccount } from '../../shared/socialMetrics';
 import { technicalScoreChange } from '../../shared/scoreEvidence';
@@ -26,14 +28,14 @@ const emptyTasks: ActionTask[] = [];
 
 export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, evolution, issues, tasks = emptyTasks, auditMeta, workspace, clientReportStore, onOpenClients }) => {
   const socialScope = workspace?.id && business.workspaceId === workspace.id ? `${workspace.id}:${business.id}` : '';
-  const [social, setSocial] = useState<{scope:string; loading:boolean; error:string; accounts:SocialAccount[]}>({scope:'',loading:true,error:'',accounts:[]});
+  const [social, setSocial] = useState<{scope:string; loading:boolean; error:string; accounts:SocialAccount[]; presence:PresenceObservation[]}>({scope:'',loading:true,error:'',accounts:[],presence:[]});
   const [socialReload, setSocialReload] = useState(0);
   useEffect(() => {
     let active=true;
-    setSocial({scope:socialScope,loading:!!socialScope,error:'',accounts:[]});
-    if (socialScope && workspace) import('../services/socialMetricsService').then(({socialMetricsService}) => socialMetricsService.list(workspace.id,business.id))
-      .then(accounts => {if(active)setSocial({scope:socialScope,loading:false,error:'',accounts});})
-      .catch(() => {if(active)setSocial({scope:socialScope,loading:false,error:'No se pudieron cargar las mediciones de Redes. Reintentá antes de descargar o guardar el informe.',accounts:[]});});
+    setSocial({scope:socialScope,loading:!!socialScope,error:'',accounts:[],presence:[]});
+    if (socialScope && workspace) Promise.all([import('../services/socialMetricsService').then(({socialMetricsService}) => socialMetricsService.list(workspace.id,business.id)),import('../services/presenceService').then(({presenceService})=>presenceService.list(workspace.id,business.id))])
+      .then(([accounts,presence]) => {if(active)setSocial({scope:socialScope,loading:false,error:'',accounts,presence});})
+      .catch(() => {if(active)setSocial({scope:socialScope,loading:false,error:'No se pudieron cargar Redes o Buscadores e IA. Reintentá antes de descargar o guardar el informe.',accounts:[],presence:[]});});
     return () => {active=false;};
   },[socialScope,socialReload]);
   const socialReady = !socialScope || (social.scope === socialScope && !social.loading && !social.error);
@@ -50,7 +52,7 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
   useEffect(() => {reportVersion.current++;setDownload(null);setPdfError('');},[business,evolution,issues,tasks,auditMeta,social]);
   const prepareForClient = useCallback(async () => {
     const article = articleRef.current;
-    if (!article || !socialReady) throw new Error('Esperá a que se carguen las fuentes del informe o reintentá Redes.');
+    if (!article || !socialReady) throw new Error('Esperá a que se carguen las fuentes del informe o reintentá la carga de fuentes.');
     const version = reportVersion.current;
     const name = reportPdfName(business.name,new Intl.DateTimeFormat('en-CA',{timeZone:business.timezone || 'America/Argentina/Buenos_Aires',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()));
     const blocks = reportPdfBlocks(article);
@@ -169,14 +171,20 @@ export const MonthlyReportView: React.FC<MonthlyReportViewProps> = ({ business, 
         <p data-pdf-keep={socialRows.length ? `social-${socialRows[0].network}` : undefined} className="text-xs text-slate-600">Son recuentos observados en la fecha indicada, no seguidores ganados en el mes. Una captura guardada no confirma que la autorización siga activa ni constituye una consulta nueva.</p>
         {!socialReady && <p>{social.error || 'Carga de Redes pendiente. No entregar este documento hasta completar la revisión.'}</p>}
         {socialRows.map(row => <div key={row.network} data-pdf-keep={`social-${row.network}`} className="rounded-xl border border-slate-200 p-4 space-y-1 text-xs">
-          <strong>{({instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok'})[row.network]}</strong>
+          <strong>{({instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok',youtube:'YouTube'})[row.network]}</strong>
           {row.notUsed ? <p>Red declarada como no utilizada en la ficha del negocio. No equivale a cero seguidores.</p> : <>
             <p className="break-all">Perfil: {row.profileUrl || 'Sin perfil confirmado disponible'}.</p>
-            <p>Seguidores observados: {row.followers === null ? 'Sin datos verificados' : row.followers.toLocaleString('es-AR')}.</p>
+            <p>{row.network === 'youtube' ? 'Suscriptores reportados' : 'Seguidores observados'}: {row.followers === null ? 'Sin datos verificados' : row.followers.toLocaleString('es-AR')}.</p>
             {row.capturedAt && <><p>Observado: {measurementTime(row.capturedAt,business.timezone)}.</p><p>Fuente: {row.source}. {row.evidence}</p></>}
           </>}
         </div>)}
-        <p className="text-xs text-slate-500">Este resumen no incorpora informes de alcance ni visualizaciones para un período de entrega definido. No se calculan a partir de seguidores o muestras de publicaciones. Consultá en Redes los informes disponibles con su período y fuente.</p>
+        <p className="text-xs text-slate-500">YouTube informa suscriptores redondeados por la plataforma. Este resumen no incorpora informes de alcance ni visualizaciones para un período de entrega definido. No se calculan a partir de seguidores o muestras de publicaciones. Consultá en Redes los informes disponibles con su período y fuente.</p>
+      </section>}
+      {socialScope && <section className="space-y-3">
+        <h3 className="text-sm font-bold text-slate-900">Presencia en buscadores e IA · evidencias guardadas</h3>
+        <p className="text-xs text-slate-600">Últimas observaciones disponibles; cada una conserva su propia fecha y consulta. No son una medición uniforme de todo el mercado ni posiciones permanentes. Las comprobaciones manuales son declaraciones del operador; las respuestas automáticas identifican proveedor y modelo. No comparar mercados, consultas o métodos distintos como si fueran la misma medición.</p>
+        {socialReady ? social.presence.length ? <PresenceEvidence rows={social.presence.slice(0,10)}/> : <p className="text-xs">Sin observaciones guardadas para este negocio; no se evaluó su presencia en estas plataformas.</p> : <p className="text-xs">Carga pendiente; no entregar el informe.</p>}
+        {social.presence.length>10 && <p className="text-xs">Se incluyen las diez observaciones más recientes; el historial completo está en Buscadores e IA.</p>}
       </section>}
       <section className="space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Tres prioridades para la próxima revisión</h3>

@@ -15,7 +15,7 @@ export const socialMetricsService = {
     const result = await apiFetchJson<{ status: 'measured' | 'unavailable'; snapshot?: PublicSnapshot; message: string }>('/api/social/public/collect', { method: 'POST', headers: await authService.getAuthorizationHeaders({ 'content-type': 'application/json' }), body: JSON.stringify({ network, profileUrl, start, end }), signal: AbortSignal.timeout(35000) });
     if (result.status === 'measured') {
       const snapshot = validatePublicSnapshot(network, result.snapshot!);
-      if (publicProfileUrl(network, snapshot.profileUrl) !== publicProfileUrl(network, profileUrl) || snapshot.periodStart !== start || snapshot.periodEnd !== end || !['public-web', 'official-public-api'].includes(snapshot.source)) throw new Error('La observación no corresponde al perfil o período consultado.');
+      if (publicProfileUrl(network, snapshot.profileUrl) !== publicProfileUrl(network, profileUrl) || snapshot.periodStart !== start || snapshot.periodEnd !== end || !['public-web', 'official-public-api', 'youtube-data-api'].includes(snapshot.source)) throw new Error('La observación no corresponde al perfil o período consultado.');
     }
     return result;
   },

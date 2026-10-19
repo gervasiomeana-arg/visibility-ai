@@ -1,4 +1,5 @@
 import express from 'express';
+import { collectYouTube } from './youtubePublic';
 import { discoverInstagramBusiness, getInstagramDiscoveryConfig, instagramDiscoveryStatus, InstagramDiscoveryError } from './instagramBusinessDiscovery';
 import { requireSupabaseAuth } from './supabaseAuth';
 import { createRateLimiter, rateLimitWindowMs } from './rateLimit';
@@ -20,6 +21,10 @@ router.post('/public/collect', requireSupabaseAuth, publicLimit, async (req, res
   let input;
   try { input = publicResearchInput(req.body); }
   catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : 'Perfil o período inválido.' }); }
+  if(input.network === 'youtube') {
+    try { return res.json({status:'measured',snapshot:await collectYouTube(input.profileUrl,input.start,input.end),message:'Recuentos públicos actuales del canal. Suscriptores redondeados por YouTube; sin historial mensual ni alcance.'}); }
+    catch(error) { return res.status(502).json({error:error instanceof Error ? error.message : 'No se pudo consultar YouTube.'}); }
+  }
   if(input.network === 'instagram' && getInstagramDiscoveryConfig().configured) {
     try { return res.json({status:'measured',snapshot:await discoverInstagramBusiness(input.profileUrl,input.start,input.end,res.locals.authUser.id),message:'Seguidores y publicaciones obtenidos mediante Instagram Business Discovery. No se usó la contraseña del cliente.'}); }
     catch(error) { const safe=error instanceof InstagramDiscoveryError?error:new InstagramDiscoveryError('network'); return res.status(safe.code==='operator-not-authorized'?403:502).json({error:safe.message,diagnostic:{code:safe.code}}); }
