@@ -33,3 +33,11 @@ Los registros son append-only: correcciones mediante nueva observación. La fech
 - Contrastar una consulta manual con su resultado visible en Google y otra en ChatGPT/Claude; conservar referencia o respuesta compartida.
 - Consultar Gemini con la configuración del despliegue, revisar citas y guardar; comprobar recarga y PDF.
 - Las pruebas automatizadas usan respuestas sintéticas identificadas dentro de tests; no se guardan como clientes reales.
+
+## Diagnóstico de integraciones
+
+`GET /api/integrations/status` requiere sesión y devuelve solo presencia de configuración y nombre de modelo; nunca claves, tokens, proyectos ni cuota supuesta. La pantalla YouTube indica si falta `YOUTUBE_API_KEY`. Una clave presente no confirma permisos ni cuota.
+
+Ante un 429 de Gemini se leen únicamente detalles estructurados `google.rpc.QuotaFailure` y `google.rpc.RetryInfo`, si existen. Se muestran categorías fijas (por minuto, diario, búsqueda/generación o desconocido) y la espera indicada por el proveedor, limitada a un día. Sin esos detalles no se inventa ventana, saldo de créditos ni fecha de recuperación. No hay reintentos automáticos del 429 ni cambios de clave/modelo para eludir límites. Los límites se consultan en https://aistudio.google.com/rate-limit y se aplican al proyecto según https://ai.google.dev/gemini-api/docs/rate-limits .
+
+Al cambiar consulta, país, idioma o dispositivo se descarta el borrador automático pendiente; no puede guardarse con condiciones diferentes. Los errores de carga del historial están separados de los errores de investigación.

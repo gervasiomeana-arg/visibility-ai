@@ -1,11 +1,13 @@
 import crypto from 'node:crypto';
 import { calendarDay, publicProfileUrl, validatePublicSnapshot } from '../shared/socialMetrics';
 
+export function youtubeConfigured(key: string | undefined = process.env.YOUTUBE_API_KEY): key is string { return Boolean(key?.trim() && key.trim() !== 'MY_YOUTUBE_API_KEY'); }
+
 /** Fixed Google endpoint; a caller-supplied URL is never fetched. Public channel statistics, not Analytics. */
 export async function collectYouTube(profile: string, start: string, end: string, fetcher: typeof fetch = fetch, key = process.env.YOUTUBE_API_KEY?.trim()) {
   const profileUrl = publicProfileUrl('youtube', profile);
   if (!calendarDay(start) || !calendarDay(end) || start > end || end > new Date().toISOString().slice(0,10)) throw new Error('Período de YouTube inválido.');
-  if (!key) throw new Error('Configurá YOUTUBE_API_KEY propia de Visibility en el servidor y habilitá YouTube Data API v3. No se necesita contraseña del cliente.');
+  if (!youtubeConfigured(key)) throw new Error('Configurá YOUTUBE_API_KEY propia de Visibility en el servidor y habilitá YouTube Data API v3. No se necesita contraseña del cliente.');
   const parts = new URL(profileUrl).pathname.split('/').filter(Boolean);
   const query = new URLSearchParams({ part: 'id,statistics', key });
   query.set(parts[0].startsWith('@') ? 'forHandle' : parts[0] === 'channel' ? 'id' : 'forUsername', parts[0].startsWith('@') ? parts[0] : parts[1]);
