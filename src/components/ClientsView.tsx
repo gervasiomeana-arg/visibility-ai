@@ -52,7 +52,7 @@ export function ClientsView({ workspace, businesses, selectedClientId, onSelectC
   }
   useEffect(() => { void reload(); },[workspace?.id,owner]);
   const choose = (item: ClientAccount) => { const associated = ownBusinesses.filter(business=>item.businessIds.includes(business.id)); setSelected(item.id); onSelectClient?.(item.id); setDraft(null); setInvoiceId(''); setPaymentAmount(''); setMethod(''); setReportBusiness(associated.length === 1 ? associated[0].id : ''); setReportTitle(''); setReportPeriod(''); setFile(null); setFileKey(key=>key+1); setSentReportId(''); setNotice(''); setError(''); setReportFeedback(null); };
-  useEffect(()=>{if(selectedClientId&&selectedClientId!==selected){const item=clients.find(c=>c.id===selectedClientId);if(item)choose(item);}},[selectedClientId,clients]);
+  useEffect(()=>{if(selectedClientId===undefined||selectedClientId===selected)return;if(!selectedClientId){setSelected('');setDraft(null);return;}const item=clients.find(c=>c.id===selectedClientId);if(item)choose(item);},[selectedClientId,clients]);
   async function operation(action: () => Promise<ClientAccount>, success: string, target?: 'reports') {
     if (operationPending.current || loading || !owner) return;
     operationPending.current = true;

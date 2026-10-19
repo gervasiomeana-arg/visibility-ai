@@ -90,7 +90,7 @@ export function correctClientReportDelivery(client: ClientAccount, reportId: str
 export function validateClient(client: ClientAccount, workspaceId: string, businessIds: string[]) {
   paypalLink(client.paypalPaymentUrl);
   if(client.brief){
-    for(const [key,value] of Object.entries(client.brief))if(key!=='profiles'&&(typeof value!=='string'||value.length>(['needs','requiredInformation','notes'].includes(key)?4000:2000)))throw new Error('Revisá los datos y extensión de la ficha.');
+    for(const [key,value] of Object.entries(client.brief))if(key!=='profiles'&&value!==undefined&&(typeof value!=='string'||value.length>(['needs','requiredInformation','notes'].includes(key)?4000:2000)))throw new Error('Revisá los datos y extensión de la ficha.');
     if(client.brief.website){const u=new URL(client.brief.website);if(!['http:','https:'].includes(u.protocol)||u.username||u.password||!u.hostname.includes('.'))throw new Error('La página debe ser una dirección web pública sin credenciales.');}
     for(const [network,url] of Object.entries(client.brief.profiles||{}))if(url)publicProfileUrl(network as PublicNetwork,url);
   }
