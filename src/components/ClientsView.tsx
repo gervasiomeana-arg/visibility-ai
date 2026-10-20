@@ -8,9 +8,12 @@ import { ClientReportDelivery } from './ClientReportDelivery';
 const currencies = ['ARS','USD','EUR','UYU','BRL','CLP','COP','MXN','GBP','CAD','AUD','PEN'];
 const localTime = () => new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
 const message = (error: unknown) => error instanceof Error ? error.message : 'No se pudo completar la operación.';
-export function ClientsView({ workspace, businesses, selectedClientId, onSelectClient, onClientsChange, onCreateBusiness, onOpenAudit, onInteractionLockChange }: { workspace: Workspace | null; businesses: Business[]; selectedClientId?:string; onSelectClient?:(id:string)=>void; onClientsChange?:(clients:ClientAccount[])=>void; onCreateBusiness?:(client:ClientAccount,changedFields?:string[])=>Promise<string>; onOpenAudit?:()=>void; onInteractionLockChange?:(locked:boolean)=>void }) {
-  const [clients,setClients] = useState<ClientAccount[]>([]);
-  const [selected,setSelected] = useState('');
+export function ClientsView({ workspace, businesses, selectedClientId, clients:sharedClients, onSelectClient, onClientsChange, onCreateBusiness, onOpenAudit, onInteractionLockChange }: { workspace: Workspace | null; businesses: Business[]; selectedClientId?:string; clients?:ClientAccount[]; onSelectClient?:(id:string)=>void; onClientsChange?:(clients:ClientAccount[])=>void; onCreateBusiness?:(client:ClientAccount,changedFields?:string[])=>Promise<string>; onOpenAudit?:()=>void; onInteractionLockChange?:(locked:boolean)=>void }) {
+  const [localClients,setClients] = useState<ClientAccount[]>([]);
+  // The private workspace owns this list, including reports saved by sibling views.
+  // Standalone legacy use keeps its existing local loading behavior.
+  const clients = (sharedClients ?? localClients).filter(row=>row.workspaceId===workspace?.id);
+  const [selected,setSelected] = useState(selectedClientId||'');
   const [draft,setDraft] = useState<ClientAccount | null>(null);
   const [fee,setFee] = useState('0');
   const [filter,setFilter] = useState('');
@@ -85,6 +88,7 @@ export function ClientsView({ workspace, businesses, selectedClientId, onSelectC
     </div>
     {error && <p role="alert" className="rounded-xl bg-red-50 text-red-800 p-4 text-sm">{error}</p>}
     {notice && <p role="status" className="rounded-xl bg-emerald-50 text-emerald-800 p-4 text-sm">{notice}</p>}
+    {draft&&client&&draft.id===client.id&&draft.updatedAt!==client.updatedAt&&<p role="status" className="rounded-xl bg-amber-50 text-amber-900 p-4 text-sm">La ficha recibió un cambio mientras la editabas. Tu borrador se conserva; cancelá y reabrí Editar ficha para revisar la versión actual antes de guardar.</p>}
     <div className="grid lg:grid-cols-[260px_1fr] gap-5">
       <aside className="vai-panel rounded-2xl p-4 self-start space-y-3"><label className="text-sm block">Buscar cliente<input className="vai-input w-full mt-1" value={filter} onChange={event=>setFilter(event.target.value)}/></label>
         {loading ? <p role="status">Cargando clientes…</p> : !clients.length ? <p className="text-sm text-slate-500">Todavía no hay clientes cargados.</p> : clients.filter(item=>`${item.name} ${item.country}`.toLowerCase().includes(filter.toLowerCase())).map(item=><button key={item.id} disabled={busy} onClick={()=>choose(item)} className={`w-full text-left rounded-xl p-3 border ${item.id===selected?'border-emerald-700 bg-emerald-50':'border-slate-200'}`}><strong className="block">{item.name}</strong><small>{item.kind} · {item.country}</small><small className="block">{money(item.monthlyFeeCents,item.currency)} / mes</small></button>)}
