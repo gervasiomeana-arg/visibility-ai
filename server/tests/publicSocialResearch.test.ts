@@ -127,3 +127,15 @@ test('current Instagram structured counters still require the exact username and
   assert.equal(parsePublicSocialHtml('instagram', profile, json({ username: 'other', follower_count: 999 }), snapshot.periodStart, snapshot.periodEnd), null);
   assert.equal(parsePublicSocialHtml('instagram', profile, json({ username: 'nuevohorizontehotel', follower_count: '1.2K' }), snapshot.periodStart, snapshot.periodEnd), null);
 });
+
+
+test('Instagram profile-card links on a business website resolve to the same explicit account without becoming metrics',()=>{
+ const card='https://www.instagram.com/NuevoHorizonteHotel/profilecard/?igsh=website-card';
+ assert.equal(publicProfileUrl('instagram',card),'https://www.instagram.com/nuevohorizontehotel/');
+ const html=`<a href="${card}">Instagram</a><a href="https://instagram.com/nuevohorizontehotel/">Same account</a>`;
+ const found=discoverSocialLinks(html,'https://hotel.example/');
+ assert.deepEqual(found,[{network:'instagram',profileUrl:'https://www.instagram.com/nuevohorizontehotel/',foundOn:'https://hotel.example/'}]);
+ assert.equal('followers' in found[0],false);
+ for(const url of ['https://instagram.com/accounts/profilecard/','https://instagram.com/p/profilecard/','https://instagram.com/reel/profilecard/','https://instagram.com/explore/profilecard/','https://instagram.com/business/profilecard/extra/','https://instagram.com.evil.test/business/profilecard/','https://instagram.com:444/business/profilecard/'])assert.throws(()=>publicProfileUrl('instagram',url));
+ assert.throws(()=>publicProfileUrl('facebook','https://facebook.com/business/profilecard/'));
+});

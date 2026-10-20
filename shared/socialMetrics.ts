@@ -38,11 +38,14 @@ export interface PublicSocialProfile {
   role: 'own' | 'competitor-1' | 'competitor-2'; name: string; profileUrl: string;
   confirmed: boolean; snapshots: PublicSnapshot[];
 }
-/** Canonical identity, excluding share links, login screens and individual posts. */
+/** Canonical identity, accepting Instagram profile cards but excluding login screens and individual posts. */
 export function publicProfileUrl(network: PublicNetwork, value: string): string {
   const url = new URL(socialProfileUrl(network, value));
   if (url.port) throw new Error('El perfil no debe incluir un puerto.');
   const parts = url.pathname.split('/').filter(Boolean);
+  // Instagram profile cards identify the account explicitly; discard only this known suffix.
+  // Reserved handles are still rejected below, as are posts and arbitrary nested paths.
+  if (network === 'instagram' && parts.length === 2 && parts[1].toLowerCase() === 'profilecard') parts.pop();
   if (network === 'youtube') {
     if (parts.length === 1 && /^@[A-Za-z0-9_.%~-]+$/.test(parts[0])) return `https://www.youtube.com/${parts[0].toLowerCase()}/`;
     if (parts.length === 2 && ((parts[0] === 'channel' && /^UC[A-Za-z0-9_-]{22}$/.test(parts[1])) || (parts[0] === 'user' && /^[A-Za-z0-9_.-]+$/.test(parts[1])))) return `https://www.youtube.com/${parts.join('/')}/`;
