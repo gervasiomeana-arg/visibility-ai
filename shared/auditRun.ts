@@ -77,7 +77,14 @@ export function auditRunBlocks(run:AuditRun):ReportPdfBlock[]{
  }else if(d.kind==='combined'){
   add('Selección de auditorías guardadas. No se realizó una medición nueva. Cada sección conserva sus fechas y fuentes.');for(const child of d.runs)b.push(...auditRunBlocks(child).filter(x=>!['brand','title'].includes(x.kind)));
  }else if(d.kind==='service'){
-  b.push(...d.blocks);if(d.sources.length){add('Fuentes conservadas','heading');for(const source of d.sources)add(`${auditChannelNames[source.channel]} · registro ${source.id} · observado ${source.observedAt} · período ${source.periodStart} a ${source.periodEnd}`,'small');}
+  // Layout metadata is applied at export time, including to older saved plans.
+  // Never rewrite the saved evidence or split an action that fits on one page.
+  let section:string|undefined;
+  b.push(...d.blocks.map((block,index)=>{
+   if(block.kind==='heading')section=`${run.id}-service-section-${index}`;
+   return {...block,...(!block.keepTogether&&section?{keepTogether:section}:{})};
+  }));
+  if(d.sources.length){const group=`${run.id}-sources`;add('Fuentes conservadas','strong',group);for(const source of d.sources)add(`${auditChannelNames[source.channel]} · registro ${source.id} · observado ${source.observedAt} · período ${source.periodStart} a ${source.periodEnd}`,'small',group);}
  }else{
   const o=d.observation;add(`Plataforma: ${o.platform} · Método: ${o.method} ${o.model?`· Modelo: ${o.model}`:''}`);add(`Consulta exacta: ${o.query}. Mercado: ${o.market}. Idioma: ${o.language}. Dispositivo: ${o.device}.`);
   add(o.method==='gemini-api'?'Respuesta API con fuentes, pendiente de revisión. Incluye contexto de la marca; no demuestra recomendación espontánea ni reproduce otros asistentes.':`Comprobación manual aportada por el operador: ${o.result}.`);if(o.position!==undefined)add(`Posición orgánica observada manualmente: ${o.position}. No es una posición permanente.`);add(o.excerpt);add(`Referencia: ${o.evidenceUrl}`,'small');for(const s of o.sources||[])add(`${s.title}: ${s.url}`,'small');if(o.recommendation)add(`Propuesta: ${o.recommendation}`);

@@ -74,3 +74,22 @@ test('service documents generate PDFs with their service name, source references
   for(const r of docs){const path=join(dir,r.channel+'.pdf');writeFileSync(path,Buffer.from(createReportPdf(auditRunBlocks(r),fonts)));const text=execFileSync('pdftotext',[path,'-'],{encoding:'utf8'});assert.match(text,/Fixture test only/);assert.match(text,/Preparado:/);assert.match(text,new RegExp(r.periodStart));if(r.channel==='implementation')assert.match(text,/No acredita pago/);else assert.match(text,/Fuentes conservadas/);}
  }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+
+test('saved service actions stay with their final verification/source paragraph in the PDF without rewriting evidence',()=>{
+ const r=buildImprovementPlan(context(),'');if(r.data.kind!=='service')throw new Error('Expected service');
+ r.data.blocks=[...Array.from({length:20},(_,i)=>({kind:'body' as const,text:`Introducción de prueba ${i}.`})),
+  {kind:'heading',text:'Configuración móvil: acción completa'},
+  {kind:'body',text:'Dato medido de prueba: ancho fijo. '.repeat(8)},
+  {kind:'body',text:'Cambio propuesto de prueba: revisar el diseño. '.repeat(7)},
+  {kind:'body',text:'Comprobación final de la acción: probar pantalla estrecha.'},
+  {kind:'small',text:'Fuente final de la acción: evidencia local de prueba.'}];
+ const before=JSON.stringify(r),blocks=auditRunBlocks(r);assert.equal(JSON.stringify(r),before);
+ const fonts={regular:readFileSync(new URL('../../src/assets/pdf-fonts/DejaVuSans-report.ttf',import.meta.url)).toString('base64'),bold:readFileSync(new URL('../../src/assets/pdf-fonts/DejaVuSans-report-bold.ttf',import.meta.url)).toString('base64')};
+ const dir=mkdtempSync(join(tmpdir(),'visibility-service-action-'));try{
+  const path=join(dir,'plan.pdf');writeFileSync(path,Buffer.from(createReportPdf(blocks,fonts)));
+  const pages=execFileSync('pdftotext',['-layout',path,'-'],{encoding:'utf8'}).split('\f').filter(p=>p.trim());
+  assert.ok(pages.length>1);const page=pages.find(p=>p.includes('Configuración móvil: acción completa'));assert.ok(page);
+  assert.match(page,/Comprobación final de la acción/);assert.match(page,/Fuente final de la acción/);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
