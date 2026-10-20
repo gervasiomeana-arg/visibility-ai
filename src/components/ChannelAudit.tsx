@@ -52,7 +52,7 @@ function ChannelForm({channel,business,client,workspaceId,history,onSaved,onClie
    const result=await searchConsoleService.queryWindow(site,start,end,{workspaceId,businessId:business.id});data={kind:'search',siteUrl:site,result};observedAt=new Date().toISOString();
   }else{
    let observation;
-   if(channel==='ai'&&platform==='gemini')observation=await presenceService.research({workspaceId,businessId:business.id,name:business.name,website:business.url,market,query,language,device:'desktop'});
+   if(channel==='ai'&&platform==='gemini')observation=await presenceService.research({workspaceId,businessId:business.id,name:business.name,website:business.url,confirmedDescription:business.description,market,query,language,device:'desktop'});
    else observation=validatePresenceObservation({id:crypto.randomUUID(),workspaceId,businessId:business.id,platform,query:query.trim(),market,language,device:'desktop',observedAt:new Date().toISOString(),method:'manual',result:found,evidenceUrl:evidence,excerpt,recommendation:'',...(channel==='search'&&found==='found'&&position?{position:Number(position)}:{})});
    data={kind:'presence',observation};observedAt=observation.observedAt;
   }

@@ -18,7 +18,7 @@ function PresenceForm({business,workspaceId,canEdit}:Props){
  useEffect(()=>{let active=true;setLoading(true);setLoadError('');presenceService.list(workspaceId,business.id).then(r=>{if(active)setRows(r);}).catch(e=>{if(active)setLoadError(e.message);}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[workspaceId,business.id,reload]);
  useEffect(()=>{setDraft(null);setError('');setMessage('');},[platform,query,market,language,device]);
  async function run(action:()=>Promise<void>){if(lock.current||!canEdit)return;lock.current=true;setBusy(true);setError('');setMessage('');try{await action();}catch(e){if(alive.current)setError(e instanceof Error?e.message:'No se confirmó la operación.');}finally{lock.current=false;if(alive.current)setBusy(false);}}
- const context={workspaceId,businessId:business.id,name:business.name,website:business.url,market,language,device,query,platform};
+ const context={workspaceId,businessId:business.id,name:business.name,website:business.url,confirmedDescription:business.description,market,language,device,query,platform};
  async function save(value:PresenceObservation){const saved=await presenceService.save(value);if(alive.current){setRows(r=>scopedPresence([saved,...r],workspaceId,business.id));setMessage('Observación guardada en este cliente. Ya puede incluirse en el informe.');}}
  return <div className="space-y-6"><header><h2 className="text-2xl font-heading font-bold">Buscadores e IA</h2><p className="text-sm text-slate-600 mt-2">{business.name} · Evidencias de cómo aparece el negocio para consultas concretas. No existe una posición única en toda la red.</p></header>
  <section className="vai-panel rounded-2xl p-5 space-y-4"><div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">

@@ -15,7 +15,7 @@ export const presenceService={
   if(error||data?.id!==id)throw new Error(failure);
   return value;
  },
- async research(body:{workspaceId:string;businessId:string;name:string;website:string;market:string;query:string;language:string;device:string}){
+ async research(body:{workspaceId:string;businessId:string;name:string;website:string;confirmedDescription?:string;market:string;query:string;language:string;device:string}){
   const result=await apiFetchJson<PresenceObservation>('/api/presence/research',{method:'POST',headers:await authService.getAuthorizationHeaders({'content-type':'application/json'}),body:JSON.stringify(body),signal:AbortSignal.timeout(65000)});
   validatePresenceObservation(result);
   if(!samePresenceContext(result,body)||result.method!=='gemini-api')throw new Error('La investigación no corresponde al cliente o consulta solicitados.');
