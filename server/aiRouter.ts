@@ -1,5 +1,5 @@
 import { youtubeConfigured } from './youtubePublic';
-import { researchPresence } from './presenceResearch';
+import { researchPresence, PresenceIdentityError } from './presenceResearch';
 import { validateResearchInput } from '../shared/competitorResearch';
 import { researchCompetitor } from './competitorResearchService';
 import express from 'express';
@@ -58,6 +58,7 @@ router.post('/presence/research', requireSupabaseAuth, competitorResearchLimit, 
   try { return res.json(await researchPresence(req.body)); }
   catch(error) {
     if(error instanceof AiProviderError) return sendAiFailure(res,error,'presence_research');
+    if(error instanceof PresenceIdentityError) return res.status(422).json({error:error.message});
     return res.status(422).json({error:'No se obtuvo una investigación con fuentes verificables. Revisá cliente, consulta, mercado y configuración de Gemini. No se guardaron resultados.'});
   }
 });
