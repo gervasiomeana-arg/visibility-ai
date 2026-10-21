@@ -47,7 +47,13 @@ export function publicProfileUrl(network: PublicNetwork, value: string): string 
   // Reserved handles are still rejected below, as are posts and arbitrary nested paths.
   if (network === 'instagram' && parts.length === 2 && parts[1].toLowerCase() === 'profilecard') parts.pop();
   if (network === 'youtube') {
-    if (parts.length === 1 && /^@[A-Za-z0-9_.%~-]+$/.test(parts[0])) return `https://www.youtube.com/${parts[0].toLowerCase()}/`;
+    if (parts.length === 1 && parts[0].startsWith('@')) {
+      let handle: string;
+      try { handle = decodeURIComponent(parts[0]); } catch { throw new Error('El identificador de YouTube tiene una codificación inválida.'); }
+      if (!/^@[\p{L}\p{M}\p{N}_.·-]+$/u.test(handle)) throw new Error('Usá un identificador de canal de YouTube válido.');
+      url.pathname = `/${handle.toLowerCase()}/`;
+      return `https://www.youtube.com${url.pathname}`;
+    }
     if (parts.length === 2 && ((parts[0] === 'channel' && /^UC[A-Za-z0-9_-]{22}$/.test(parts[1])) || (parts[0] === 'user' && /^[A-Za-z0-9_.-]+$/.test(parts[1])))) return `https://www.youtube.com/${parts.join('/')}/`;
     throw new Error('Usá el enlace del canal de YouTube: /@identificador, /channel/UC… o /user/nombre.');
   }

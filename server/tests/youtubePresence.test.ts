@@ -31,6 +31,24 @@ test('YouTube uses fixed API, no client password, no invented monthly views or r
  const r=socialReportRows([a],'w','b').find(r=>r.network==='youtube');assert.equal(r?.followers,123000);assert.match(r?.source || '',/YouTube/);
  assert.throws(()=>validatePublicSnapshot('instagram',{...s,profileUrl:'https://instagram.com/fixture/'}));
 });
+test('YouTube international handles are decoded once for the API and invalid escapes fail before contacting Google',async()=>{
+ for (const handle of ['café','ação','français','日本語']) {
+  const literal=`https://www.youtube.com/@${handle}`;
+  const encoded=`https://www.youtube.com/@${encodeURIComponent(handle)}`;
+  assert.equal(publicProfileUrl('youtube',literal),publicProfileUrl('youtube',encoded));
+  const snapshot=await collectYouTube(encoded,day,day,async target=>{
+   const u=new URL(String(target));assert.equal(u.searchParams.get('forHandle'),`@${handle}`);
+   assert.equal(u.searchParams.has('id'),false);assert.equal(u.searchParams.has('forUsername'),false);
+   return Response.json({items:[{id:channel,statistics:{hiddenSubscriberCount:false,subscriberCount:'100',videoCount:'1'}}]});
+  },'fixture-only-key');
+  assert.equal(snapshot.profileUrl,publicProfileUrl('youtube',literal));
+ }
+ let calls=0;
+ for(const handle of ['bad%','bad%C3%28','bad%2Fother','bad%252Fother','bad%3Fid%3Dx','bad%23fragment','bad%00']) {
+  await assert.rejects(collectYouTube(`https://www.youtube.com/@${handle}`,day,day,async()=>{calls++;throw Error('must not contact provider');},'fixture-only-key'));
+ }
+ assert.equal(calls,0);
+});
 test('YouTube hidden subscribers remain missing and provider failures never expose key or trigger HTML fallback',async()=>{
  const s=await collectYouTube(profile,day,day,async()=>Response.json({items:[{id:channel,statistics:{hiddenSubscriberCount:true,subscriberCount:'100',videoCount:'0'}}]}),'test-only-key');
  assert.equal(s.followers,undefined);assert.equal(s.totalPosts,0);

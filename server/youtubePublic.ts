@@ -10,7 +10,9 @@ export async function collectYouTube(profile: string, start: string, end: string
   if (!youtubeConfigured(key)) throw new Error('Configurá YOUTUBE_API_KEY propia de Visibility en el servidor y habilitá YouTube Data API v3. No se necesita contraseña del cliente.');
   const parts = new URL(profileUrl).pathname.split('/').filter(Boolean);
   const query = new URLSearchParams({ part: 'id,statistics', key });
-  query.set(parts[0].startsWith('@') ? 'forHandle' : parts[0] === 'channel' ? 'id' : 'forUsername', parts[0].startsWith('@') ? parts[0] : parts[1]);
+  // A copied handle URL can contain UTF-8 escapes. URLSearchParams performs
+  // the request encoding, so give it the decoded handle rather than escaping % twice.
+  query.set(parts[0].startsWith('@') ? 'forHandle' : parts[0] === 'channel' ? 'id' : 'forUsername', parts[0].startsWith('@') ? decodeURIComponent(parts[0]) : parts[1]);
   let response: Response;
   try { response = await fetcher(`https://www.googleapis.com/youtube/v3/channels?${query}`, { signal: AbortSignal.timeout(15000), redirect: 'error' }); }
   catch { throw new Error('No se pudo contactar con YouTube. No se guardaron recuentos nuevos.'); }
