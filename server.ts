@@ -3,6 +3,7 @@ import 'dotenv/config';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import apiRouter from './server/apiRouter';
+import clientWebsiteRouter from './server/clientWebsiteRouter';
 import { apiRequestContext } from './server/requestContext';
 
 
@@ -13,6 +14,9 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json({ limit: '100kb' }));
+
+// Public website shortcut, before the private application's SPA fallback.
+app.use('/web', clientWebsiteRouter);
 
 // API
 app.use('/api', apiRequestContext, apiRouter);

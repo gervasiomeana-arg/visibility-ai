@@ -55,6 +55,6 @@ test('WEB CLIENTES opens the existing public site without selecting a customer o
  assert.ok(simplePrivateTabs.has('client-web'));
  const html=renderToStaticMarkup(React.createElement(ClientWebsiteView));
  assert.match(html,/https:\/\/visibility-global\.rea-de-traba-5826\.chatgpt\.site\/es/);
- assert.match(html,/Consultas recibidas/);assert.match(html,/necesitamos un dominio/);
+ assert.match(html,/Consultas recibidas/);assert.match(html,/no necesitás contratar un dominio/);assert.match(html,/visibility-ia\.ai\.studio\/web/);
  assert.doesNotMatch(html,/mailto:|visibility@[^< ]+\.com/);
 });
