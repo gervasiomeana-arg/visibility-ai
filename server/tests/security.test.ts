@@ -147,6 +147,11 @@ test('health endpoint exposes readiness flags but never secret values', async ()
     SEARCH_CONSOLE_TOKEN_KEY: process.env.SEARCH_CONSOLE_TOKEN_KEY,
     PAGESPEED_API_KEY: process.env.PAGESPEED_API_KEY,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+    YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
+    META_GRAPH_API_VERSION: process.env.META_GRAPH_API_VERSION,
+    META_DISCOVERY_IG_USER_ID: process.env.META_DISCOVERY_IG_USER_ID,
+    META_DISCOVERY_ACCESS_TOKEN: process.env.META_DISCOVERY_ACCESS_TOKEN,
+    META_DISCOVERY_OPERATOR_USER_ID: process.env.META_DISCOVERY_OPERATOR_USER_ID,
   };
 
   process.env.VITE_SUPABASE_URL = 'https://example.supabase.co';
@@ -158,6 +163,11 @@ test('health endpoint exposes readiness flags but never secret values', async ()
     Buffer.alloc(32, 7).toString('base64');
   process.env.PAGESPEED_API_KEY = 'pagespeed-secret';
   process.env.GEMINI_API_KEY = 'gemini-secret';
+  process.env.YOUTUBE_API_KEY = 'youtube-private-secret';
+  process.env.META_GRAPH_API_VERSION = 'v26.0';
+  process.env.META_DISCOVERY_IG_USER_ID = '123456789012';
+  process.env.META_DISCOVERY_ACCESS_TOKEN = 'meta-private-secret';
+  process.env.META_DISCOVERY_OPERATOR_USER_ID = '11111111-1111-4111-8111-111111111111';
 
   const app = express();
   app.use('/api/health', healthRouter);
@@ -175,15 +185,32 @@ test('health endpoint exposes readiness flags but never secret values', async ()
       assert.equal(body.integrations.searchConsoleDurableTokens, true);
       assert.equal(body.integrations.pageSpeedKey, true);
       assert.equal(body.integrations.gemini, true);
+      assert.equal(body.integrations.youtube, true);
+      assert.equal(body.integrations.instagramBusinessDiscovery, true);
+      assert.equal(body.readiness.basis, 'configuration-only');
+      assert.equal(body.readiness.externalChecksPerformed, false);
 
       for (const secret of [
         'anon-super-secret',
         'google-secret',
         'pagespeed-secret',
         'gemini-secret',
+        'youtube-private-secret',
+        'meta-private-secret',
+        '123456789012',
+        '11111111-1111-4111-8111-111111111111',
       ]) {
         assert.equal(raw.includes(secret), false);
       }
+
+      process.env.YOUTUBE_API_KEY = 'MY_YOUTUBE_API_KEY';
+      process.env.META_DISCOVERY_ACCESS_TOKEN = '';
+      const missing = await (await fetch(`${baseUrl}/api/health`)).json();
+      assert.equal(missing.integrations.youtube, false);
+      assert.equal(missing.integrations.instagramBusinessDiscovery, false);
+      assert.ok(missing.readiness.optionalMissing.includes('YouTube Data API key'));
+      assert.ok(missing.readiness.optionalMissing.includes('Instagram Business Discovery'));
+      assert.equal(missing.readiness.externalChecksPerformed, false);
     });
   } finally {
     for (const [key, value] of Object.entries(previous)) {

@@ -771,7 +771,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   Configuración real del entorno
                 </h2>
                 <p className="mt-1 text-xs text-slate-500 max-w-2xl">
-                  Esta información viene directamente del servidor activo y no expone claves ni secretos.
+                  El servidor informa qué configuraciones están presentes. Este control no consulta los proveedores ni comprueba permisos, cuotas, vencimientos o guardado de informes.
                 </p>
               </div>
 
@@ -797,7 +797,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             )}
 
             {productionHealth && (
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
                   {
                     label: 'Supabase',
@@ -824,6 +824,16 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                     enabled: productionHealth.integrations.gemini,
                     detail: 'Asistente y contenido IA',
                   },
+                  {
+                    label: 'YouTube',
+                    enabled: productionHealth.integrations.youtube,
+                    detail: 'Clave para datos públicos',
+                  },
+                  {
+                    label: 'Instagram',
+                    enabled: productionHealth.integrations.instagramBusinessDiscovery,
+                    detail: 'Business Discovery propio',
+                  },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -843,7 +853,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                     <p className={`mt-2 text-[10px] font-bold uppercase tracking-wider ${
                       item.enabled ? 'text-emerald-700' : 'text-amber-700'
                     }`}>
-                      {item.enabled ? 'CONFIGURADO' : 'FALTA CONFIGURAR'}
+                      {item.enabled === undefined ? 'SIN DIAGNÓSTICO' : item.enabled ? 'CONFIGURADO' : 'FALTA CONFIGURAR'}
                     </p>
                   </div>
                 ))}
@@ -856,12 +866,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    Checklist de readiness
+                    Estado de configuración
                   </span>
                   <h3 className="mt-1 text-base font-bold text-slate-900 font-heading">
                     {productionHealth.readiness.coreSaasReady
-                      ? 'Base SaaS lista para pruebas reales'
-                      : 'Todavía hay requisitos bloqueantes'}
+                      ? 'Configuración básica presente'
+                      : 'Falta configuración básica'}
                   </h3>
                 </div>
 
@@ -871,8 +881,8 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                     : 'bg-amber-50 text-amber-700'
                 }`}>
                   {productionHealth.readiness.coreSaasReady
-                    ? 'CORE READY'
-                    : 'BLOQUEADO'}
+                    ? 'CONFIGURADO'
+                    : 'INCOMPLETO'}
                 </span>
               </div>
 
@@ -883,7 +893,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                     {productionHealth.readiness.blockers.length === 0 ? (
                       <div className="flex items-center gap-2 text-xs text-emerald-700">
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>No hay bloqueantes del core SaaS.</span>
+                        <span>La configuración básica está presente; falta validar el funcionamiento.</span>
                       </div>
                     ) : (
                       productionHealth.readiness.blockers.map((item) => (
@@ -897,12 +907,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 </div>
 
                 <div className="rounded-2xl bg-slate-50/80 ring-1 ring-slate-200/70 p-4">
-                  <p className="text-xs font-bold text-slate-900">Opcionales / siguientes pasos</p>
+                  <p className="text-xs font-bold text-slate-900">Configuraciones adicionales</p>
                   <div className="mt-3 space-y-2">
                     {productionHealth.readiness.optionalMissing.length === 0 ? (
                       <div className="flex items-center gap-2 text-xs text-emerald-700">
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Las integraciones opcionales principales están configuradas.</span>
+                        <span>Las configuraciones adicionales están presentes. Su funcionamiento requiere pruebas reales.</span>
                       </div>
                     ) : (
                       productionHealth.readiness.optionalMissing.map((item) => (
