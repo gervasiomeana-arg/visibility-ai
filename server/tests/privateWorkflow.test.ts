@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {privateTabs} from '../../shared/privateWorkflow';
+import {ClientWebsiteView} from '../../src/components/ClientWebsiteView';
+import {simplePrivateTabs} from '../../shared/privateWorkflow';
 import {Navbar} from '../../src/components/Navbar';
 import {validateClient,type ClientAccount} from '../../shared/clientLedger';
 import {validateAuditRun,auditRunBlocks,type AuditRun} from '../../shared/auditRun';
@@ -10,8 +12,8 @@ import {auditSocialAccount} from '../../shared/auditSocialHistory';
 import {monthlySeries} from '../../shared/socialMonthly';
 const today=new Date().toISOString().slice(0,10);
 const run=(patch:Partial<AuditRun>={}):AuditRun=>({id:'r',workspaceId:'w',businessId:'b',clientId:'c',businessName:'Fixture test only',channel:'networks',observedAt:today+'T00:00:00Z',periodStart:today,periodEnd:today,savedAt:today,data:{kind:'networks',network:'instagram',snapshot:{id:'s',profileUrl:'https://www.instagram.com/fixture/',capturedAt:today+'T00:00:00Z',source:'public-web',followers:0,evidence:'Test fixture only, not client data',posts:[],periodStart:today,periodEnd:today}},...patch});
-test('private navigation has exactly six areas and hides advanced tools from the main menu',()=>{
- assert.deepEqual(privateTabs.map(t=>t.label),['Clientes','Página web','Redes','Buscadores','IA','Historial']);
+test('private navigation has the operator areas and public website and hides advanced tools from the main menu',()=>{
+ assert.deepEqual(privateTabs.map(t=>t.label),['Clientes','Página web','Redes','Buscadores','IA','WEB CLIENTES','Historial']);
  const html=renderToStaticMarkup(React.createElement(Navbar,{activeTab:'clients',setActiveTab:()=>{},activeBusiness:{name:'Fixture',id:'b'} as any,businesses:[],onSelectBusiness:()=>{},onOpenNewBusinessModal:()=>{},onOpenAssistant:()=>{},privateOnly:true}));
  assert.match(html,/Página web/);assert.match(html,/Historial/);assert.doesNotMatch(html,/Siguiente:|Paso [0-9]|Plan de acción|Oportunidades|Analizar otro/);
 });
@@ -47,4 +49,12 @@ test('comparison rejects other clients and nonhomogeneous sources instead of inv
  const a=run({observedAt:'2026-01-01T12:00:00Z',periodStart:'2026-01-01',periodEnd:'2026-01-01',data:{kind:'networks',network:'instagram',snapshot:{id:'jan',profileUrl:'https://www.instagram.com/fixture/',capturedAt:'2026-01-01T12:00:00Z',source:'public-web',evidence:'Test fixture only',followers:100,posts:[],periodStart:'2026-01-01',periodEnd:'2026-01-01'}}});
  const b=run();assert.equal(compareAuditRuns(a,b).comparable,true);assert.match(compareAuditRuns(a,b).text,/100 → 0/);
  assert.equal(compareAuditRuns(a,{...b,clientId:'other'}).comparable,false);assert.equal(compareAuditRuns(b,b).comparable,false);
+});
+
+test('WEB CLIENTES opens the existing public site without selecting a customer or publishing a fictitious mailbox',()=>{
+ assert.ok(simplePrivateTabs.has('client-web'));
+ const html=renderToStaticMarkup(React.createElement(ClientWebsiteView));
+ assert.match(html,/https:\/\/visibility-global\.rea-de-traba-5826\.chatgpt\.site\/es/);
+ assert.match(html,/Consultas recibidas/);assert.match(html,/necesitamos un dominio/);
+ assert.doesNotMatch(html,/mailto:|visibility@[^< ]+\.com/);
 });

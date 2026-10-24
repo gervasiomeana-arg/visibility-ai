@@ -297,5 +297,6 @@ export type ActiveTab =
   | 'clients'
   | 'search-audit'
   | 'ai-audit'
+  | 'client-web'
   | 'audit-history'
   | 'admin';
