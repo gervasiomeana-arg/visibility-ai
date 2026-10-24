@@ -6,6 +6,8 @@ export interface ProductionHealth {
   environment: string;
   uptimeSeconds: number;
   integrations: {
+    youtube?: boolean;
+    instagramBusinessDiscovery?: boolean;
     supabase: boolean;
     searchConsoleOAuth: boolean;
     searchConsoleDurableTokens: boolean;
@@ -13,6 +15,8 @@ export interface ProductionHealth {
     gemini: boolean;
   };
   readiness: {
+    basis?: 'configuration-only';
+    externalChecksPerformed?: false;
     coreSaasReady: boolean;
     searchConsoleProductionReady: boolean;
     blockers: string[];
