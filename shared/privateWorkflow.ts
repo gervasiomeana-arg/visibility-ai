@@ -5,6 +5,7 @@ export const privateTabs:{id:ActiveTab;label:string;hint:string}[]=[
  {id:'social-networks',label:'Redes',hint:'Perfiles públicos y mediciones disponibles por período.'},
  {id:'search-audit',label:'Buscadores',hint:'Consultas y métricas verificadas de búsqueda.'},
  {id:'ai-audit',label:'IA',hint:'Respuestas y menciones con proveedor y evidencia identificados.'},
+ {id:'client-web',label:'WEB CLIENTES',hint:'Página comercial y consultas recibidas.'},
  {id:'audit-history',label:'Historial',hint:'Auditorías guardadas, comparaciones e informes.'},
 ];
 export const simplePrivateTabs=new Set(['landing',...privateTabs.map(t=>t.id)]);
