@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { googleSearchQueryRows, validateSearchQueryInput, validateSearchQueryResult, validateSearchQueryRows } from '../../shared/searchAnalytics';
+import { googleSearchQueryRows, googleSearchTotals, validateSearchQueryInput, validateSearchQueryResult, validateSearchQueryRows } from '../../shared/searchAnalytics';
 import { querySearchAnalytics } from '../searchAnalyticsService';
 import { measuredKeywords } from '../../shared/keywordWorkflow';
 
@@ -46,10 +46,12 @@ test('Google query service sends only finalized query scope, bounds waiting and 
     assert.match(String(url),/sc-domain%3Aexample.com/);
     assert.equal(new Headers(init?.headers).get('authorization'),'Bearer test-token');
     assert.ok(init?.signal instanceof AbortSignal);
-    assert.deepEqual(JSON.parse(String(init?.body)),{startDate:input.startDate,endDate:input.endDate,dimensions:['query'],rowLimit:100,dataState:'final'});
-    return new Response(JSON.stringify({ rows:[googleRow] }));
+    const body=JSON.parse(String(init?.body));
+    assert.deepEqual(body,{startDate:input.startDate,endDate:input.endDate,dimensions:body.dimensions,rowLimit:body.dimensions.length?100:1,dataState:'final'});
+    assert.ok(JSON.stringify(body.dimensions)==='[\"query\"]'||JSON.stringify(body.dimensions)==='[]');
+    return new Response(JSON.stringify({ rows:body.dimensions.length?[googleRow]:[{clicks:4,impressions:101,ctr:4/101,position:8}] }));
   });
-  assert.equal(result.source,'google-search-console');assert.equal(result.siteUrl,input.siteUrl);assert.deepEqual(result.rows,[row]);
+  assert.equal(result.totals?.impressions,101);assert.equal(result.source,'google-search-console');assert.equal(result.siteUrl,input.siteUrl);assert.deepEqual(result.rows,[row]);
 });
 
 test('provider failures and invalid successful responses cannot become stored empty results or expose response details', async () => {
@@ -81,4 +83,17 @@ test('query endpoint keeps authentication and rejects an impossible period befor
     globalThis.fetch=originalFetch;names.forEach((name,index)=>{if(previous[index]===undefined)delete process.env[name];else process.env[name]=previous[index];});
     await new Promise<void>((resolve,reject)=>server.close(error=>error?reject(error):resolve()));
   }
+});
+
+// Fixtures stay in tests: totals can contain anonymous activity absent from query rows.
+test('property totals preserve anonymous impressions and never infer totals from an empty query table',async()=>{
+ const result=await querySearchAnalytics('test-token',input,async(_url,init)=>{
+  const body=JSON.parse(String(init?.body));
+  return new Response(JSON.stringify(body.dimensions.length?{rows:[]}:{rows:[{clicks:0,impressions:1,ctr:0,position:1}]}));
+ });
+ assert.deepEqual(result.rows,[]);assert.equal(result.totals?.impressions,1);
+ assert.equal(validateSearchQueryResult(result,input).totals?.impressions,1);
+ for(const payload of [{},{rows:[]}])assert.equal(googleSearchTotals(payload),null);
+ for(const payload of [null,{rows:[{}]},{rows:[{keys:['query'],clicks:0,impressions:1,ctr:0,position:1}]},{rows:[{},{}]}])assert.throws(()=>googleSearchTotals(payload));
+ assert.throws(()=>validateSearchQueryResult({...result,totals:{clicks:0,impressions:null,ctr:0,position:1}},input));
 });

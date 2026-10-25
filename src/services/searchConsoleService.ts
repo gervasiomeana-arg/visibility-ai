@@ -1,7 +1,7 @@
 import { authService } from './authService';
 import { apiFetchJson } from './apiClient';
 import { beginOAuthNavigation } from '../../shared/oauthNavigation';
-import { validateSearchQueryResult } from '../../shared/searchAnalytics';
+import { validateSearchQueryResult, type SearchMetricTotals } from '../../shared/searchAnalytics';
 import { searchConsoleWindow } from '../../shared/searchConsolePeriod';
 
 export interface SearchConsoleSite {
@@ -96,7 +96,7 @@ export const searchConsoleService = {
     const {startDate,endDate} = searchConsoleWindow(days);
     return this.queryWindow(siteUrl,startDate,endDate,context);
   },
-  async queryWindow(siteUrl:string,startDate:string,endDate:string,context?:{workspaceId?:string;businessId?:string}):Promise<{rows:SearchConsoleQueryRow[];startDate:string;endDate:string}> {
+  async queryWindow(siteUrl:string,startDate:string,endDate:string,context?:{workspaceId?:string;businessId?:string}):Promise<{rows:SearchConsoleQueryRow[];startDate:string;endDate:string;totals?:SearchMetricTotals|null}> {
     const data = await apiFetchJson<unknown>('/api/search-console/query', {
       method: 'POST',
       headers: await authHeaders({

@@ -1,5 +1,21 @@
 export interface SearchQueryRow { query: string; clicks: number; impressions: number; ctr: number; position: number }
 export interface SearchQueryInput { siteUrl: string; startDate: string; endDate: string; rowLimit: number }
+export type SearchMetricTotals = Omit<SearchQueryRow,'query'>;
+
+export function validateSearchTotals(value: unknown): SearchMetricTotals | null {
+  if (value === null) return null;
+  const row = validateSearchQueryRows([{ ...(value as object), query: 'aggregate' }])[0];
+  const {query: _query, ...totals} = row;
+  return totals;
+}
+
+export function googleSearchTotals(payload: any): SearchMetricTotals | null {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || payload.error || ('rows' in payload && !Array.isArray(payload.rows))) throw new Error('La respuesta de Search Console no tiene un formato válido. No se importó este resultado.');
+  if (!('rows' in payload)) { googleSearchQueryRows(payload); return null; }
+  if (payload.rows.length === 0) return null;
+  if (payload.rows.length !== 1 || (payload.rows[0].keys !== undefined && (!Array.isArray(payload.rows[0].keys) || payload.rows[0].keys.length))) throw new Error('La respuesta de Search Console contiene totales inválidos. No se importó este resultado.');
+  return validateSearchTotals(payload.rows[0]);
+}
 
 function calendarDate(value: unknown): value is string {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
@@ -54,5 +70,5 @@ export function validateSearchQueryResult(data: any, expected: Pick<SearchQueryI
   if (data?.source !== 'google-search-console' || data.siteUrl !== expected.siteUrl || data.startDate !== expected.startDate || data.endDate !== expected.endDate) {
     throw new Error('La respuesta no corresponde a la propiedad y período solicitados. No se importó este resultado.');
   }
-  return { rows: validateSearchQueryRows(data.rows), startDate: data.startDate as string, endDate: data.endDate as string };
+  return { rows: validateSearchQueryRows(data.rows), startDate: data.startDate as string, endDate: data.endDate as string, ...(Object.hasOwn(data,'totals') ? {totals:validateSearchTotals(data.totals)} : {}) };
 }
