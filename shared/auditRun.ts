@@ -1,3 +1,4 @@
+import {validateGoogleBusinessSnapshot,type GoogleBusinessSnapshot} from './googleBusiness';
 import {validCurrency} from './clientLedger';
 import {calendarDay,publicSourceLabel,validatePublicSnapshot,type PublicNetwork,type PublicSnapshot} from './socialMetrics';
 import {validateSeoAuditResponse} from './seoAuditResponse';
@@ -23,12 +24,14 @@ export const auditChannelNames:Record<AuditChannel,string>={web:'Página web',ne
 export interface AuditRun {
  id:string;workspaceId:string;businessId:string;clientId:string;businessName:string;
  channel:AuditChannel;observedAt:string;periodStart:string;periodEnd:string;savedAt?:string;
- data:{kind:'web';result:SeoAuditResult}|{kind:'networks';network:PublicNetwork;snapshot:PublicSnapshot}|{kind:'search';siteUrl:string;result:{rows:any[];startDate:string;endDate:string;totals?:SearchMetricTotals|null}}|{kind:'presence';observation:PresenceObservation}|{kind:'combined';runs:AuditRun[]}|{kind:'service';service:'plan'|'monthly'|'implementation';blocks:ReportPdfBlock[];sources:AuditRun[];work?:ServiceWork};
+ data:{kind:'google-business';snapshot:GoogleBusinessSnapshot}|{kind:'web';result:SeoAuditResult}|{kind:'networks';network:PublicNetwork;snapshot:PublicSnapshot}|{kind:'search';siteUrl:string;result:{rows:any[];startDate:string;endDate:string;totals?:SearchMetricTotals|null}}|{kind:'presence';observation:PresenceObservation}|{kind:'combined';runs:AuditRun[]}|{kind:'service';service:'plan'|'monthly'|'implementation';blocks:ReportPdfBlock[];sources:AuditRun[];work?:ServiceWork};
 }
 export function validateAuditRun(r:AuditRun):AuditRun {
  if(!r||![r.id,r.workspaceId,r.businessId,r.clientId,r.businessName].every(v=>typeof v==='string'&&v.length>0&&v.length<=200)||!Object.hasOwn(auditChannelNames,r.channel)||!r.data||!calendarDay(r.periodStart)||!calendarDay(r.periodEnd)||r.periodStart>r.periodEnd||r.periodEnd>new Date().toISOString().slice(0,10)||!Number.isFinite(Date.parse(r.observedAt))||Date.parse(r.observedAt)>Date.now())throw new Error('La auditoría necesita cliente, negocio, fechas y datos verificables.');
  if(JSON.stringify(r).length>500000)throw new Error('La auditoría supera el tamaño admitido; consultá un período menor.');
- if(r.data.kind==='web'){
+ if(r.data.kind==='google-business'){
+  const s=validateGoogleBusinessSnapshot(r.data.snapshot);if(r.channel!=='search'||s.observedAt!==r.observedAt||r.periodStart!==s.observedAt.slice(0,10)||r.periodEnd!==r.periodStart)throw new Error('Una ficha actual no acredita un período histórico.');
+ }else if(r.data.kind==='web'){
   if(r.channel!=='web')throw new Error('Canal incorrecto.');validateSeoAuditResponse(r.data.result,r.data.result.requestedUrl);
   if(r.observedAt!==r.data.result.fetchedAt||r.periodStart!==r.observedAt.slice(0,10)||r.periodEnd!==r.periodStart)throw new Error('Una auditoría web actual no acredita fechas históricas.');
  }else if(r.data.kind==='networks'){
@@ -57,7 +60,9 @@ export function auditRunBlocks(run:AuditRun):ReportPdfBlock[]{
  const b:ReportPdfBlock[]=[{kind:'brand',text:'VISIBILITY · INFORME CON FUENTES'},{kind:'title',text:run.businessName},{kind:'heading',text:run.data.kind==='service'?auditChannelNames[run.channel]:`Auditoría de ${auditChannelNames[run.channel]}`},{kind:'body',text:`${run.data.kind==='service'?'Preparado':'Observado'}: ${run.observedAt}. Período solicitado: ${run.periodStart} a ${run.periodEnd}.`},{kind:'small',text:'La fecha de observación y el período solicitado son distintos. Solo se informa lo disponible en las fuentes; no se reconstruyen datos ausentes ni se garantizan posiciones o ventas.'}];
  const add=(text:string,kind:ReportPdfBlock['kind']='body',keepTogether?:string)=>b.push({kind,text,...(keepTogether?{keepTogether}:{})});
  const d=run.data;
- if(d.kind==='web'){
+ if(d.kind==='google-business'){
+  const s=d.snapshot,l=s.location;add('Fuente: Google Business Information API · accounts.locations.list. Cuenta '+s.account+' · '+l.name,'small');add('Ficha confirmada por el operador: '+l.title);for(const [label,value]of [['Categoría',l.category],['Web',l.websiteUri],['Teléfono',l.phone],['Dirección',l.address],['Horarios informados por Google (JSON)',l.hours],['Google Maps',l.mapsUri]])add(label+': '+(value||'Sin dato verificado'));add('Esta lectura describe la ficha observada hoy. No acredita verificación de propiedad, posición en Maps, reseñas, llamadas, visualizaciones, alcance ni evolución histórica.');add('Propuesta: contrastar estos datos con la información confirmada del cliente y corregir discrepancias en Google Business Profile después de su aprobación.');
+ }else if(d.kind==='web'){
   add('Resumen','heading');const items=d.result.items;add(`${items.filter(i=>i.status==='ok').length} factores correctos · ${items.filter(i=>i.status==='warning').length} advertencias · ${items.filter(i=>i.status==='error').length} errores.`);
   add(`Fuente: HTML inicial sin ejecutar JavaScript. URL solicitada: ${d.result.requestedUrl}. URL final: ${d.result.finalUrl}. HTTP ${d.result.httpStatus}. Respuesta inicial: ${d.result.responseTimeMs} ms.`,'small');
   if(d.result.pageSpeed)add(`PageSpeed móvil: ${d.result.pageSpeed.performanceScore??'Sin puntuación'}/100 · ${d.result.pageSpeed.fetchedAt}. Medición de laboratorio, no experiencia de todos los visitantes.`);

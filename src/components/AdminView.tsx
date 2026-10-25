@@ -1,3 +1,4 @@
+import {GoogleBusinessPanel} from './GoogleBusinessPanel';
 import {BackupPanel} from './BackupPanel';
 import React, { useEffect, useState } from 'react';
 import {
@@ -1196,6 +1197,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
             </div>
           )}
 
+          <GoogleBusinessPanel/>
           <div className="vai-panel rounded-xl p-6 ring-1 ring-slate-200/60 space-y-4">
             <h2 className="text-base font-bold text-slate-900 font-heading">
               Conectores y APIs externas
@@ -1229,9 +1231,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 },
                 {
                   name: 'Google Business Profile API',
-                  description: 'Fichas de Google Maps, horarios y opiniones',
+                  description: 'Fichas administradas: conexión y prueba en el panel inferior',
                   configured: false,
-                  fallback: 'DEMO / PENDIENTE',
+                  fallback: 'VERIFICAR CONEXIÓN',
                 },
               ].map((item) => (
                 <div
