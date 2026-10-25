@@ -1,3 +1,4 @@
+import googleBusinessRouter from './googleBusinessRouter';
 import express from 'express';
 import backupRouter from './backupRouter';
 import {requireVisibilityOperator} from './operatorAccess';
@@ -13,6 +14,7 @@ router.use('/health', healthRouter);
 router.use(requireVisibilityOperator);
 router.use('/backups',backupRouter);
 router.use('/search-console', searchConsoleRouter);
+router.use('/google-business', googleBusinessRouter);
 router.use('/seo', seoAuditRouter);
 router.use('/social', socialMetricsRouter);
 router.use('/', aiRouter);
