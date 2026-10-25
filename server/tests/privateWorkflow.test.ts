@@ -58,3 +58,15 @@ test('WEB CLIENTES opens the existing public site without selecting a customer o
  assert.match(html,/Consultas recibidas/);assert.match(html,/no necesitás contratar un dominio/);assert.match(html,/visibility-ia\.ai\.studio\/web/);
  assert.doesNotMatch(html,/mailto:|visibility@[^< ]+\.com/);
 });
+
+test('Search Console reports separate property totals from query samples and preserve older records honestly',()=>{
+ const base=run({channel:'search',data:{kind:'search',siteUrl:'sc-domain:example.com',result:{rows:[],startDate:today,endDate:today,totals:{clicks:0,impressions:1,ctr:0,position:1}}}});
+ const text=auditRunBlocks(base).map(b=>b.text).join('\n');
+ assert.match(text,/Totales de la propiedad.*Impresiones: 1/);
+ assert.match(text,/Muestra de consultas recuperadas: 0/);
+ assert.match(text,/hora del Pacífico/);
+ const legacy=structuredClone(base);if(legacy.data.kind==='search')delete legacy.data.result.totals;
+ assert.match(auditRunBlocks(legacy).map(b=>b.text).join('\n'),/Totales de la propiedad: sin dato verificado/);
+ if(base.data.kind==='search')base.data.result.totals={clicks:0,impressions:null as any,ctr:0,position:1};
+ assert.throws(()=>validateAuditRun(base));
+});

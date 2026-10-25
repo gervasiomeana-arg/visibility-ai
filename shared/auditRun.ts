@@ -2,7 +2,7 @@ import {validCurrency} from './clientLedger';
 import {calendarDay,publicSourceLabel,validatePublicSnapshot,type PublicNetwork,type PublicSnapshot} from './socialMetrics';
 import {validateSeoAuditResponse} from './seoAuditResponse';
 import {validatePresenceObservation,type PresenceObservation} from './presenceAnalysis';
-import {validateSearchQueryRows} from './searchAnalytics';
+import {validateSearchQueryRows,validateSearchTotals,type SearchMetricTotals} from './searchAnalytics';
 import type {SeoAuditResult} from '../src/types';
 import type {ReportPdfBlock} from './reportPdf';
 export type MeasurementChannel='web'|'networks'|'search'|'ai';
@@ -23,7 +23,7 @@ export const auditChannelNames:Record<AuditChannel,string>={web:'Página web',ne
 export interface AuditRun {
  id:string;workspaceId:string;businessId:string;clientId:string;businessName:string;
  channel:AuditChannel;observedAt:string;periodStart:string;periodEnd:string;savedAt?:string;
- data:{kind:'web';result:SeoAuditResult}|{kind:'networks';network:PublicNetwork;snapshot:PublicSnapshot}|{kind:'search';siteUrl:string;result:{rows:any[];startDate:string;endDate:string}}|{kind:'presence';observation:PresenceObservation}|{kind:'combined';runs:AuditRun[]}|{kind:'service';service:'plan'|'monthly'|'implementation';blocks:ReportPdfBlock[];sources:AuditRun[];work?:ServiceWork};
+ data:{kind:'web';result:SeoAuditResult}|{kind:'networks';network:PublicNetwork;snapshot:PublicSnapshot}|{kind:'search';siteUrl:string;result:{rows:any[];startDate:string;endDate:string;totals?:SearchMetricTotals|null}}|{kind:'presence';observation:PresenceObservation}|{kind:'combined';runs:AuditRun[]}|{kind:'service';service:'plan'|'monthly'|'implementation';blocks:ReportPdfBlock[];sources:AuditRun[];work?:ServiceWork};
 }
 export function validateAuditRun(r:AuditRun):AuditRun {
  if(!r||![r.id,r.workspaceId,r.businessId,r.clientId,r.businessName].every(v=>typeof v==='string'&&v.length>0&&v.length<=200)||!Object.hasOwn(auditChannelNames,r.channel)||!r.data||!calendarDay(r.periodStart)||!calendarDay(r.periodEnd)||r.periodStart>r.periodEnd||r.periodEnd>new Date().toISOString().slice(0,10)||!Number.isFinite(Date.parse(r.observedAt))||Date.parse(r.observedAt)>Date.now())throw new Error('La auditoría necesita cliente, negocio, fechas y datos verificables.');
@@ -35,7 +35,7 @@ export function validateAuditRun(r:AuditRun):AuditRun {
   if(r.channel!=='networks')throw new Error('Canal incorrecto.');const s=validatePublicSnapshot(r.data.network,r.data.snapshot);
   if(s.capturedAt!==r.observedAt||s.periodStart!==r.periodStart||s.periodEnd!==r.periodEnd)throw new Error('La captura no corresponde a la fecha o período.');
  }else if(r.data.kind==='search'){
-  if(r.channel!=='search')throw new Error('Canal incorrecto.');if(!r.data.siteUrl||r.data.result.startDate!==r.periodStart||r.data.result.endDate!==r.periodEnd)throw new Error('Propiedad o período incorrecto.');validateSearchQueryRows(r.data.result.rows);
+  if(r.channel!=='search')throw new Error('Canal incorrecto.');if(!r.data.siteUrl||r.data.result.startDate!==r.periodStart||r.data.result.endDate!==r.periodEnd)throw new Error('Propiedad o período incorrecto.');validateSearchQueryRows(r.data.result.rows);if(Object.hasOwn(r.data.result,'totals'))validateSearchTotals(r.data.result.totals);
  }else if(r.data.kind==='presence'){
   const o=validatePresenceObservation(r.data.observation);
   if(!['search','ai'].includes(r.channel)||o.workspaceId!==r.workspaceId||o.businessId!==r.businessId||o.observedAt!==r.observedAt||(r.channel==='search')!==['google','bing','duckduckgo'].includes(o.platform))throw new Error('La evidencia corresponde a otro negocio, fecha o canal.');
@@ -70,7 +70,11 @@ export function auditRunBlocks(run:AuditRun):ReportPdfBlock[]{
   for(const [index,p] of s.posts.entries()){const group=`${run.id}-post-${index}`;add(`${p.publishedAt} · ${p.url}`,'small',group);add(`Me gusta: ${p.likes??'Sin dato'} · Comentarios: ${p.comments??'Sin dato'} · Vistas acumuladas a la observación: ${p.views??'Sin dato'}`,'small',group);}
   add('Propuesta: repetir una medición en otra fecha para comparar recuentos compatibles. Revisar las publicaciones identificadas antes de proponer cambios de contenido.');
  }else if(d.kind==='search'){
-  const rows=d.result.rows;const clicks=rows.reduce((n,r)=>n+r.clicks,0),impressions=rows.reduce((n,r)=>n+r.impressions,0);add(`Fuente: Google Search Console · ${d.siteUrl}. Hasta 100 consultas recuperadas, datos finalizados. Sin segmentación por país o dispositivo.`,'small');add(`Consultas recuperadas: ${rows.length}. Clics: ${clicks}. Impresiones: ${impressions}. CTR: ${impressions>0?(100*clicks/impressions).toFixed(2)+' %':'Sin dato calculable'}.`);
+  const rows=d.result.rows;const clicks=rows.reduce((n,r)=>n+r.clicks,0),impressions=rows.reduce((n,r)=>n+r.impressions,0);add(`Fuente: Google Search Console · ${d.siteUrl}. Búsqueda web, datos finalizados. Fechas según Google: hora del Pacífico. Sin segmentación por país o dispositivo.`,'small');
+  const totals=d.result.totals;
+  if(totals)add(`Totales de la propiedad (consulta sin dimensiones): Clics: ${totals.clicks}. Impresiones: ${totals.impressions}. CTR: ${totals.impressions>0?(100*totals.ctr).toFixed(2)+' %':'Sin dato calculable'}. Posición media: ${totals.impressions>0?totals.position:'Sin dato calculable'}.`);
+  else add('Totales de la propiedad: sin dato verificado en este registro. No se deducen de las consultas recuperadas.');
+  add(`Muestra de consultas recuperadas: ${rows.length} (hasta 100). Clics de esta muestra: ${clicks}. Impresiones de esta muestra: ${impressions}. La muestra omite consultas anónimas y no equivale a los totales de la propiedad.`);
   if(!rows.length)add('No se recuperaron consultas para este período. Esto no demuestra que el sitio no haya recibido visitas.');
   for(const r of rows)add(`${r.query} · ${r.clicks} clics · ${r.impressions} impresiones · posición media ${r.impressions>0?r.position:'Sin dato calculable'}.`,'small');
   add('Propuesta: revisar consultas con impresiones y contrastar las páginas asociadas. La posición media no es una posición fija y la muestra no equivale al tráfico total.');
