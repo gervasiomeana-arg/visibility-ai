@@ -1,3 +1,4 @@
+import {isVisibilityOperator} from '../shared/operatorAccess';
 import {PrivateWorkspace} from './components/PrivateWorkspace';
 import {simplePrivateTabs} from '../shared/privateWorkflow';
 import type {ClientAccount} from '../shared/clientLedger';
@@ -80,7 +81,7 @@ const EMPTY_BUSINESS: Business = {
 
 export default function App() {
   const [authReady, setAuthReady] = useState(!authService.isConfigured());
-  const [authenticated, setAuthenticated] = useState(!authService.isConfigured());
+  const [authenticated, setAuthenticated] = useState(false);
   const [workspaceReady, setWorkspaceReady] = useState(!authService.isConfigured());
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
@@ -134,7 +135,7 @@ export default function App() {
     authService.getSession()
       .then((session) => {
         if (!mounted) return;
-        setAuthenticated(Boolean(session));
+        setAuthenticated(isVisibilityOperator(session?.user));
         setAuthReady(true);
       })
       .catch(() => {
@@ -145,7 +146,7 @@ export default function App() {
 
     const unsubscribe = authService.onAuthStateChange((session, event) => {
       if (!mounted) return;
-      setAuthenticated(Boolean(session));
+      setAuthenticated(isVisibilityOperator(session?.user));
       if (event === 'PASSWORD_RECOVERY') {
         setPasswordRecovery(true);
       }

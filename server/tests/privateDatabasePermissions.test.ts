@@ -6,7 +6,7 @@ import {PGlite} from '@electric-sql/pglite';
 const read=(name:string)=>readFileSync(new URL(`../../supabase/migrations/${name}.sql`,import.meta.url),'utf8');
 const baseline=read('202610090001_visibility_ai_baseline_v6').replace('create extension if not exists pgcrypto;','');
 const fix=read('20261020204231_restrict_private_database_api');
-const owner='11111111-1111-4111-8111-111111111111', outsider='22222222-2222-4222-8222-222222222222';
+const owner='b4a19328-4566-4e76-96c3-bcc793346f88', outsider='22222222-2222-4222-8222-222222222222';
 
 test('private API hardening removes anonymous grants without breaking owner RLS, RPCs, triggers or existing records',async()=>{
  const db=new PGlite();try{
@@ -51,6 +51,32 @@ test('private API hardening removes anonymous grants without breaking owner RLS,
   // Revoking direct invocation does not disable the new-user trigger.
   await db.query('insert into auth.users(id,email) values($1,$2)',['33333333-3333-4333-8333-333333333333','trigger@example.test']);
   assert.equal((await db.query('select id from profiles')).rows.length,3);
+  assert.deepEqual((await db.query('select id,workspace_id,payload,updated_at from client_accounts')).rows,before);
+  await db.exec(read('202610140003_client_report_storage_policy'));
+  const exclusive=read('20261025045106_exclusive_operator_access');
+  await db.exec(exclusive);await db.exec(exclusive);
+  assert.deepEqual((await db.query('select id,workspace_id,payload,updated_at from client_accounts')).rows,before);
+  assert.equal((await db.query("select * from pg_policies where policyname='visibility_operator_only' and permissive='RESTRICTIVE'")).rows.length,18);
+  // Existing account updates still work; new registrations fail before profiles are created.
+  await db.query('update auth.users set raw_user_meta_data=$1 where id=$2',[{test:'existing-account-update'},owner]);
+  await assert.rejects(db.query('insert into auth.users(id,email) values(gen_random_uuid(),$1)',['blocked@example.test']),/registration is disabled/);
+  assert.equal((await db.query('select id from auth.users')).rows.length,3);
+  await db.exec(`grant usage on schema storage to authenticated;grant select,insert,update,delete on storage.objects to authenticated;set role authenticated;set request.jwt.claim.sub='${owner}'`);
+  assert.equal((await db.query('select id from public.client_accounts')).rows.length,1);
+  assert.equal((await db.query<{ok:boolean}>('select public.is_visibility_operator() ok')).rows[0].ok,true);
+  const client=(before[0]as any).id;
+  await db.query('insert into storage.objects(bucket_id,name) values($1,$2)',['visibility-client-reports',`${workspace}/${client}/qa.pdf`]);
+  assert.equal((await db.query('select id from storage.objects')).rows.length,1);
+  await db.exec(`set request.jwt.claim.sub='${outsider}'`);
+  await db.query("select set_config('request.jwt.claims',$1,false)",[JSON.stringify({sub:outsider,user_metadata:{id:owner,role:'owner',email:'gervasiomeana@gmail.com'}})]);
+  assert.equal((await db.query<{ok:boolean}>('select public.is_visibility_operator() ok')).rows[0].ok,false);
+  assert.equal((await db.query('select id from public.client_accounts')).rows.length,0);
+  assert.equal((await db.query('select id from storage.objects')).rows.length,0);
+  await assert.rejects(db.query("select public.create_workspace_with_owner('Blocked','blocked')"),/Authentication required/);
+  await assert.rejects(db.query('select public.accept_workspace_invite(gen_random_uuid())'),/Authentication required/);
+  await assert.rejects(db.query('select public.get_workspace_usage_summary($1,30)',[workspace]),/access denied/);
+  await assert.rejects(db.query('insert into storage.objects(bucket_id,name) values($1,$2)',['visibility-client-reports',`${workspace}/${client}/foreign.pdf`]),/row-level security/);
+  await db.exec('reset role');
   assert.deepEqual((await db.query('select id,workspace_id,payload,updated_at from client_accounts')).rows,before);
  }finally{await db.close();}
 });

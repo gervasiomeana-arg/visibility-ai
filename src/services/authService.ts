@@ -1,3 +1,4 @@
+import {isVisibilityOperator,privateAccessMessage} from '../../shared/operatorAccess';
 import { AuthChangeEvent, createClient, Session, User } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -32,7 +33,7 @@ export const authService = {
     if (!supabase) return null;
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
-    return data.session;
+    return isVisibilityOperator(data.session?.user)?data.session:null;
   },
 
   async getAuthorizationHeaders(
@@ -56,14 +57,12 @@ export const authService = {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     if (!data.user) throw new Error('No se pudo iniciar sesión.');
+    if(!isVisibilityOperator(data.user)){await supabase.auth.signOut({scope:'local'});throw new Error(privateAccessMessage);}
     return data.user;
   },
 
-  async signUp(email: string, password: string): Promise<User | null> {
-    if (!supabase) throw new Error('Supabase no está configurado.');
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    return data.user;
+  async signUp(_email: string, _password: string): Promise<User | null> {
+    throw new Error('El registro público está deshabilitado. Visibility es de uso privado.');
   },
 
   async requestPasswordReset(email: string): Promise<void> {

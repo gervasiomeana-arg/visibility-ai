@@ -1,3 +1,4 @@
+import {isVisibilityOperator} from '../shared/operatorAccess';
 import crypto from 'crypto';
 import express from 'express';
 import {
@@ -523,6 +524,7 @@ router.get(['/oauth/callback', '/callback'], async (req, res) => {
   if (
     !code ||
     !pending ||
+    !isVisibilityOperator({id:pending.userId}) ||
     Date.now() - pending.createdAt > 10 * 60 * 1000
   ) {
     return res
