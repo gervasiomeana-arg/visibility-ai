@@ -325,8 +325,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
   const plans = BASE_PLANS.map((plan) => ({
     ...plan,
     price: getPlanPrice(plan, workspace?.countryCode || 'AR'),
-    businessesCount: 0,
-    status: 'Activo',
     popular: plan.id === 'growth',
   }));
 
@@ -412,7 +410,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
               : 'text-slate-500 hover:text-slate-950 hover:bg-white/70'
           }`}
         >
-          Planes y Suscripciones ({plans.length})
+          Planes de servicio ({plans.length})
         </button>
         <button
           onClick={() => setActiveAdminTab('ai-usage')}
@@ -522,10 +520,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   <span className="text-xs text-slate-400 font-medium">{p.id === 'diagnostic' ? ' · pago único' : ' /mes'}</span>
                 </div>
 
-                <p className="text-xs text-indigo-700 font-semibold mb-4">
-                  {p.businessesCount} suscripciones reales
-                </p>
-
                 <ul className="space-y-2 text-xs text-slate-600 pt-3 border-t border-slate-100">
                   {p.features.map((f, i) => (
                     <li key={i} className="flex items-start gap-2">
@@ -536,11 +530,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                 </ul>
               </div>
 
-              <div className="mt-6 pt-3 border-t border-slate-100 text-center">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  Módulo de Cobros: Próximamente (Stripe/MP)
-                </span>
-              </div>
             </div>
           ))}
         </div>
