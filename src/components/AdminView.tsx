@@ -518,7 +518,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
                   <span className="text-3xl font-extrabold text-slate-900 font-heading">
                     {p.price ? `${p.price.currency} ${p.price.amount}` : 'A cotizar'}
                   </span>
-                  <span className="text-xs text-slate-400 font-medium"> /mes</span>
+                  <span className="text-xs text-slate-400 font-medium">{p.id === 'diagnostic' ? ' · pago único' : ' /mes'}</span>
                 </div>
 
                 <p className="text-xs text-indigo-700 font-semibold mb-4">
