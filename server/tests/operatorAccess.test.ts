@@ -7,7 +7,7 @@ test('the API entry gate blocks other verified accounts before paid providers an
  globalThis.fetch=(async(input,init)=>{if(String(input).startsWith('https://auth.example')){authCalls++;const token=new Headers(init?.headers).get('authorization');return Response.json({id:token==='Bearer operator'?visibilityOperatorId:'outsider',email:'gervasiomeana@gmail.com',user_metadata:{role:'owner',id:visibilityOperatorId}});}return original(input,init);})as typeof fetch;
  const app=express();app.use(requireVisibilityOperator);app.all('*',(_req,res)=>{handlerCalls++;res.json({ok:true});});const server=app.listen(0,'127.0.0.1');await once(server,'listening');const base='http://127.0.0.1:'+(server.address()as AddressInfo).port;
  try{
-  for(const path of ['/social/public/collect','/presence/research','/search-console/sites','/search-console/auth/start','/integrations/status']){const r=await original(base+path,{headers:{authorization:'Bearer outsider'}});assert.equal(r.status,403);}
+  for(const path of ['/social/public/collect','/presence/research','/search-console/sites','/search-console/auth/start','/integrations/status','/backups/export']){const r=await original(base+path,{headers:{authorization:'Bearer outsider'}});assert.equal(r.status,403);}
   assert.equal(handlerCalls,0);assert.equal((await original(base+'/presence/research')).status,401);
   const before=authCalls;assert.equal((await original(base+'/social/public/collect',{headers:{authorization:'Bearer operator'}})).status,200);assert.equal(authCalls-before,1);
   assert.equal((await original(base+'/search-console/status')).status,200);assert.equal((await original(base+'/search-console/oauth/callback')).status,200);
