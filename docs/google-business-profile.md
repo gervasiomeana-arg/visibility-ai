@@ -5,7 +5,7 @@ Implementación inicial: OAuth independiente de Search Console, listado paginado
 ## Activación
 
 1. Sincronizar GitHub en AI Studio y publicar.
-2. En el cliente OAuth web existente, agregar la URI exacta mostrada en Ajustes → Google Business Profile → Requisitos. Con APP_URL=https://visibility-ia.ai.studio es https://visibility-ia.ai.studio/api/google-business/oauth/callback. Con APP_URL de Cloud Run, registrar la de Cloud Run que muestre el panel. No reemplazar la URI de Search Console.
+2. En el cliente OAuth web existente, agregar la URI exacta mostrada en Ajustes → Google Business Profile → Requisitos. Al abrir desde https://visibility-ia.ai.studio, se usa https://visibility-ia.ai.studio/api/google-business/oauth/callback incluso si APP_URL apunta a Cloud Run. Desde el origen configurado en APP_URL se usa su propio callback. Registrar las URI que se utilizarán, según el panel. No reemplazar la URI de Search Console.
 3. Solicitar aprobación de acceso a Google Business Profile APIs para el proyecto. Habilitar My Business Account Management API y My Business Business Information API. Cuota cero puede requerir aprobación de Google; no equivale a falta de fichas.
 4. Autorizar desde Ajustes o Buscadores → Fuente → Google Business Profile. Google exige `business.manage`; el conector implementa exclusivamente GET para los datos de negocio, sin publicar, editar, invitar ni responder reseñas.
 5. Consultar cuentas, elegir cuenta y consultar fichas. En Buscadores, seleccionar y confirmar expresamente que la ficha corresponde al cliente activo. Preparar informe; luego guardar en historial, descargar o guardar copia PDF.
@@ -28,3 +28,5 @@ Fuentes oficiales:
 - https://developers.google.com/my-business/content/prereqs
 - https://developers.google.com/my-business/reference/accountmanagement/rest/v1/accounts/list
 - https://developers.google.com/my-business/reference/businessinformation/rest/v1/accounts.locations/list
+
+La conexión solicita `select_account consent`. El retorno OAuth se fija en el estado cifrado y conserva el origen del navegador entre los dos orígenes permitidos (APP_URL y visibility-ia.ai.studio); encabezados ajenos no pueden redirigir códigos. Esto evita perder la cookie nonce al pasar del dominio público a Cloud Run.
