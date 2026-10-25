@@ -43,7 +43,7 @@ test('Search Console /api/search-console/status returns configuration and exact 
   });
 });
 
-test('Search Console OAuth start endpoints reject with 503 and missing list when unconfigured', async () => {
+test('Search Console OAuth start endpoints remain private before exposing authorization details', async () => {
   const app = express();
   app.use(express.json());
   app.use('/api', apiRouter);
@@ -57,13 +57,11 @@ test('Search Console OAuth start endpoints reject with 503 and missing list when
         body: JSON.stringify({ returnTo: '/keywords' }),
       });
 
-      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-        assert.equal(res.status, 503);
-        const data = await res.json();
-        assert.equal(data.configured, false);
-        assert.ok(Array.isArray(data.missing));
-        assert.ok(data.missing.includes('GOOGLE_CLIENT_ID') || data.missing.includes('GOOGLE_CLIENT_SECRET'));
-      }
+      assert.ok([401,503].includes(res.status));
+      const data=await res.json();
+      assert.equal(typeof data.error,'string');
+      assert.equal(data.authUrl,undefined);
+      assert.equal(data.missing,undefined);
     }
   });
 });

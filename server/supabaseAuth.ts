@@ -30,6 +30,7 @@ export async function getSupabaseUserFromToken(
   if (!response.ok) throw new Error('Session validation service unavailable');
 
   const data: any = await response.json();
+  if(data?.is_anonymous===true)return null;
   if (typeof data?.id !== 'string' || !data.id.trim()) throw new Error('Invalid session validation response');
   return { id:data.id,email:typeof data.email === 'string'?data.email:undefined };
 }
@@ -39,6 +40,7 @@ export async function requireSupabaseAuth(
   res: Response,
   next: NextFunction
 ) {
+  if(res.locals.supabaseIdentityVerified===true&&res.locals.authUser){next();return;}
   const config = getSupabaseConfig();
 
   if (!config.configured) {
@@ -60,6 +62,7 @@ export async function requireSupabaseAuth(
     }
 
     res.locals.authUser = user;
+    res.locals.supabaseIdentityVerified = true;
     next();
   } catch {
     res.status(503).json({ error: 'No se pudo comprobar la sesión en este momento. Volvé a intentar; este error no confirma que tu sesión haya vencido.' });

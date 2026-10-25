@@ -1,3 +1,4 @@
+import {visibilityOperatorId} from '../../shared/operatorAccess';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { once } from 'node:events';
@@ -40,7 +41,7 @@ async function fixture(durable: boolean, run: (request: (path: string, token?: s
     if (url.hostname === 'auth.example') {
       if (url.pathname === '/auth/v1/user') {
         const token = new Headers(init.headers).get('authorization');
-        if (token === 'Bearer account-a') return json({ id: 'owner-a' });
+        if (token === 'Bearer account-a') return json({ id: visibilityOperatorId });
         if (token === 'Bearer account-b') return json({ id: 'owner-b' });
         return json({ error: 'invalid' }, 401);
       }
@@ -113,7 +114,7 @@ test('stored Google connections are selected with the authenticated owner and be
     mock.database = (url, init) => {
       const authorization = new Headers(init.headers).get('authorization');
       const owner = authorization === 'Bearer account-a' ? 'a' : 'b';
-      assert.equal(url.searchParams.get('user_id'), `eq.owner-${owner}`);
+      assert.equal(url.searchParams.get('user_id'), `eq.${owner==='a'?visibilityOperatorId:'owner-b'}`);
       return json([{ access_token_ciphertext: encrypted(`google-${owner}`), refresh_token_ciphertext: null, expires_at: new Date(Date.now() + 3600000).toISOString() }]);
     };
     mock.google = (_url, init) => {
