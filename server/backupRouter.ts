@@ -1,0 +1,6 @@
+import express from'express';import{exportOperatorBackup}from'./operatorBackup';import{bearerToken,requireSupabaseAuth}from'./supabaseAuth';import{isVisibilityOperator}from'../shared/operatorAccess';import{createRateLimiter}from'./rateLimit';
+const router=express.Router();
+router.get('/export',requireSupabaseAuth,createRateLimiter({name:'backup-export',maxRequests:3,windowMs:60*60*1000}),async(req,res)=>{
+ if(!isVisibilityOperator(res.locals.authUser))return res.status(403).json({error:'Acceso privado.'});
+ try{const backup=await exportOperatorBackup(bearerToken(req)!);res.setHeader('Cache-Control','no-store');res.setHeader('Content-Disposition',`attachment; filename="Visibility_respaldo_${backup.createdAt.slice(0,10)}.json"`);return res.json(backup);}catch(error){const message=error instanceof Error?error.message:'';const safe=/^(Respaldo no disponible|No se pudo|No se confirmó|La copia|Respuesta de datos|Ruta de|Archivo inesperado|Demasiados PDF|Falta un PDF|PDF vacío|Los PDF|Los datos cambiaron|El respaldo|Formato de respaldo|Faltan tablas|Hay registros|Archivo PDF|PDF dañado|No coincide la integridad|Registro de informes)/.test(message);return res.status(503).json({error:safe?message:'No se pudo completar la copia. No se confirmó un respaldo.'});}
+});export default router;

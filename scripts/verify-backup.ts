@@ -1,0 +1,3 @@
+import{readFileSync,statSync}from'node:fs';import{backupMaxBytes}from'../shared/operatorBackup';import{rehearseBackupRestore}from'../server/isolatedBackupRestore';
+const path=process.argv[2];if(!path)throw Error('Indicar el archivo de respaldo JSON. Solo se recupera en una base temporal en memoria.');if(statSync(path).size>backupMaxBytes)throw Error('Archivo demasiado grande.');
+try{console.log(JSON.stringify(await rehearseBackupRestore(JSON.parse(readFileSync(path,'utf8'))),null,2));}catch{console.error('No se pudo verificar la recuperación aislada. No se modificó la aplicación.');process.exitCode=1;}

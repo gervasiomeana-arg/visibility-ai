@@ -1,4 +1,5 @@
 import express from 'express';
+import backupRouter from './backupRouter';
 import {requireVisibilityOperator} from './operatorAccess';
 import aiRouter from './aiRouter';
 import healthRouter from './healthRouter';
@@ -10,6 +11,7 @@ const router = express.Router();
 
 router.use('/health', healthRouter);
 router.use(requireVisibilityOperator);
+router.use('/backups',backupRouter);
 router.use('/search-console', searchConsoleRouter);
 router.use('/seo', seoAuditRouter);
 router.use('/social', socialMetricsRouter);

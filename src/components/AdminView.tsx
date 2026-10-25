@@ -1,3 +1,4 @@
+import {BackupPanel} from './BackupPanel';
 import React, { useEffect, useState } from 'react';
 import {
   ShieldAlert,
@@ -330,6 +331,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ businesses, setActiveTab, 
 
   return (
     <div className="space-y-6 pb-12">
+      <BackupPanel/>
       {/* Header */}
       <div className="rounded-[1.6rem] bg-slate-950 text-white p-6 sm:p-8 lg:p-9 shadow-[0_28px_70px_rgba(15,23,42,0.18)] ring-1 ring-white/10 overflow-hidden relative">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
