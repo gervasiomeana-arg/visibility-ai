@@ -36,7 +36,7 @@ export const BASE_PLANS: PlanConfig[] = [
   {
     id: 'diagnostic',
     name: 'Diagnóstico',
-    monthlyPrice: null,
+    monthlyPrice: 30,
     currency: 'USD',
     maxBusinesses: 1,
     features: ['Auditoría puntual', 'Resumen ejecutivo', 'Problemas y oportunidades principales'],
@@ -44,7 +44,7 @@ export const BASE_PLANS: PlanConfig[] = [
   {
     id: 'monitor',
     name: 'Visibility Monitor',
-    monthlyPrice: 69,
+    monthlyPrice: 50,
     currency: 'USD',
     maxBusinesses: 1,
     features: ['Auditoría mensual', 'Historial', 'PageSpeed', 'Informe mensual'],
@@ -52,7 +52,7 @@ export const BASE_PLANS: PlanConfig[] = [
   {
     id: 'growth',
     name: 'Visibility Growth',
-    monthlyPrice: 149,
+    monthlyPrice: 100,
     currency: 'USD',
     maxBusinesses: 1,
     features: ['Search Console', 'Keywords reales', 'Oportunidades', 'Plan de acción', 'IA'],
@@ -60,7 +60,7 @@ export const BASE_PLANS: PlanConfig[] = [
   {
     id: 'pro',
     name: 'Visibility PRO Gestionado',
-    monthlyPrice: 299,
+    monthlyPrice: 200,
     currency: 'USD',
     maxBusinesses: 3,
     features: ['Todo Growth', 'Seguimiento gestionado', 'Optimización y contenido asistido'],
@@ -68,7 +68,7 @@ export const BASE_PLANS: PlanConfig[] = [
   {
     id: 'agency',
     name: 'Agency',
-    monthlyPrice: 599,
+    monthlyPrice: 350,
     currency: 'USD',
     maxBusinesses: 30,
     features: ['Multi-cliente', 'Marca blanca', 'Informes', 'Administración centralizada'],
@@ -81,8 +81,5 @@ export function getMarket(countryCode?: SupportedCountryCode): MarketConfig {
 
 export function getPlanPrice(plan: PlanConfig, countryCode?: SupportedCountryCode) {
   if (plan.monthlyPrice === null) return null;
-  if (countryCode === 'ES') {
-    return { amount: plan.monthlyPrice, currency: 'EUR' as const };
-  }
-  return { amount: plan.monthlyPrice, currency: 'USD' as const };
+  return { amount: plan.monthlyPrice, currency: plan.currency };
 }
