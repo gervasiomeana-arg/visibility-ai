@@ -6,7 +6,7 @@ export async function businessGet(url:URL,accessToken:string,fetcher:typeof fetc
  if(!r.ok){let reason='';try{const body:any=await r.json();reason=JSON.stringify(body?.error?.details||[]);}catch{}
  if(r.status===401)throw new GoogleBusinessError(401,'authorization','Google rechazó la autorización. Volvé a conectar Business Profile.');
  if(reason.includes('SERVICE_DISABLED'))throw new GoogleBusinessError(503,'api_disabled','Habilitá las APIs My Business Account Management y My Business Business Information en el proyecto de Google Cloud.');
- if(r.status===429)throw new GoogleBusinessError(429,'quota','Google rechazó la consulta por cuota. Si la cuota del proyecto es cero, solicitá aprobación de acceso a Business Profile.');
+ if(r.status===429)throw new GoogleBusinessError(429,'quota','Google rechazó la consulta por cuota de Business Profile. Revisá en Google Cloud las cuotas de My Business Account Management y My Business Business Information del proyecto del cliente OAuth. Si la cuota es 0, solicitá aprobación de acceso a Business Profile; habilitar las APIs no concede esa aprobación. Si la cuota es mayor que 0, revisá el consumo antes de reintentar. Los informes guardados se conservan.');
  if(r.status===403)throw new GoogleBusinessError(403,'permission','Google no autorizó esta consulta. Revisá el permiso business.manage, acceso a la ficha y aprobación del proyecto para las APIs de Business Profile.');
  throw new GoogleBusinessError(502,'provider','Google Business Profile no respondió correctamente. Los informes guardados se conservan.');}
  const body:any=await r.json();if(!body||typeof body!=='object'||Array.isArray(body)||body.error)throw new Error('Respuesta inválida de Google Business Profile.');return body;
