@@ -15,8 +15,10 @@ export function validatePresenceObservation(value:PresenceObservation):PresenceO
   if(typeof value.observedAt!=='string'||!Number.isFinite(Date.parse(value.observedAt))||Date.parse(value.observedAt)>Date.now())throw new Error('Indicá una fecha de observación válida, sin fechas futuras.');
   if(!researchSourceUrl(value.evidenceUrl))throw new Error('La evidencia debe tener una URL pública válida.');
   if(value.position!==undefined && (!searchPlatforms.includes(value.platform)||value.result!=='found'||value.method!=='manual'||!Number.isSafeInteger(value.position)||value.position<1||value.position>100)) throw new Error('La posición orgánica solo se registra al comprobarla en un buscador (1–100).');
+  if(value.model!==undefined&&(typeof value.model!=='string'||!value.model.trim()||value.model.length>200))throw new Error('Modelo de la respuesta no válido.');
+  if(value.queries!==undefined&&(!Array.isArray(value.queries)||value.queries.length>50||value.queries.some(q=>typeof q!=='string'||!q.trim()||q.length>2000)))throw new Error('Consultas de la herramienta no válidas.');
   if(value.method==='gemini-api' && (value.platform!=='gemini'||value.result!=='unreviewed'||!value.model||!value.sources?.length||!value.queries?.length))throw new Error('La consulta automática corresponde a Gemini y requiere fuentes para revisión.');
-  if(value.sources && (value.sources.length>50||value.sources.some(s=>!researchSourceUrl(s.url)||typeof s.title!=='string'||s.title.length>200)))throw new Error('Referencias no válidas.');
+  if(value.sources!==undefined && (!Array.isArray(value.sources)||value.sources.length>50||value.sources.some(s=>!s||!researchSourceUrl(s.url)||typeof s.title!=='string'||s.title.length>200)))throw new Error('Referencias no válidas.');
   if(value.suggestionsHtml!==undefined && (typeof value.suggestionsHtml!=='string'||value.suggestionsHtml.length>100000))throw new Error('Referencia de búsqueda no válida.');
   return value;
 }
