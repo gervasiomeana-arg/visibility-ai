@@ -128,3 +128,66 @@ En la sesión del 26/10 el navegador del agente llegó al acceso privado de Visi
 no tenía una sesión iniciada. No se ejecutó una nueva auditoría de producción ni se
 guardaron resultados simulados. El siguiente control interactivo requiere acceso
 del operador en ese navegador; el trabajo de código puede continuar mientras tanto.
+
+### Comprobación focalizada tras publicar — 26/10/2026
+
+Por indicación expresa del operador se reutiliza la evidencia anterior, sin repetir
+la suite completa ni lanzar consultas de pago para comprobar que un documento abre.
+
+- Acceso privado: sesión del operador confirmada en la app publicada mediante el
+  formulario seguro. Se pudo acceder a Clientes, Buscadores e Historial.
+- Buscadores publicado: comprobación pública manual seleccionada por defecto,
+  fecha puntual, fuentes adicionales separadas y campo de mejora propuesta visibles.
+- Informe combinado de Duolingo recuperado del historial: conserva los recuentos
+  del 25/10 (TikTok 18.326.147, Facebook 2.402.449, YouTube 7.040.000 redondeados),
+  la observación manual Google del 24/10 y Gemini pendiente de revisión. Las cifras
+  coinciden con los registros conservados en Supabase; no son recuentos nuevos de hoy.
+- Cambio de cliente a Hotel Nuevo Horizonte: el informe de Duolingo se desmontó
+  y se cargó el historial del hotel. Su plan guardado del 20/10 conserva LCP de
+  laboratorio 4,7 s, viewport width=1024, fuentes y pasos de comprobación.
+- Intento único de consulta nueva Google, «aplicaciones para aprender idiomas»,
+  el 26/10 a las 14:24 UTC: navegador remoto detenido por tráfico inusual/reCAPTCHA.
+  No se obtuvieron resultados; no se guardó una ausencia, posición ni medición.
+  No se intentó resolver la verificación ni se repitió la consulta.
+- IA: el registro de Gemini responde una pregunta que identifica a Duolingo.
+  No demuestra descubrimiento sin marca. Las fuentes oficiales sobre Duolingo Max
+  y English Test respaldan esas funciones generales; no se verificó aquí la
+  afirmación negativa general sobre ausencia de tutorías humanas. El registro y
+  sus diez referencias permanecen sin alterar, con estado unreviewed. No hay una
+  nueva consulta ni evidencia de ChatGPT o Claude en esta revisión.
+  Referencias contrastadas: https://blog.duolingo.com/duolingo-max/ y
+  https://blog.englishtest.duolingo.com/duolingo-english-test-readiness/.
+- Hallazgo editorial real: el consejo de H2 aún proponía incorporarlos aunque
+  solo se inspeccionó HTML inicial. Se condiciona ahora a revisar el DOM renderizado
+  para no duplicar encabezados existentes. Una prueba local específica aprobada;
+  no se repitieron las 376 pruebas ni se consultaron proveedores externos para ello.
+  Los informes anteriores se conservan con su redacción original; la corrección
+  se aplica a auditorías nuevas después de publicar.
+
+Pendiente efectivo: evidencia por plataforma de IA (en particular ChatGPT/Claude
+y preguntas de descubrimiento sin marca), la consulta pública Google hoy bloqueada,
+y la muestra de consultas no vacías de Search Console. No cerrar estos puntos por
+tener opciones de menú o porque se pueda generar un PDF con registros previos.
+
+### Premisa ratificada: ChatGPT y Claude sin costos adicionales
+
+El operador pidió incorporar ambas plataformas sin pagar proveedores. El flujo
+principal de IA pasa a consulta web manual para todas sus plataformas, con ChatGPT
+seleccionado inicialmente, botón para copiar la pregunta, apertura de la plataforma,
+registro de respuesta/enlace y propuesta de mejora. No invoca presenceService.research
+ni consume Gemini API al preparar ese informe. No se agregan claves de OpenAI o
+Anthropic, suscripciones ni cobros. Los registros previos de Gemini API se conservan
+con su método y fuentes originales.
+
+Esto no implementa una API gratuita ni automatiza las interfaces de ChatGPT/Claude:
+la respuesta se obtiene con el acceso web disponible del operador y se documenta
+manualmente. Si la plataforma exige pago o limita el acceso, no contratar nada ni
+rellenar la respuesta. Los módulos anteriores y herramientas complementarias que
+todavía ofrezcan Gemini API no forman parte de esta modalidad sin API; no usarlos
+para estas comprobaciones. Su clave presente no garantiza cuota gratuita.
+
+Verificación acotada: prueba local de H2 y prueba de evidencia manual para las dos
+plataformas. El tipado y la compilación comprueban el cambio de interfaz; no se
+repiten las pruebas generales ni se lanzan nuevas consultas de pago. La captura del
+plan del hotel documenta la revisión del informe existente, no valida todavía el
+nuevo flujo de IA antes de publicarlo y obtener respuestas reales de cada plataforma.

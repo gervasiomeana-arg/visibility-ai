@@ -875,16 +875,16 @@ export async function buildRealSeoAudit(
           'Subtítulos H2',
           'Contenido y On-Page',
           'warning',
-          'Mejorable',
-          'No se detectaron subtítulos H2 en el HTML inicial.',
-          'Dividir el contenido en secciones descriptivas con H2 cuando corresponda.',
+          'Pendiente en página renderizada',
+          'No se detectaron subtítulos H2 en el HTML inicial. Podrían generarse al ejecutar JavaScript; falta comprobar la página renderizada.',
+          'Comprobar los H2 en la página renderizada antes de añadirlos. Si ya existen, revisar su jerarquía y texto sin duplicarlos. Si faltan y el contenido requiere secciones, proponer subtítulos descriptivos.',
           'Bajo',
           '0 H2',
           {
             whyItMatters: 'Facilitan la lectura rápida del usuario y la organización semántica.',
-            detectedData: '0 etiquetas <h2> detectadas en el HTML analizado.',
-            proposedChange: 'Incorporar subtítulos <h2> descriptivos en los bloques principales de información.',
-            howToVerify: 'Comprobar la presencia de <h2> en el HTML inicial.',
+            detectedData: '0 etiquetas <h2> detectadas en el HTML inicial; el DOM renderizado no se comprobó.',
+            proposedChange: 'Comprobar los H2 en la página renderizada antes de añadirlos. Si ya existen, revisar su jerarquía y texto sin duplicarlos. Si faltan y el contenido requiere secciones, proponer subtítulos descriptivos.',
+            howToVerify: 'Comparar las etiquetas <h2> de Ver código fuente con las de Inspeccionar una vez cargada la página. Confirmar qué secciones necesitan subtítulos antes de editar.',
           }
         )
   );
