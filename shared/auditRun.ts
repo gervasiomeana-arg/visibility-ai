@@ -57,7 +57,10 @@ export function validateAuditRun(r:AuditRun):AuditRun {
 }
 export function auditRunBlocks(run:AuditRun):ReportPdfBlock[]{
  validateAuditRun(run);
- const b:ReportPdfBlock[]=[{kind:'brand',text:'VISIBILITY · INFORME CON FUENTES'},{kind:'title',text:run.businessName},{kind:'heading',text:run.data.kind==='service'?auditChannelNames[run.channel]:`Auditoría de ${auditChannelNames[run.channel]}`},{kind:'body',text:`${run.data.kind==='service'?'Preparado':'Observado'}: ${run.observedAt}. Período solicitado: ${run.periodStart} a ${run.periodEnd}.`},{kind:'small',text:'La fecha de observación y el período solicitado son distintos. Solo se informa lo disponible en las fuentes; no se reconstruyen datos ausentes ni se garantizan posiciones o ventas.'}];
+ const periodText=run.data.kind==='presence'
+  ? `Observado: ${run.observedAt}. Comprobación puntual de una consulta; no es una medición continua del período ${run.periodStart} a ${run.periodEnd}.`
+  : `${run.data.kind==='service'?'Preparado':'Observado'}: ${run.observedAt}. Período solicitado: ${run.periodStart} a ${run.periodEnd}.`;
+ const b:ReportPdfBlock[]=[{kind:'brand',text:'VISIBILITY · INFORME CON FUENTES'},{kind:'title',text:run.businessName},{kind:'heading',text:run.data.kind==='service'?auditChannelNames[run.channel]:`Auditoría de ${auditChannelNames[run.channel]}`},{kind:'body',text:periodText},{kind:'small',text:'La fecha de observación y el período solicitado son distintos. Solo se informa lo disponible en las fuentes; no se reconstruyen datos ausentes ni se garantizan posiciones o ventas.'}];
  const add=(text:string,kind:ReportPdfBlock['kind']='body',keepTogether?:string)=>b.push({kind,text,...(keepTogether?{keepTogether}:{})});
  const d=run.data;
  if(d.kind==='google-business'){
@@ -96,7 +99,7 @@ export function auditRunBlocks(run:AuditRun):ReportPdfBlock[]{
   if(d.sources.length){const group=`${run.id}-sources`;add('Fuentes conservadas','strong',group);for(const source of d.sources)add(`${auditChannelNames[source.channel]} · registro ${source.id} · observado ${source.observedAt} · período ${source.periodStart} a ${source.periodEnd}`,'small',group);}
  }else{
   const o=d.observation;add(`Plataforma: ${o.platform} · Método: ${o.method} ${o.model?`· Modelo: ${o.model}`:''}`);add(`Consulta exacta: ${o.query}. Mercado: ${o.market}. Idioma: ${o.language}. Dispositivo: ${o.device}.`);
-  add(o.method==='gemini-api'?'Respuesta API con fuentes, pendiente de revisión. Incluye contexto de la marca; no demuestra recomendación espontánea ni reproduce otros asistentes.':`Comprobación manual aportada por el operador: ${o.result}.`);if(o.position!==undefined)add(`Posición orgánica observada manualmente: ${o.position}. No es una posición permanente.`);add(o.excerpt);add(`Referencia: ${o.evidenceUrl}`,'small');for(const s of o.sources||[])add(`${s.title}: ${s.url}`,'small');if(o.recommendation)add(`Propuesta: ${o.recommendation}`);
+  add(o.method==='gemini-api'?'Respuesta API con fuentes, pendiente de revisión. Incluye contexto de la marca; no demuestra recomendación espontánea ni reproduce otros asistentes.':`Comprobación manual aportada por el operador: ${o.result==='found'?'Presencia observada':o.result==='not-observed'?'No observada en esta consulta':'Pendiente de revisión'}.`);add('Alcance: una consulta y una fecha. El mercado y el dispositivo registrados no acreditan una ubicación geográfica configurada ni una prueba física en ese dispositivo. Esta evidencia no representa todas las búsquedas, personas o respuestas de la plataforma.');if(o.position!==undefined)add(`Posición orgánica observada manualmente: ${o.position}. No es una posición permanente.`);add(o.excerpt);add(`Referencia de consulta o evidencia aportada: ${o.evidenceUrl}. Abrirla de nuevo puede devolver otro resultado.`,'small');for(const s of o.sources||[])add(`${s.title}: ${s.url}`,'small');if(o.queries?.length)add(`Consultas realizadas por la herramienta: ${o.queries.join(' · ')}`,'small');if(o.recommendation)add(`Propuesta: ${o.recommendation}`);
  }
  return b;
 }

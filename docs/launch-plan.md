@@ -1,6 +1,6 @@
 # Plan de cierre comercial: tres jornadas estimadas
 
-El estado más reciente está en «Actualización del 26/10/2026» al final. Los estados
+El plan vigente está en «Cierre centrado en los clientes» al final. Los estados
 fechados anteriores se conservan como historial, no como lista vigente de pendientes.
 
 Por indicación del operador, el plan se sigue en el chat y ya no se monta el panel
@@ -95,3 +95,36 @@ publicar o renovar tokens no la concede.
 No declarar el servicio completo al 100%: Google Business aún no tiene validación
 real y esta versión solo consulta datos de ficha, sin métricas de rendimiento ni reseñas.
 El alcance comercial debe coincidir con los canales y datos efectivamente comprobados.
+
+## Cierre centrado en los clientes — plan vigente del 26/10/2026
+
+Objetivo ratificado por el operador: medir y explicar la presencia de cada cliente
+en web, buscadores, asistentes de IA y redes, y preparar mejoras concretas e informes
+con evidencia. Visibility no necesita una ficha propia de Google Maps para auditar
+la presencia pública de sus clientes. Google Business queda fuera de este cierre;
+no crear fichas, reclamar negocios ajenos ni cambiar permisos para resolverlo.
+
+Esta es la única lista activa de cierre. Los registros anteriores son antecedentes.
+El plan se comunica en el chat; no añadir otro panel a la aplicación.
+
+| Control | Estado | Criterio de cierre |
+|---|---|---|
+| Alcance y fuentes de cada módulo | Revisado en código | Distinguir medición automática, comprobación manual, declaración del cliente y propuesta. No intercambiar Google Search Console, Google Business y resultados del buscador. |
+| Precisión de informes y condiciones | Corrección preparada; publicación pendiente | La comprobación puntual no aparece como monitoreo mensual; país/dispositivo no acreditan condiciones técnicas no configuradas. Fuentes, consulta, modelo y fecha permanecen. Las recomendaciones se rotulan como propuestas. |
+| Buscadores públicos | Validación publicada pendiente | Para un cliente autorizado, comprobar una búsqueda de marca y una de servicio sin marca. Guardar consulta, fecha, idioma, condiciones reales, resultados observados y posición orgánica solo si se comprobó. Recuperar tras recarga. Google/Bing/DuckDuckGo son manuales en esta versión. No requieren acceso a la cuenta del cliente. |
+| Search Console | Parcial: totales reales ya comprobados | Validar también una respuesta con filas de consultas y contrastarla con la propiedad/período autorizados. No inventar filas cuando Google las omite. Es una fuente adicional, no requisito para toda auditoría de buscadores. |
+| IA por plataforma | Gemini API probado antes; nueva revisión y otros asistentes pendientes | Conservar la respuesta real, fuentes y consulta de cada proveedor. ChatGPT/Claude/Perplexity se comprueban manualmente en esta versión. Gemini con contexto de marca no demuestra recomendación espontánea ni mide los demás asistentes. Verificar preguntas con y sin marca por separado. |
+| Web y redes | Evidencia previa disponible; repetir en piloto final | Contrastar URL/perfil correcto, datos/fecha y límites de la muestra. HTML inicial no es DOM renderizado; ALT decorativo vacío no es atributo ausente. Seguidores actuales no son historial ni alcance. Si falla una fuente, conservar lo anterior y no calcular datos para rellenar. |
+| Propuestas útiles | Validación editorial pendiente | Entregar 3–5 acciones justificadas por evidencias, con cambio concreto, prioridad explicada y forma de comprobarlo. No atribuir servicios o competidores sin confirmar. Separar los trabajos adicionales cotizados. |
+| Recorrido completo | Nueva prueba publicada pendiente | Ficha → cuatro auditorías → revisión → guardar → recargar → PDF → guardar copia → recuperar. Repetir con otro cliente y comprobar aislamiento. La entrega WhatsApp es manual; no marcar enviada por descargar. |
+| Acceso, respaldo y comercial | Controles previos documentados; conservar | Mantener operador exclusivo, RLS, PDFs privados y respaldo verificado. Cobro por enlace y registro manual; precios no equivalen a suscripciones automáticas. Revisar que la web pública prometa solo el alcance comprobado. |
+
+Para cada nueva prueba se registra cliente, canal, consulta/perfil, momento, fuente,
+resultado y evidencia recuperable. No tachar un control por aprobar pruebas unitarias,
+tener una clave o publicar. No asignar porcentaje global sin un denominador estable
+ni declarar 100% mientras haya controles anteriores sin comprobar.
+
+En la sesión del 26/10 el navegador del agente llegó al acceso privado de Visibility;
+no tenía una sesión iniciada. No se ejecutó una nueva auditoría de producción ni se
+guardaron resultados simulados. El siguiente control interactivo requiere acceso
+del operador en ese navegador; el trabajo de código puede continuar mientras tanto.
