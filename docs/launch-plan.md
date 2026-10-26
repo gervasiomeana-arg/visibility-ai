@@ -1,5 +1,8 @@
 # Plan de cierre comercial: tres jornadas estimadas
 
+El estado más reciente está en «Actualización del 26/10/2026» al final. Los estados
+fechados anteriores se conservan como historial, no como lista vigente de pendientes.
+
 Por indicación del operador, el plan se sigue en el chat y ya no se monta el panel
 flotante en Visibility. Los registros anteriores se conservan. Los siete controles
 son pruebas reales; no se completan porque pasen pruebas de código ni por tener
@@ -66,3 +69,29 @@ en Supabase. Cada marca requiere guardar la evidencia en el espacio correspondie
 | Revisión final | Pendiente de repetir el recorrido completo con otro negocio. |
 
 Redes se revisará después de estos controles, por indicación del operador.
+
+## Actualización del 26/10/2026
+
+Este registro distingue pruebas de código de comprobaciones en producción. No cambia
+automáticamente las marcas de Supabase ni certifica funciones sin evidencia.
+
+| Control | Evidencia disponible y límite |
+|---|---|
+| PDFs e historial | El 25/10 se generaron y recuperaron tras recarga un PDF individual de Search Console para Open Voley y uno combinado de Duolingo. Se contrastaron contenido, fechas y fuentes; el combinado tenía cuatro páginas revisadas visualmente. |
+| Search Console | Consulta oficial del 25/10: 1 impresión y 0 clics en los totales de propiedad, sin filas de consultas. Guardado y recuperación comprobados. Los totales no se calculan sumando la tabla de consultas; sigue sin prueba una importación con filas de palabras clave no vacías. |
+| Redes | Lecturas reales del 25/10 de Instagram del hotel y YouTube, Facebook y TikTok de Duolingo, guardadas en fichas QA identificadas. Son recuentos observados; no acreditan alcance, vistas mensuales ni evolución histórica. |
+| Seguridad y separación | Revisión previa de RLS, operador exclusivo y almacenamiento privado. La suite vuelve a cubrir accesos ajenos, aislamiento de negocio, estados OAuth y ausencia de claves en respuestas. No implica riesgo cero. La protección de contraseñas filtradas de Supabase no está habilitada en el plan gratuito. |
+| Respaldo | Exportación real del 25/10 verificada en restauración aislada: 16 tablas y 9 PDFs. No incluye credenciales, sesiones, conexiones OAuth ni la bandeja independiente de la web pública. |
+| Pagos y entrega | Cobro por enlace PayPal y registro manual; no hay suscripción con débito automático. El operador confirmó anteriormente recepción de adjuntos por WhatsApp; no se realizó un envío nuevo en esta revisión ni se marcaron informes como enviados. |
+| IA | Existe evidencia guardada de Gemini con fuentes y revisión pendiente. No se interpreta como medición de ChatGPT, Claude ni recomendación espontánea. |
+| Google Business Profile | Autorización guardada visible en captura del operador. Habilitación de APIs declarada por él. Sin cuenta/ficha real recuperada todavía; falta revisar cuota/aprobación y completar lectura, informe y conservación. |
+| Verificación del código | 26/10: 373 pruebas aprobadas, ninguna fallida u omitida; TypeScript y compilación aprobados. Las pruebas usan proveedores simulados aislados, no sustituyen la activación real de Google. |
+
+Corrección preparada: preservar el diagnóstico de cuota Google en lugar de ocultarlo
+tras un aviso genérico de límite temporal. Falta publicar esta corrección en AI Studio
+y repetir una consulta. Si Google tiene cuota cero, se requiere aprobación externa;
+publicar o renovar tokens no la concede.
+
+No declarar el servicio completo al 100%: Google Business aún no tiene validación
+real y esta versión solo consulta datos de ficha, sin métricas de rendimiento ni reseñas.
+El alcance comercial debe coincidir con los canales y datos efectivamente comprobados.

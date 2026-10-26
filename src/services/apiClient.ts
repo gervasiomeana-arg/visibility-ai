@@ -88,7 +88,11 @@ export async function apiFetchJson<T>(
       `La solicitud falló con código ${response.status}.`;
 
     if (response.status === 429) {
-      message = friendlyRateLimitMessage(retryAfterSeconds);
+      // The backend distinguishes a provider quota rejection from our own
+      // temporary limiter. Do not hide Google's actionable, sanitized message.
+      message = body?.code === 'quota' && typeof body?.error === 'string' && body.error.trim()
+        ? body.error
+        : friendlyRateLimitMessage(retryAfterSeconds);
     } else if (response.status >= 500 && requestId) {
       message = `${message} Referencia: ${requestId}.`;
     }

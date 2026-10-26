@@ -30,3 +30,24 @@ Fuentes oficiales:
 - https://developers.google.com/my-business/reference/businessinformation/rest/v1/accounts.locations/list
 
 La conexión solicita `select_account consent`. El retorno OAuth se fija en el estado cifrado y conserva el origen del navegador entre los dos orígenes permitidos (APP_URL y visibility-ia.ai.studio); encabezados ajenos no pueden redirigir códigos. Esto evita perder la cookie nonce al pasar del dominio público a Cloud Run.
+
+## Diagnóstico de cuota y evidencia del 26/10/2026
+
+El operador aportó una captura con autorización guardada y confirmó haber habilitado
+ambas APIs. La siguiente captura mostraba un límite temporal genérico. Esto no
+demuestra todavía acceso efectivo a cuentas/fichas ni cuál era la cuota: el cliente
+HTTP reemplazaba todos los errores 429, incluido `code: quota`, por el aviso local.
+
+El cliente ahora conserva el mensaje sanitizado del backend para `code: quota`.
+El límite temporal propio sigue mostrando el tiempo Retry-After. No se añaden
+reintentos automáticos, cambios de autorización ni consultas a proveedores de pago.
+La prueba de regresión cubre ambas causas, respuestas inesperadas y conservación
+del detalle del error. No se modifican los informes guardados.
+
+Para cerrar la activación real, comprobar las cuotas en el mismo proyecto del cliente
+OAuth. Según la documentación oficial de prerrequisitos, 0 QPM indica proyecto sin
+aprobación y 300 QPM indica aprobado. Una cuota positiva agotada requiere revisar
+el consumo; no se debe diagnosticar cuota cero solo por recibir un HTTP 429.
+Después se debe recuperar una cuenta y una ficha administrada real, confirmar su
+correspondencia con el cliente y comprobar su informe guardado. Este control sigue
+abierto hasta contar con esa evidencia.
