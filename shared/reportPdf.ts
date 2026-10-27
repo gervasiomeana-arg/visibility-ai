@@ -5,6 +5,14 @@ export interface ReportPdfFonts { regular: string; bold: string }
 
 // Render the already selected report text; this function never infers measurements.
 export function createReportPdf(blocks: ReportPdfBlock[], fonts: ReportPdfFonts): ArrayBuffer {
+  // Copied web responses can contain private-use UI glyphs whose meaning belongs
+  // to the website's icon font. Preserve their code point instead of silently
+  // deleting them, inventing a meaning, or failing the entire client report.
+  if (blocks.some(block => /\p{Co}/u.test(block.text))) {
+    blocks = blocks.map(block => ({...block,text:block.text.replace(/\p{Co}/gu,char => `[U+${char.codePointAt(0)!.toString(16).toUpperCase()}]`)}));
+    const titleIndex=blocks.findIndex(block=>block.kind==='title');
+    blocks.splice(titleIndex+1,0,{kind:'small',text:'Nota de transcripción: algunos símbolos copiados de la plataforma se indican mediante su código Unicode [U+...]. El texto original guardado se conserva sin cambios.'});
+  }
   if (!blocks.some(block => block.kind === 'title' && block.text.trim())) throw new Error('El informe no está disponible para exportar.');
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true, putOnlyUsedFonts: true });
   pdf.addFileToVFS('ReportRegular.ttf', fonts.regular);

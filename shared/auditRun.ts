@@ -55,6 +55,38 @@ export function validateAuditRun(r:AuditRun):AuditRun {
  }else throw new Error('Fuente de auditoría no admitida.');
  return r;
 }
+function combinedExecutiveSummary(run:AuditRun):ReportPdfBlock[]{
+ if(run.data.kind!=='combined')return [];
+ const rows=[...run.data.runs].sort((a,b)=>b.observedAt.localeCompare(a.observedAt));
+ const blocks:ReportPdfBlock[]=[];
+ const add=(text:string,kind:ReportPdfBlock['kind']='body',keepTogether?:string)=>blocks.push({kind,text,...(keepTogether?{keepTogether}:{})});
+ add('Resumen ejecutivo','heading');
+ add(`Este diagnóstico reúne ${rows.length} registros guardados del mismo cliente. Las fechas corresponden a cada fuente; preparar este documento no actualiza las mediciones.`);
+ const missing=measurementChannels.filter(channel=>!rows.some(r=>r.channel===channel));
+ if(missing.length)add(`Alcance pendiente en esta selección: ${missing.map(c=>auditChannelNames[c]).join(', ')}. La falta de una medición no demuestra ausencia del negocio ni un resultado de cero.`,'small');
+ if(rows.some(r=>r.data.kind==='presence'&&r.data.observation.result==='unreviewed'))add('Revisión pendiente: se incluye una respuesta de IA sin revisión confirmada. Sus afirmaciones no deben tratarse como hechos verificados.','strong');
+ add('Qué muestran las fuentes','heading');
+ const seen=new Set<string>();
+ for(const r of rows){const d=r.data;
+  const key=d.kind==='web'?`web:${d.result.requestedUrl}`:d.kind==='networks'?`network:${d.network}:${d.snapshot.profileUrl}`:d.kind==='search'?`search:${d.siteUrl}`:d.kind==='presence'?`presence:${d.observation.platform}:${d.observation.method}:${d.observation.query}:${d.observation.market}:${d.observation.language}:${d.observation.device}`:r.id;
+  if(seen.has(key))continue;seen.add(key);
+  const reference=`Observado ${r.observedAt} · registro ${r.id}.`;
+  if(d.kind==='web')add(`Web: ${d.result.finalUrl} respondió HTTP ${d.result.httpStatus}. ${d.result.items.filter(i=>i.status==='error').length} factores con error y ${d.result.items.filter(i=>i.status==='warning').length} con advertencia en la revisión técnica. ${reference}`);
+  else if(d.kind==='networks')add(`${d.network}: ${d.snapshot.profileUrl}. ${d.network==='youtube'?'Suscriptores reportados, redondeados por YouTube':'Seguidores observados'}: ${d.snapshot.followers??'Sin dato verificado'}. No equivale a alcance ni visualizaciones del período. ${reference}`);
+  else if(d.kind==='search')add(`Search Console: ${d.siteUrl}, período ${r.periodStart} a ${r.periodEnd}. ${d.result.totals?`Totales de propiedad: ${d.result.totals.clicks} clics y ${d.result.totals.impressions} impresiones.`:'Totales de propiedad sin dato verificado.'} Consultas recuperadas: ${d.result.rows.length}; no equivalen a todos los datos de la propiedad. ${reference}`);
+  else if(d.kind==='presence'){const o=d.observation;add(`${o.platform}: ${o.result==='found'?'presencia observada':o.result==='not-observed'?'marca no observada en esta respuesta/consulta':'respuesta pendiente de revisión'} para «${o.query}». Método: ${o.method}. Condiciones declaradas: ${o.market}, ${o.language}, ${o.device}. Es una observación puntual, no una posición permanente ni una comprobación de toda la plataforma. ${reference}`);}
+ }
+ add('Acciones propuestas para priorizar','heading');
+ let count=0;const actions=new Set<string>();
+ const action=(title:string,proposal:string,check:string,source:AuditRun,detected?:string)=>{if(count>=5||actions.has(proposal))return;actions.add(proposal);const group=`${run.id}-executive-action-${++count}`;add(`${count}. ${title}`,'strong',group);if(detected)add(`Dato observado: ${detected}`,'body',group);add(`Cambio propuesto: ${proposal}`,'body',group);add(`Cómo comprobarlo: ${check}`,'body',group);add(`Fuente: registro ${source.id}, observado ${source.observedAt}. Prioridad editorial orientativa; no estima efectos sobre posiciones o ventas.`,'small',group);};
+ const web=rows.find(r=>r.data.kind==='web');
+ if(web?.data.kind==='web')for(const item of [...web.data.result.items].filter(i=>i.source==='real'&&i.status!=='ok').sort((a,b)=>(a.status==='error'?0:1)-(b.status==='error'?0:1)).slice(0,3))action(item.title,item.proposedChange||item.solution,item.howToVerify||'Repetir esta comprobación y contrastar el resultado con la fuente conservada.',web,item.detectedData||item.simpleExplanation);
+ for(const r of rows)if(r.data.kind==='presence'&&r.data.observation.recommendation.trim())action(`Revisar ${r.data.observation.platform}`,r.data.observation.recommendation,'Contrastar la propuesta con las fuentes y datos confirmados del negocio. Si se implementa, repetir la consulta y conservar sus condiciones reales.',r);
+ if(!count)add('Estas fuentes no aportan propuestas concretas suficientes para priorizar cambios. Revisar la evidencia antes de acordar acciones; no se inventaron tareas para completar la lista.');
+ add('Próximo seguimiento','heading');add('Repetir las fuentes y consultas acordadas en otra fecha. Comparar únicamente registros compatibles; no reconstruir meses sin datos ni convertir seguidores, menciones o clics en ventas.');
+ add('Anexo · evidencias y límites de cada fuente','heading');
+ return blocks;
+}
 export function auditRunBlocks(run:AuditRun):ReportPdfBlock[]{
  validateAuditRun(run);
  const periodText=run.data.kind==='presence'
@@ -87,7 +119,7 @@ export function auditRunBlocks(run:AuditRun):ReportPdfBlock[]{
   for(const r of rows)add(`${r.query} · ${r.clicks} clics · ${r.impressions} impresiones · posición media ${r.impressions>0?r.position:'Sin dato calculable'}.`,'small');
   add('Propuesta: revisar consultas con impresiones y contrastar las páginas asociadas. La posición media no es una posición fija y la muestra no equivale al tráfico total.');
  }else if(d.kind==='combined'){
-  add('Selección de auditorías guardadas. No se realizó una medición nueva. Cada sección conserva sus fechas y fuentes.');for(const child of d.runs)b.push(...auditRunBlocks(child).filter(x=>!['brand','title'].includes(x.kind)));
+  add('Selección de auditorías guardadas. No se realizó una medición nueva. Cada sección conserva sus fechas y fuentes.');b.push(...combinedExecutiveSummary(run));for(const child of d.runs)b.push(...auditRunBlocks(child).filter(x=>!['brand','title'].includes(x.kind)));
  }else if(d.kind==='service'){
   // Layout metadata is applied at export time, including to older saved plans.
   // Never rewrite the saved evidence or split an action that fits on one page.

@@ -191,3 +191,48 @@ plataformas. El tipado y la compilación comprueban el cambio de interfaz; no se
 repiten las pruebas generales ni se lanzan nuevas consultas de pago. La captura del
 plan del hotel documenta la revisión del informe existente, no valida todavía el
 nuevo flujo de IA antes de publicarlo y obtener respuestas reales de cada plataforma.
+
+### Cierre focalizado — 27/10/2026
+
+Google Business queda expresamente fuera del lanzamiento por decisión del operador:
+no es un requisito para analizar la presencia de sus clientes en buscadores.
+No se configura ni se solicita administrar la ficha del hotel.
+
+- ChatGPT y Claude: ya se obtuvieron respuestas web reales el 26/10 a la misma
+  pregunta de descubrimiento sin marca sobre scouting y estadísticas de voleibol
+  para entrenadores. Se guardaron para el cliente QA Open Voley, con sus respuestas,
+  fechas, condiciones y referencias. Registros f9c5617d-f458-4d73-9e9e-7c397fa02498
+  y fbbffb73-a1fd-46ea-9507-855c53d29123. Open Voley no se observó en esas respuestas;
+  esto no acredita ausencia general ni posiciones en ninguna plataforma. Claude
+  usó una sesión y ChatGPT acceso anónimo; no se comparan cuantitativamente.
+- Publicación: GitHub main 72487d1 incluye el flujo manual sin API, pero la app
+  publicada todavía muestra Gemini como valor inicial y «Consultar Gemini con
+  fuentes». No se pulsó ese botón. Falta sincronizar y publicar los cambios;
+  no declarar verificada en producción la interfaz nueva.
+- Google público: la consulta «herramientas de scouting y estadísticas de voleibol
+  para entrenadores» terminó en unusual traffic/reCAPTCHA en este navegador remoto.
+  No hubo resultados ni se guardó una posición o ausencia. Pendiente la verificación
+  humana; no repetir intentos automáticos ni cambiar la ruta de red.
+- Informe: los combinados incorporan resumen ejecutivo, canales sin medición
+  explícitos, hasta cinco acciones sustentadas en las fuentes y un anexo completo.
+  Preparar el documento no cambia fechas ni actualiza mediciones. No llama IA.
+- Corrección PDF: los símbolos de uso privado copiados de una plataforma impedían
+  exportar el informe real de Claude. Se representan explícitamente como [U+...]
+  con nota de transcripción; el texto guardado permanece intacto. Otros caracteres
+  sin tipografía compatible siguen produciendo el error de validación existente.
+- Prueba real: PDF de revisión Open Voley con Web del 20/10, Search Console del
+  25/10 y ChatGPT/Claude del 26/10. Conserva 0 clics, 1 impresión y 0 consultas
+  recuperadas; Redes figura sin medición en esta selección. Resumen en tres páginas
+  y anexo de evidencia, 20 páginas en total, revisadas visualmente.
+- El PDF se cargó por la UI en la ficha «PRUEBA QA · NO COBRAR · 16-10-2026»,
+  título «PRUEBA QA · Open Voley · resumen y evidencias · 27-10-2026».
+  La app confirmó lectura posterior de Supabase. Se descargó la copia privada y
+  su SHA-256 coincide con el archivo original. Envío pendiente: no se mandó ni se
+  marcó enviado por WhatsApp. No se modificaron pagos ni otras fichas.
+- Validación de código: 9 pruebas específicas de resumen/PDF aprobadas,
+  tsc --noEmit y vite build aprobados. No se repitió la suite completa.
+
+Pendientes efectivos: publicar el código más reciente, completar la consulta
+pública Google bloqueada y obtener una muestra no vacía de consultas de Search
+Console cuando la propiedad disponga de ella. El resultado vacío actual es real;
+no completarlo con datos inventados. No declarar el lanzamiento al 100%.

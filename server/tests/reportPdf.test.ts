@@ -34,6 +34,17 @@ test('export refuses an unavailable report and safely names a selected business 
 });
 
 const hasPdfText = !spawnSync('pdftotext', ['-v']).error;
+test('private-use symbols copied from a web answer remain traceable without blocking PDF export or changing saved text', {skip: !hasPdfText},()=>{
+ const blocks:ReportPdfBlock[]=[{kind:'title',text:'Prueba de respuesta copiada'},{kind:'body',text:'Dato confirmado: 0. Símbolos copiados: \uF011 y \uE06C. Texto original con acentos: estadísticas.'}];
+ const before=JSON.stringify(blocks),dir=mkdtempSync(join(tmpdir(),'visibility-private-glyph-'));
+ try{
+  const path=join(dir,'report.pdf');writeFileSync(path,Buffer.from(createReportPdf(blocks,fonts)));
+  const text=execFileSync('pdftotext',[path,'-'],{encoding:'utf8'});
+  assert.match(text,/\[U\+F011\]/);assert.match(text,/\[U\+E06C\]/);
+  assert.match(text,/Dato confirmado: 0/);assert.match(text,/estadísticas/);
+  assert.match(text,/Nota de transcripción/);assert.equal(JSON.stringify(blocks),before);
+ }finally{rmSync(dir,{recursive:true,force:true});}
+});
 test('social heading and introduction stay with the first network when the section reaches a page boundary', {skip: !hasPdfText}, () => {
   const blocks: ReportPdfBlock[] = [{kind:'title',text:'Prueba de Redes'}];
   for(let i=0;i<28;i++) blocks.push({kind:'small',text:`Línea previa de prueba ${i+1}.`});
